@@ -19,7 +19,9 @@
 -- email: reusing one address makes each new resume overwrite the last person.
 --
 -- Jobs: 4 open, 3 draft, 3 closed. Applications cover every stage:
---   applied, shortlisted, interviewing, offer, hired, rejected, declined.
+--   applied, interviewing, offer, hired, rejected, declined. 'shortlisted' is
+--   deliberately absent: it is a personal bookmark (candidate_shortlists), not a
+--   step every candidate passes through.
 -- ============================================================================
 
 do $seed$
@@ -175,15 +177,15 @@ begin
   ('cheekeong.rashid13@example.com', 'Sales Executive', 'applied', 'Career Page', 'strong', null, 63, 1),
   ('zarina.rahman14@example.com', 'Senior Financial Analyst', 'applied', 'Facebook', 'strong', null, 86, 3),
   ('kumar.menon15@example.com', 'Digital Marketing Specialist', 'applied', 'LinkedIn', 'strong', null, null, 19),
-  ('amirah.raj16@example.com', 'Mechanical Engineer', 'shortlisted', 'Referral', 'strong', null, 67, 12),
-  ('jason.singh17@example.com', 'Registered Nurse (ICU)', 'shortlisted', 'Referral', 'other', 'Background is in teaching rather than registered nurse (icu), and the listed requirements around Critical Care and Ventilator Management are not evidenced.', null, 2),
-  ('suhaila.shah18@example.com', 'Customer Success Manager', 'shortlisted', 'Facebook', 'strong', null, null, 4),
-  ('ravi.goh19@example.com', 'Data Engineer', 'shortlisted', 'WhatsApp', 'strong', null, 90, 1),
-  ('lim.wong20@example.com', 'Sales Executive', 'shortlisted', 'Facebook', 'strong', null, 92, 19),
-  ('noraini.nair21@example.com', 'Senior Financial Analyst', 'shortlisted', 'Career Page', 'strong', null, null, 30),
-  ('vikram.aziz22@example.com', 'Digital Marketing Specialist', 'shortlisted', 'Referral', 'strong', null, 71, 23),
-  ('adlina.kamal23@example.com', 'Mechanical Engineer', 'shortlisted', 'Facebook', 'other', 'Background is in teaching rather than mechanical engineer, and the listed requirements around SolidWorks and AutoCAD are not evidenced.', null, 24),
-  ('tan.osman24@example.com', 'Registered Nurse (ICU)', 'shortlisted', 'Referral', 'strong', null, null, 23),
+  ('amirah.raj16@example.com', 'Mechanical Engineer', 'applied', 'Referral', 'strong', null, 67, 12),
+  ('jason.singh17@example.com', 'Registered Nurse (ICU)', 'applied', 'Referral', 'other', 'Background is in teaching rather than registered nurse (icu), and the listed requirements around Critical Care and Ventilator Management are not evidenced.', null, 2),
+  ('suhaila.shah18@example.com', 'Customer Success Manager', 'applied', 'Facebook', 'strong', null, null, 4),
+  ('ravi.goh19@example.com', 'Data Engineer', 'applied', 'WhatsApp', 'strong', null, 90, 1),
+  ('lim.wong20@example.com', 'Sales Executive', 'applied', 'Facebook', 'strong', null, 92, 19),
+  ('noraini.nair21@example.com', 'Senior Financial Analyst', 'applied', 'Career Page', 'strong', null, null, 30),
+  ('vikram.aziz22@example.com', 'Digital Marketing Specialist', 'applied', 'Referral', 'strong', null, 71, 23),
+  ('adlina.kamal23@example.com', 'Mechanical Engineer', 'applied', 'Facebook', 'other', 'Background is in teaching rather than mechanical engineer, and the listed requirements around SolidWorks and AutoCAD are not evidenced.', null, 24),
+  ('tan.osman24@example.com', 'Registered Nurse (ICU)', 'applied', 'Referral', 'strong', null, null, 23),
   ('hafiz.fernandez25@example.com', 'Customer Success Manager', 'interviewing', 'Facebook', 'strong', null, 91, 29),
   ('divya.latif26@example.com', 'Data Engineer', 'interviewing', 'JobStreet', 'strong', null, 62, 13),
   ('yusof.malek27@example.com', 'Sales Executive', 'interviewing', 'WhatsApp', 'strong', null, null, 6),

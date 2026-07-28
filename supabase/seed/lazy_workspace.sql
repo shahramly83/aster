@@ -9,7 +9,7 @@
 -- touched.
 --
 -- Coverage: 8 jobs (open / closed / draft) x 20 candidates, with applications
--- across EVERY pipeline stage: applied, shortlisted, interviewing, offer,
+-- across every pipeline stage the product uses: applied, interviewing, offer,
 -- hired, declined, rejected. Fit is set so the Strong / Other tabs are
 -- meaningful, and a few roles carry interviews + scorecards.
 
@@ -26,7 +26,7 @@ declare
   owner_name text; owner_email text;
   panel_id uuid;      -- a real panel member (not the poll creator) to cast votes
   panel_n  int := 0;  -- how many interviewers got assigned to each role
-  p1 uuid; p2 uuid; s1 uuid; s2 uuid; s3 uuid; s4 uuid; s5 uuid;
+  p1 uuid; p2 uuid; p3 uuid; s1 uuid; s2 uuid; s3 uuid; s4 uuid; s5 uuid; s6 uuid; s7 uuid;
   a1 uuid; a2 uuid; a3 uuid; a4 uuid; a5 uuid; a6 uuid; a7 uuid; a8 uuid; a9 uuid; a10 uuid;
   a11 uuid; a12 uuid; a13 uuid; a14 uuid; a15 uuid; a16 uuid; a17 uuid; a18 uuid; a19 uuid; a20 uuid;
 begin
@@ -303,41 +303,50 @@ loop
   ) returning id into a20;
 
   -- ---------- applications (candidate -> job, with stage + AI match) ----------
-  -- Covers EVERY stage: applied, shortlisted, interviewing, offer, hired,
-  -- declined (candidate said no), rejected (we said no).
+  -- Covers every stage the product actually uses: applied, interviewing, offer,
+  -- hired, declined (candidate said no), rejected (we said no). 'shortlisted' is
+  -- deliberately absent: it is a personal bookmark (candidate_shortlists), not a
+  -- step every candidate passes through, and seeding it made this workspace show
+  -- a 5-step tracker that no other workspace has.
+  -- Anyone with an interview invite out (status 'sent' or 'reschedule') or an open
+  -- panel poll is seeded at 'interviewing', because that is the only way the state
+  -- can exist: the hiring manager moves the candidate to Interview, which unlocks
+  -- the Interview tab, and only then can times be proposed. Seeding them at
+  -- 'applied' produced a candidate who was visibly "awaiting a time" on the
+  -- Interviews screen while their profile still read Applied.
   -- match_reasons is a jsonb column, so each rationale is wrapped as a JSON string.
   insert into public.applications (company_id, candidate_id, job_id, stage, match_score, match_reasons, source, fit) values
   -- Senior Frontend Engineer (j1)
   (co.id,a1,j1,'interviewing',94,to_jsonb('Strong design-system ownership and 6 years of production React with TypeScript match the core requirements.'::text),'LinkedIn','strong'),
-  (co.id,a3,j1,'shortlisted',88,to_jsonb('Excellent React and TypeScript depth; creative UI background fits the design-system focus.'::text),'Career Page','strong'),
+  (co.id,a3,j1,'interviewing',88,to_jsonb('Excellent React and TypeScript depth; creative UI background fits the design-system focus.'::text),'Career Page','strong'),
   (co.id,a4,j1,'applied',82,to_jsonb('Full-stack with a frontend lean; solid TypeScript, slightly less design-system experience.'::text),'Referral','strong'),
   (co.id,a5,j1,'applied',76,to_jsonb('Good React fundamentals and accessibility focus; earlier in career than the seniority target.'::text),'Career Page','strong'),
   (co.id,a15,j1,'rejected',68,to_jsonb('Solid React and testing, but no design-system ownership at the scale this role needs.'::text),'JobStreet','other'),
   (co.id,a2,j1,'rejected',52,to_jsonb('Primarily Vue and WordPress; limited production React with TypeScript.'::text),'Career Page','other'),
   -- WordPress Developer (j2)
-  (co.id,a2,j2,'shortlisted',85,to_jsonb('Hands-on WordPress, PHP and WooCommerce match the role well.'::text),'JobStreet','strong'),
+  (co.id,a2,j2,'applied',85,to_jsonb('Hands-on WordPress, PHP and WooCommerce match the role well.'::text),'JobStreet','strong'),
   (co.id,a6,j2,'offer',90,to_jsonb('Six years of WordPress and deep WooCommerce experience; strong fit.'::text),'Indeed','strong'),
   (co.id,a17,j2,'interviewing',80,to_jsonb('Agency WordPress delivery experience with Elementor and PHP.'::text),'Career Page','strong'),
   -- Product Designer (j3)
   (co.id,a7,j3,'interviewing',91,to_jsonb('Five years of research-led product design with strong Figma and systems work.'::text),'LinkedIn','strong'),
-  (co.id,a1,j3,'shortlisted',79,to_jsonb('Design-system and Figma experience transfer well to product design.'::text),'Career Page','strong'),
-  (co.id,a16,j3,'applied',84,to_jsonb('Strong visual craft and prototyping; slightly lighter on research practice.'::text),'Career Page','strong'),
+  (co.id,a1,j3,'applied',79,to_jsonb('Design-system and Figma experience transfer well to product design.'::text),'Career Page','strong'),
+  (co.id,a16,j3,'interviewing',84,to_jsonb('Strong visual craft and prototyping; slightly lighter on research practice.'::text),'Career Page','strong'),
   -- Talent Acquisition Specialist (j4, closed)
   (co.id,a8,j4,'hired',87,to_jsonb('Proven tech recruiting with measurable time-to-hire improvements.'::text),'Referral','strong'),
   -- Backend Engineer (j5)
   (co.id,a9,j5,'offer',93,to_jsonb('Seven years of Node.js with deep PostgreSQL performance work; matches the seniority target.'::text),'LinkedIn','strong'),
   (co.id,a11,j5,'interviewing',81,to_jsonb('Solid Node.js and container experience; less PostgreSQL depth than preferred.'::text),'Career Page','strong'),
-  (co.id,a4,j5,'shortlisted',78,to_jsonb('Full-stack background covers Node.js and PostgreSQL, though frontend-leaning.'::text),'Referral','strong'),
+  (co.id,a4,j5,'interviewing',78,to_jsonb('Full-stack background covers Node.js and PostgreSQL, though frontend-leaning.'::text),'Referral','strong'),
   (co.id,a13,j5,'declined',72,to_jsonb('Capable engineer but mobile-focused; withdrew to pursue a mobile role.'::text),'LinkedIn','other'),
   -- QA Engineer (j6)
   (co.id,a10,j6,'hired',92,to_jsonb('Strong Playwright automation plus release sign-off ownership; exactly the profile.'::text),'JobStreet','strong'),
   (co.id,a19,j6,'declined',88,to_jsonb('QA lead with excellent strategy depth; declined over seniority and scope.'::text),'LinkedIn','strong'),
-  (co.id,a12,j6,'shortlisted',74,to_jsonb('Strong manual coverage, automation still developing.'::text),'Career Page','strong'),
+  (co.id,a12,j6,'interviewing',74,to_jsonb('Strong manual coverage, automation still developing.'::text),'Career Page','strong'),
   -- Digital Marketing Executive (j7)
   (co.id,a14,j7,'interviewing',86,to_jsonb('Hands-on Google and Meta Ads with SEO content experience at the right level.'::text),'Career Page','strong'),
   (co.id,a18,j7,'applied',70,to_jsonb('Strong growth marketer, but well above the junior scope of this role.'::text),'LinkedIn','other'),
   -- Mobile Engineer (j8, draft) — talent pool interest ahead of publishing
-  (co.id,a13,j8,'shortlisted',95,to_jsonb('Five years React Native with shipped App Store and Play Store releases.'::text),'Referral','strong'),
+  (co.id,a13,j8,'applied',95,to_jsonb('Five years React Native with shipped App Store and Play Store releases.'::text),'Referral','strong'),
   (co.id,a20,j8,'applied',89,to_jsonb('React Native plus native Android depth; strong release experience.'::text),'LinkedIn','strong');
 
   -- ---------- interviews ----------
@@ -432,6 +441,29 @@ loop
   insert into public.interview_polls (company_id, candidate_id, job_id, created_by, status, chosen_slot, created_at, closed_at)
   values (co.id, a1, j1, owner_id, 'closed', now() + interval '1 day 4 hours', now() - interval '6 days', now() - interval '4 days')
   returning id into p2;
+
+  -- Round-2 poll from Aisha Latif's own suggested dates. decline-booking creates
+  -- exactly this when a candidate can't make the offered times (0116): it closes
+  -- the round-1 panel poll and opens a new one flagged proposed_by = 'candidate',
+  -- seeded with the dates the candidate proposed, so the panel votes on THEIR
+  -- times. Without it the seed showed the reschedule with nowhere for the panel
+  -- to vote. The slots match the interview's proposed_slots above exactly.
+  insert into public.interview_polls (company_id, candidate_id, job_id, created_by, status, proposed_by, created_at)
+  values (co.id, a12, j6, owner_id, 'open', 'candidate', now() - interval '1 day 8 hours')
+  returning id into p3;
+
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p3, co.id, now() + interval '9 days 3 hours', now() + interval '9 days 4 hours') returning id into s6;
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p3, co.id, now() + interval '10 days 2 hours', now() + interval '10 days 3 hours') returning id into s7;
+
+  -- One panel member has already voted on the candidate's first suggestion, so the
+  -- card shows real progress rather than an empty poll.
+  if panel_id is not null then
+    insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name)
+    select p3, s6, co.id, panel_id, coalesce(pr.full_name, 'Interviewer') from public.profiles pr where pr.id = panel_id
+    on conflict (slot_id, profile_id) do nothing;
+  end if;
 
   insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
   (p2, co.id, now() + interval '1 day 4 hours', now() + interval '1 day 5 hours') returning id into s4;
