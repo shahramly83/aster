@@ -431,12 +431,21 @@ loop
    where company_id = co.id and status = 'scheduled' and scheduled_at < now();
 
   -- ---------- scorecards ----------
+  -- Every criterion is rated 1..4 (SCORE_CRITERIA in shared/scorecard.js). Some
+  -- rows here used to carry 5s, which averaged above the maximum and rendered as
+  -- "4.5 out of 4" on the panel feedback card.
+  --
+  -- Farah Adya (a8/j4) had a past interview and a signed offer but no scorecard,
+  -- so the workspace contained a hire nobody had scored. The decision gate needs
+  -- the panel to score first, which means that state cannot be reached through
+  -- the app: every candidate with a past interview now has a card.
   insert into public.scorecards (company_id, candidate_id, job_id, interviewer_id, ratings, notes) values
   (co.id,a1,j1,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',3,'experience',4),'Strong systems thinking. Clear communicator. Would move to offer.'),
   (co.id,a6,j2,owner_id, jsonb_build_object('technical',4,'communication',3,'cultureFit',4,'experience',4),'Deep WooCommerce knowledge, pragmatic. Recommend hire.'),
-  (co.id,a9,j5,owner_id, jsonb_build_object('technical',5,'communication',4,'cultureFit',4,'experience',5),'Excellent depth on query tuning and API design. Strong offer candidate.'),
-  (co.id,a10,j6,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',5,'experience',4),'Great automation instincts and ownership. Hired.'),
-  (co.id,a7,j3,owner_id, jsonb_build_object('technical',4,'communication',5,'cultureFit',4,'experience',4),'Research-led and articulate. Portfolio backs up the claims.');
+  (co.id,a8,j4,owner_id, jsonb_build_object('technical',3,'communication',4,'cultureFit',4,'experience',4),'Strong sourcing instincts and clear process thinking. Easy yes for the role.'),
+  (co.id,a9,j5,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',4,'experience',4),'Excellent depth on query tuning and API design. Strong offer candidate.'),
+  (co.id,a10,j6,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',4,'experience',4),'Great automation instincts and ownership. Hired.'),
+  (co.id,a7,j3,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',4,'experience',3),'Research-led and articulate. Portfolio backs up the claims.');
 
   -- ---------- interview polls (panel "which time works?" requests) ----------
   -- One OPEN poll still collecting votes, and one CLOSED poll that landed on a
