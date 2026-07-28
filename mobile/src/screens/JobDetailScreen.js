@@ -122,6 +122,8 @@ export default function JobDetailScreen({ route, navigation }) {
   }, [strongRows]);
   const total = loaded ? strongRows.length : null;
   const hired = loaded ? rows.filter((r) => r.stage === "hired").length : null;
+  // Interviewing + offer: candidates the role is actively working, not a queue of
+  // things to review. Labelled "In progress" for that reason.
   const toReview = loaded ? (counts.interviewing || 0) + (counts.offer || 0) : null;
 
   // Star = add/remove a personal bookmark, nothing else. It used to move the
@@ -253,7 +255,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
         <View style={styles.heroFoot}>
           <HeroStat label="Hired" value={loaded ? hired : "—"} />
-          <HeroStat label="To review" value={loaded ? toReview : "—"} />
+          <HeroStat label="In progress" value={loaded ? toReview : "—"} />
           <HeroStat label="Posted" value={job?.postedAt ? relTime(job.postedAt) : "—"} small />
         </View>
       </LinearGradient>

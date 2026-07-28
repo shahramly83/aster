@@ -112,7 +112,11 @@ function RoleCard({ job, onPress }) {
   const pipe = job.pipelineCounts || job.counts;
   const total = job.applicantCount || 0;
   const hired = job.counts.hired || 0;
-  const toReview = (pipe.interviewing || 0) + (pipe.offer || 0);
+  // "N to review" named neither what needed doing nor who: it was the interviewing
+  // and offer stages added together, and neither is waiting on a review. Just show
+  // the interview count, which is the one stage worth surfacing on the card.
+  const interviewing = pipe.interviewing || 0;
+  const activity = interviewing ? `${interviewing} interview${interviewing === 1 ? "" : "s"}` : "";
   const shortlisted = pipe.shortlisted || 0;
   // The bar still draws the whole funnel, hires included, so the green segment
   // doesn't disappear just because hires sit outside the in-running count.
@@ -164,10 +168,10 @@ function RoleCard({ job, onPress }) {
 
         {/* bottom action bar */}
         <View style={styles.actionRow}>
-          {toReview > 0 ? (
+          {activity ? (
             <View style={styles.reviewChip}>
-              <Feather name="clock" size={12} color={theme.white} />
-              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 5 }]}>{toReview} to review</Text>
+              <Feather name="users" size={12} color={theme.white} />
+              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 5 }]} numberOfLines={1}>{activity}</Text>
             </View>
           ) : <View />}
           <View style={styles.viewBtn}>
