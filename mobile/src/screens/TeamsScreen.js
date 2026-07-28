@@ -48,9 +48,6 @@ function apInitials(s) {
 const ap = StyleSheet.create({
   okPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   okTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 11 },
-  mRemove: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", marginLeft: 6 },
-  pendingPill: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
-  pendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 11 },
   x: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
 });
@@ -291,21 +288,22 @@ export default function TeamsScreen({ navigation }) {
                     <View style={[styles.avatarRing, { borderColor: m.ring }]}><Avatar name={item.name} size={44} /></View>
                     <View style={[styles.statusDot, { backgroundColor: item.pending ? "#F59E0B" : "#22C55E" }]} />
                   </View>
-                  <View style={{ flex: 1, marginLeft: 13, minWidth: 0 }}>
+                  {/* Identity on top, meta in a footer strip below a divider. The
+                      role tag, the invite status and the remove button used to
+                      compete for the same corner, which is why they read as
+                      cramped no matter how the gaps were tuned: three things
+                      wanted the right edge and only one can have it. */}
+                  <View style={{ flex: 1, marginLeft: 16, minWidth: 0 }}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{item.name}</Text>
+                      <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>
+                        {item.pending ? String(item.email || "").split("@")[0] : item.name}
+                      </Text>
                       {you ? <View style={styles.youPill}><Text style={styles.youTxt}>You</Text></View> : null}
-                      <View style={{ flex: 1, minWidth: 8 }} />
-                      <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
-                        <Feather name={m.icon} size={11} color={m.color} />
-                        <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
-                      </View>
                     </View>
-                    {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 3 }]} numberOfLines={1}>{item.email}</Text> : null}
+                    {item.email ? (
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{item.email}</Text>
+                    ) : null}
                   </View>
-                  {/* Sits in the outer row so it centres against the whole card.
-                      Nested in the name line it hung off the top, above the email,
-                      and it referenced a style that was never defined. */}
                   {removable ? (
                     <Pressable
                       onPress={() => setConfirmRemove(item)}
@@ -317,6 +315,23 @@ export default function TeamsScreen({ navigation }) {
                       <Feather name="x" size={16} color={theme.ink4} />
                     </Pressable>
                   ) : null}
+                </View>
+
+                {/* Footer: role on the left, standing on the right, with a hairline
+                    between them and the person above. Each element finally has a
+                    side of the card to itself. */}
+                <View style={styles.mFoot}>
+                  <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
+                    <Feather name={m.icon} size={11} color={m.color} />
+                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }} />
+                  <View style={[styles.standChip, { backgroundColor: item.pending ? "#FEF3C7" : theme.line2 }]}>
+                    <View style={[styles.standDot, { backgroundColor: item.pending ? "#F59E0B" : "#22C55E" }]} />
+                    <Text style={[styles.standTxt, { color: item.pending ? "#B45309" : theme.ink2 }]}>
+                      {item.pending ? "Invite sent" : "Active"}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </Rise>
@@ -489,6 +504,19 @@ const styles = StyleSheet.create({
   statusDot: { position: "absolute", bottom: 1, right: 1, width: 15, height: 15, borderRadius: 8, borderWidth: 3, borderColor: theme.card },
   avatarRing: { borderWidth: 2, borderRadius: 27, padding: 2 },
   youPill: { backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  // These belong to the member card, which reads `styles`. They were added to the
+  // `ap` object above (the approver rows) by mistake, so every one of them
+  // resolved to undefined: the footer fell back to a column, the role tag
+  // stretched full width, and the remove button lost its shape.
+  mRemove: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", marginLeft: 12, backgroundColor: theme.line2 },
+  mFoot: {
+    flexDirection: "row", alignItems: "center",
+    marginTop: space(4), paddingTop: space(3.5),
+    borderTopWidth: 1, borderTopColor: theme.line,
+  },
+  standChip: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  standDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  standTxt: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
   youTxt: { fontFamily: "Inter_700Bold", fontSize: 10, color: theme.brand },
   roleTag: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
   pending: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.warn, marginTop: 5 },

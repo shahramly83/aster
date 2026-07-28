@@ -82,43 +82,41 @@ export default function ProfileScreen({ navigation }) {
 
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} showsVerticalScrollIndicator={false}>
-          {/* Preferences */}
-          <Text style={styles.sectionLabel}>PREFERENCES</Text>
-          <View style={styles.group}>
-            <Row
-              icon="shield" tint={theme.brand}
-              title="Biometric unlock"
-              subtitle={bioAvailable ? "Require Face ID / fingerprint on open" : "No biometrics enrolled on this device"}
-              right={<Switch value={bioOn} onValueChange={toggleBio} disabled={!bioAvailable} trackColor={{ true: theme.brand, false: theme.line }} thumbColor="#fff" />}
-            />
-            <Row
-              icon="bell" tint="#7C3AED"
-              title="Notifications"
-              subtitle={pushOn ? "Push for interviews, panels and reminders on this device." : "Push is off on this device. You'll still see the bell."}
-              right={<Switch value={pushOn} onValueChange={togglePush} trackColor={{ true: theme.brand, false: theme.line }} thumbColor="#fff" />}
-              last
-            />
-          </View>
-
           {/* Workspace */}
           <Text style={styles.sectionLabel}>WORKSPACE</Text>
           <View style={styles.group}>
             <Row
               icon="home" tint={theme.success}
               title={profile?.company || "Your workspace"}
-              subtitle={manager ? "Full pipeline access" : "Interview panel access"}
               last={!manager}
             />
             {manager ? (
               <Row
                 icon="edit-3" tint="#7C3AED"
                 title="Offer signature"
-                subtitle={`Signs off offers you compose · ${sigSummary}`}
+                  subtitle={sigSummary}
                 right={<Feather name="chevron-right" size={18} color={theme.ink4} />}
                 onPress={() => setSigOpen(true)}
                 last
               />
             ) : null}
+          </View>
+
+          {/* Preferences */}
+          <Text style={styles.sectionLabel}>PREFERENCES</Text>
+          <View style={styles.group}>
+            <Row
+              icon="shield" tint={theme.brand}
+              title="Biometric unlock"
+              subtitle={bioAvailable ? undefined : "No biometrics enrolled on this device"}
+              right={<Switch value={bioOn} onValueChange={toggleBio} disabled={!bioAvailable} trackColor={{ true: theme.brand, false: theme.line }} thumbColor="#fff" />}
+            />
+            <Row
+              icon="bell" tint="#7C3AED"
+              title="Notifications"
+              right={<Switch value={pushOn} onValueChange={togglePush} trackColor={{ true: theme.brand, false: theme.line }} thumbColor="#fff" />}
+              last
+            />
           </View>
 
           {/* Sign out (destructive) */}

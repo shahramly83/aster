@@ -1638,8 +1638,17 @@ const styles = StyleSheet.create({
   exploreIcon: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   whyIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   whyScore: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
-  whyBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
-  whySheet: { backgroundColor: theme.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: space(5), paddingTop: space(3) },
+  // No dark scrim. The sheet is short and sits over a screen you keep reading, so
+  // dimming the whole profile to explain one line was heavier than the content
+  // deserved. Tapping above it still closes it, and the sheet carries a deeper
+  // shadow so it still reads as lifted off the page rather than pasted on.
+  whyBackdrop: { flex: 1, backgroundColor: "transparent", justifyContent: "flex-end" },
+  whySheet: {
+    backgroundColor: theme.card, borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    paddingHorizontal: space(5), paddingTop: space(3),
+    shadowColor: "#0A0E28", shadowOpacity: 0.18, shadowRadius: 24,
+    shadowOffset: { width: 0, height: -6 }, elevation: 24,
+  },
   whyHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: theme.line, marginBottom: space(4) },
   whySheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   offerBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
