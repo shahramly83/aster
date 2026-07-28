@@ -9,7 +9,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer, loadMyShortlist, setShortlisted } from "../lib/data";
+import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer, stageInviteJob, loadMyShortlist, setShortlisted } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, StagePill, EmptyState, Feather } from "../components/ui";
 import { useDialog } from "../components/Dialog";
@@ -21,12 +21,16 @@ const PIPE = ["applied", "shortlisted", "interviewing", "offer", "hired"];
 // Quick source tags for the apply link (same presets as the web link modal).
 const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
 
+// "Rejected" reaches candidates the working list deliberately leaves out, so a
+// decision stays reviewable instead of the person vanishing from the role.
+// No "Shortlisted" pill: that is a personal bookmark (candidate_shortlists), not
+// a stage, and the star already surfaces it.
 const FILTERS = [
   { key: "all", label: "All" },
   { key: "applied", label: "Applied" },
-  { key: "shortlisted", label: "Shortlisted" },
   { key: "interviewing", label: "Interview" },
   { key: "offer", label: "Offer" },
+  { key: "rejected", label: "Rejected" },
 ];
 
 export default function JobDetailScreen({ route, navigation }) {
@@ -144,9 +148,18 @@ export default function JobDetailScreen({ route, navigation }) {
     }
   };
 
+  // Everyone who is out of the running for this role, whichever side ended it: we
+  // said no ('rejected') or they did ('declined'). Both are excluded from
+  // strongRows, so this reads the raw rows or the pill would always show zero.
+  const rejectedRows = useMemo(
+    () => (rows || []).filter((r) => r.stage === "rejected" || r.stage === "declined"),
+    [rows]
+  );
   const filtered = useMemo(
-    () => strongRows.filter((r) => filter === "all" || r.stage === filter),
-    [strongRows, filter]
+    () => (filter === "rejected"
+      ? rejectedRows
+      : strongRows.filter((r) => filter === "all" || r.stage === filter)),
+    [strongRows, rejectedRows, filter]
   );
 
   // ---- AI Rank gating (mirrors web) ----
@@ -212,9 +225,13 @@ export default function JobDetailScreen({ route, navigation }) {
     const next = !m.assigned;
     // Optimistic flip.
     setInterviewers((prev) => prev.map((x) => (x.id === m.id ? { ...x, assigned: next } : x)));
-    const err = next
-      ? await assignInterviewer(jobId, m.id)
-      : await unassignInterviewer(jobId, m.id);
+    // Someone who hasn't accepted their invite has no profile to assign, so the
+    // seat is staged on the invitation and applied when they sign up (0138).
+    const err = m.inviteId
+      ? await stageInviteJob(m.inviteId, jobId, next)
+      : next
+        ? await assignInterviewer(jobId, m.id)
+        : await unassignInterviewer(jobId, m.id);
     if (err) {
       setInterviewers((prev) => prev.map((x) => (x.id === m.id ? { ...x, assigned: !next } : x)));
       dialog.alert({ title: "Couldn't update interviewers", message: err, icon: "alert-triangle", variant: "danger" });
@@ -298,7 +315,9 @@ export default function JobDetailScreen({ route, navigation }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
           {FILTERS.map((f) => {
             const active = filter === f.key;
-            const count = f.key === "all" ? strongRows.length : strongRows.filter((r) => r.stage === f.key).length;
+            const count = f.key === "all" ? strongRows.length
+              : f.key === "rejected" ? rejectedRows.length
+              : strongRows.filter((r) => r.stage === f.key).length;
             return (
               <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.chip, active && styles.chipActive]}>
                 <Text style={[type.smallStrong, { color: active ? theme.white : theme.ink2 }]}>{f.label}</Text>
@@ -352,7 +371,13 @@ export default function JobDetailScreen({ route, navigation }) {
               </View>
             ) : (
               <View style={{ marginTop: space(8) }}>
-                <EmptyState icon="users" title="No candidates here" subtitle={filter === "all" ? "Applicants for this role will show here." : "No one in this stage yet."} />
+                <EmptyState
+                  icon="users"
+                  title="No candidates here"
+                  subtitle={filter === "all" ? "Applicants for this role will show here."
+                    : filter === "rejected" ? "Nobody is out of the running for this role."
+                    : "No one in this stage yet."}
+                />
               </View>
             )
           }
@@ -438,8 +463,19 @@ export default function JobDetailScreen({ route, navigation }) {
                   <Pressable key={m.id} onPress={() => toggleInterviewer(m)} disabled={!!savingId} style={styles.pickRow}>
                     <Avatar name={m.name} size={38} />
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{m.name}</Text>
-                      {m.email ? <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>{m.email}</Text> : null}
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{m.name}</Text>
+                        {/* They can still be ticked: the seat is held on the invite
+                            and applied the moment they accept, so you don't have to
+                            remember to come back and add them. */}
+                        {m.pending ? (
+                          <View style={styles.pickPending}><Text style={styles.pickPendingTxt}>INVITE SENT</Text></View>
+                        ) : null}
+                      </View>
+                      {m.email && m.email !== m.name ? <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>{m.email}</Text> : null}
+                      {m.pending && m.assigned ? (
+                        <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>Joins this panel when they accept</Text>
+                      ) : null}
                     </View>
                     {savingId === m.id ? (
                       <ActivityIndicator size="small" color={theme.brand} />
@@ -581,6 +617,8 @@ const styles = StyleSheet.create({
   linkUrlBox: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, height: 46, marginTop: space(3) },
   linkCopyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: theme.brand, borderRadius: radius.md, height: 52, marginTop: space(4), marginBottom: space(2) },
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
+  pickPending: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
+  pickPendingTxt: { fontFamily: "Inter_700Bold", fontSize: 9.5, letterSpacing: 0.5, color: "#92400E" },
   pickRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: theme.line2 },
   pickCheck: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
   pickCheckOn: { backgroundColor: theme.brand, borderColor: theme.brand },

@@ -73,6 +73,27 @@ function timeOnly(iso, tz) {
   if (tz) opts.timeZone = tz;
   return new Intl.DateTimeFormat(undefined, opts).format(new Date(iso));
 }
+// "2h ago" / "4d ago" — how long something has been sitting with the candidate.
+// A blocked card reads the same on day one and day nine without it.
+function elapsed(iso) {
+  if (!iso) return null;
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+// The day half of an offered-time card: "Today" / "Tomorrow" / "Tue 28 Jul". Short
+// weekday, so three cards sit side by side without wrapping.
+function offeredDay(iso, tz) {
+  const k = dayKey(iso, tz);
+  if (k === dayKey(new Date().toISOString(), tz)) return "Today";
+  if (k === dayKey(new Date(Date.now() + 86400000).toISOString(), tz)) return "Tomorrow";
+  const opts = { weekday: "short", day: "numeric", month: "short" };
+  if (tz) opts.timeZone = tz;
+  return new Intl.DateTimeFormat(undefined, opts).format(new Date(iso));
+}
 function dayNum(iso, tz) {
   const opts = { day: "numeric" };
   if (tz) opts.timeZone = tz;
@@ -180,19 +201,17 @@ export default function TodayScreen({ navigation }) {
   // list at the bottom so old ones never bury the real upcoming ones.
   const sorted = [...timelined].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
   const isUpcoming = (i) => minutesUntil(i.scheduledAt) > -75;
-  // Past = the decision is made (offer sent, hired, rejected or declined). An
-  // interview whose time has passed but whose candidate is still pre-decision
-  // (needs a scorecard or the hire call) is unfinished work → Action. Once an
-  // offer is out, the score/decide action is done, so 'offer' belongs in Past.
-  const CLOSED_STAGES = ["offer", "hired", "rejected", "declined"];
-  // An offer-stage candidate stays in Action (not Past) while it still needs
-  // attention. For the HM that's any settled offer — accepted (mark hired),
-  // declined or expired (re-offer/close). For a panel interviewer only a SIGNED
-  // offer stays visible (as an "Offer signed" status they can follow) until the
-  // HM hires or closes; declined/expired are the HM's business → Past. Once the
-  // candidate is hired/rejected the stage is terminal, so it lands in Past.
-  const stillActingOffer = (i) => i.stage === "offer" && (manager ? !!i.offerAction : i.offerAction === "accepted");
-  const isClosed = (i) => CLOSED_STAGES.includes(i.stage) && !stillActingOffer(i);
+  // Past = the outcome is final and nothing more is owed: hired, not selected, or
+  // the candidate walked away. Everything else whose time has passed is still
+  // live work and belongs in Action.
+  //
+  // An offer that is OUT with the candidate used to count as closed and sink into
+  // Past, on the reasoning that the decision had been made. But an unsigned offer
+  // is the most time-critical thing in the pipeline: it expires, it needs
+  // chasing, and burying it under "Past" is how it lapses. Offer-stage cards are
+  // Action until the stage itself turns terminal.
+  const CLOSED_STAGES = ["hired", "rejected", "declined"];
+  const isClosed = (i) => CLOSED_STAGES.includes(i.stage);
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
   const doneTimed = sorted.filter((i) => !isUpcoming(i));
   const past = doneTimed.filter(isClosed).reverse();            // closed → Past
@@ -380,12 +399,15 @@ export default function TodayScreen({ navigation }) {
                     </View>
 
                     {p.slots?.length ? (
-                      <View style={styles.slotWrap}>
-                        {p.slots.slice(0, 3).map((ts) => (
-                          <View key={ts} style={styles.slotChip}>
-                            <Text style={styles.slotChipTxt}>{fmtInterviewTime(ts, tz)}</Text>
-                          </View>
-                        ))}
+                      <View>
+                        <View style={styles.slotWrap}>
+                          {p.slots.slice(0, 3).map((ts) => (
+                            <View key={ts} style={styles.slotChip}>
+                              <Text style={styles.slotDay} numberOfLines={1}>{offeredDay(ts, tz)}</Text>
+                              <Text style={styles.slotTime} numberOfLines={1}>{timeOnly(ts, tz)}</Text>
+                            </View>
+                          ))}
+                        </View>
                         {p.slots.length > 3 ? (
                           <Text style={styles.slotMore}>+{p.slots.length - 3} more</Text>
                         ) : null}
@@ -417,48 +439,73 @@ export default function TodayScreen({ navigation }) {
                   const resch = iv.status === "reschedule";
                   const slots = iv.proposedSlots || [];
                   const first = iv.candidateName?.split(" ")[0] || "They";
+                  // One state, three consistent signals: the rail down the edge,
+                  // the tint on the blocker strip, and the wording. Colour alone
+                  // never carries the meaning.
+                  const st = !manager
+                    ? { rail: theme.ink4, tint: theme.line2, fg: theme.ink2, icon: "clock" }
+                    : resch
+                      ? { rail: "#DC2626", tint: "#FEF2F2", fg: "#B42318", icon: "refresh-cw" }
+                      : { rail: "#F59E0B", tint: "#FEF3C7", fg: "#B45309", icon: "clock" };
+                  const waited = elapsed(iv.sentAt);
+                  const blocker = resch
+                    ? (manager ? `${first} couldn't make those times` : "The hiring manager is arranging new times")
+                    : (manager ? `Waiting for ${first} to pick a time` : `Waiting for ${first} to pick a time`);
                   return (
-                    <View key={iv.id} style={styles.pollCard}>
+                    <View key={iv.id} style={styles.pendCard}>
+                      {/* Status rail: the card's state is readable before a single
+                          word is, and it replaces a badge that competed with the
+                          "NEEDS YOUR ACTION" heading right above it. */}
+                      <View style={[styles.pendRail, { backgroundColor: st.rail }]} />
+
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={44} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Text style={styles.pollName} numberOfLines={2}>{iv.candidateName}</Text>
                           <Text style={styles.pollRole} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
-                        <View style={[styles.actionPill, { backgroundColor: !manager ? theme.line2 : resch ? "#FEF2F2" : "#FEF3C7" }]}>
-                          <Text style={[type.smallStrong, { color: !manager ? theme.ink3 : resch ? "#B42318" : "#92400E" }]}>{!manager ? "In progress" : resch ? "Reschedule" : "Awaiting"}</Text>
+                      </View>
+
+                      {/* The blocker, the person it's on, and how long it has sat
+                          there, as one tinted block instead of three loose parts. */}
+                      <View style={[styles.pendStrip, { backgroundColor: st.tint }]}>
+                        <Feather name={st.icon} size={15} color={st.fg} style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1, marginLeft: 9 }}>
+                          <Text style={[styles.pendBlocker, { color: st.fg }]} numberOfLines={2}>{blocker}</Text>
+                          {waited ? (
+                            <Text style={[styles.pendWaited, { color: st.fg }]} numberOfLines={1}>
+                              {resch ? "Asked" : "Times sent"} {waited}
+                            </Text>
+                          ) : null}
                         </View>
                       </View>
 
-                      {/* Name the blocker. "Awaiting" alone never said awaiting
-                          what, or whose move it is. */}
-                      <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
-                        <Feather name={resch ? "refresh-cw" : "clock"} size={13} color={!manager ? theme.ink3 : resch ? "#B42318" : "#B45309"} style={{ marginTop: 2 }} />
-                        <Text style={[type.small, { color: !manager ? theme.ink2 : resch ? "#B42318" : "#B45309", marginLeft: 7, flex: 1, lineHeight: 18 }]}>
-                          {resch
-                            ? (manager ? `${first} couldn't make the times offered. Propose new ones.` : `The hiring manager is arranging new times.`)
-                            : (manager ? `Waiting for ${first} to pick one of the times you offered.` : `Waiting for ${first} to pick a time.`)}
-                        </Text>
-                      </View>
-
                       {!resch && slots.length ? (
-                        <View style={styles.slotWrap}>
-                          {slots.slice(0, 3).map((s) => (
-                            <View key={s.start} style={styles.slotChip}>
-                              <Text style={styles.slotChipTxt}>{fmtInterviewTime(s.start, tz)}</Text>
-                            </View>
-                          ))}
+                        <View>
+                          <View style={styles.slotWrap}>
+                            {slots.slice(0, 3).map((s) => (
+                              <View key={s.start} style={styles.slotChip}>
+                                <Text style={styles.slotDay} numberOfLines={1}>{offeredDay(s.start, tz)}</Text>
+                                <Text style={styles.slotTime} numberOfLines={1}>{timeOnly(s.start, tz)}</Text>
+                              </View>
+                            ))}
+                          </View>
                           {slots.length > 3 ? <Text style={styles.slotMore}>+{slots.length - 3} more</Text> : null}
                         </View>
                       ) : null}
 
+                      {/* One primary action per card. The old mail icon promised
+                          an email that tapping never sent; this opens the
+                          interview, so it points forward. */}
                       <Press
                         onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })}
                         haptic="medium"
                         style={styles.pollCta}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${resch && manager ? "Propose new times for" : "Open interview with"} ${iv.candidateName}`}
                       >
-                        <Feather name={!manager ? "arrow-right" : resch ? "calendar" : "mail"} size={16} color="#fff" />
                         <Text style={styles.pollCtaTxt}>{!manager ? "View interview" : resch ? "Propose new times" : "Open interview"}</Text>
+                        <Feather name={resch && manager ? "calendar" : "arrow-right"} size={16} color="#fff" />
                       </Press>
                     </View>
                   );
@@ -474,42 +521,56 @@ export default function TodayScreen({ navigation }) {
                 {needsAction.map((iv) => {
                   const first = iv.candidateName?.split(" ")[0] || "They";
                   const oa = iv.offerAction; // 'accepted'|'declined'|'expired' (interviewers only ever see 'accepted' here)
+                  // An offer that is out but unsigned now lands here rather than in
+                  // Past, so it needs its own state: without one it fell through to
+                  // "To score" and told you to collect scorecards for a candidate
+                  // who already has an offer in their hands.
+                  const awaitingSig = iv.stage === "offer" && !oa;
                   const pill = oa === "accepted" ? { label: "Signed", color: "#166534", bg: "#DCFCE7" }
                     : oa === "declined" ? { label: "Declined", color: theme.danger, bg: "#FEF3F2" }
                     : oa === "expired" ? { label: "Expired", color: "#B45309", bg: "#FEF3C7" }
+                    : awaitingSig ? { label: "Offer sent", color: theme.brand, bg: theme.brandSoft }
                     : { label: "To score", color: theme.brand, bg: theme.brandSoft };
-                  const icon = oa === "accepted" ? "award" : oa === "declined" ? "rotate-ccw" : oa === "expired" ? "clock" : "edit-3";
+                  const icon = oa === "accepted" ? "award" : oa === "declined" ? "rotate-ccw" : oa === "expired" ? "clock" : awaitingSig ? "send" : "edit-3";
                   const msg = oa === "accepted" ? (manager
                         ? `${first} signed the offer. Mark them as hired to close it out.`
                         : `${first} signed the offer — the hiring manager will finalise the hire.`)
                     : oa === "declined" ? `${first} declined the offer. Re-send a new one, or close them out.`
                     : oa === "expired" ? `The offer to ${first} lapsed without a signature. Re-send it or close them out.`
+                    : awaitingSig ? `The offer is with ${first}, waiting to be signed.`
                     : manager ? `Interview done. Collect the panel's scorecards, then make the call on ${first}.`
                     : `Interview done. Add your scorecard for ${first} so the hiring manager can decide.`;
-                  const ctaLabel = oa === "accepted" ? (manager ? "Open offer" : "View candidate") : oa ? "Open offer" : "Open interview";
+                  const ctaLabel = oa === "accepted" ? (manager ? "Open offer" : "View candidate") : (oa || awaitingSig) ? "Open offer" : "Open interview";
                   return (
-                    <View key={iv.id} style={styles.pollCard}>
+                    /* Same shape as the blocked-interview card above: status rail,
+                       then a tinted strip naming the state and what it needs.
+                       Two cards in one tab that meant "something is owed" used to
+                       look like two different components. */
+                    <View key={iv.id} style={styles.pendCard}>
+                      <View style={[styles.pendRail, { backgroundColor: pill.color }]} />
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={44} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Text style={styles.pollName} numberOfLines={2}>{iv.candidateName}</Text>
                           <Text style={styles.pollRole} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
-                        <View style={[styles.actionPill, { backgroundColor: pill.bg }]}>
-                          <Text style={[type.smallStrong, { color: pill.color }]}>{pill.label}</Text>
-                        </View>
                       </View>
-                      <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
-                        <Feather name={icon} size={13} color={pill.color} style={{ marginTop: 2 }} />
-                        <Text style={[type.small, { color: theme.ink2, marginLeft: 7, flex: 1, lineHeight: 18 }]}>{msg}</Text>
+                      <View style={[styles.pendStrip, { backgroundColor: pill.bg }]}>
+                        <Feather name={icon} size={15} color={pill.color} style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1, marginLeft: 9 }}>
+                          <Text style={[styles.pendBlocker, { color: pill.color }]} numberOfLines={1}>{pill.label}</Text>
+                          <Text style={[styles.pendWaited, { color: theme.ink2 }]}>{msg}</Text>
+                        </View>
                       </View>
                       <Press
                         onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })}
                         haptic="medium"
                         style={styles.pollCta}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${ctaLabel} for ${iv.candidateName}`}
                       >
-                        <Feather name="arrow-right" size={16} color="#fff" />
                         <Text style={styles.pollCtaTxt}>{ctaLabel}</Text>
+                        <Feather name="arrow-right" size={16} color="#fff" />
                       </Press>
                     </View>
                   );
@@ -566,12 +627,16 @@ export default function TodayScreen({ navigation }) {
           tab === "past" && past.length ? (
             <Rise style={{ marginTop: space(1) }}>
               <Text style={styles.section}>PAST</Text>
-              <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
+              {/* Stacked, not a carousel, matching UP NEXT. A slider showed one
+                  past interview at a time and hid the rest behind a swipe, which
+                  is the wrong shape for a list you scan for outstanding
+                  scorecards and decisions. */}
+              <View style={{ gap: space(3) }}>
                 {past.map((iv) => (
                   <PastCardMini key={iv.id} iv={iv} tz={tz}
                     onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
                 ))}
-              </Carousel>
+              </View>
             </Rise>
           ) : null
         }
@@ -688,17 +753,23 @@ function UpcomingRow({ iv, tz, divider, onPress }) {
 
 // What happened to a candidate after the interview — so a panel member sees the
 // outcome (not just "Interview complete") for people they interviewed.
+// Outcome carries a tint and a glyph as well as a colour, so the past card can
+// lead with WHERE THIS LANDED rather than burying it in grey text at the bottom.
+// The last case is the one that matters most: the interview happened and nobody
+// has decided anything, which is a job to do, not a completed state.
 function pastOutcome(iv) {
-  if (iv.stage === "hired") return { label: "Hired", color: "#166534" };
-  if (iv.stage === "rejected") return { label: "Not selected", color: theme.ink3 };
-  if (iv.stage === "declined") return { label: "Candidate declined", color: theme.danger };
+  const GOOD = { color: "#166534", tint: "#DCFCE7", icon: "check" };
+  const BAD = { color: theme.danger, tint: "#FEE2E2", icon: "x" };
+  if (iv.stage === "hired") return { label: "Hired", ...GOOD };
+  if (iv.stage === "rejected") return { label: "Not selected", color: theme.ink3, tint: theme.line2, icon: "minus" };
+  if (iv.stage === "declined") return { label: "Candidate declined", ...BAD };
   if (iv.stage === "offer") {
-    if (iv.offerAction === "accepted") return { label: "Offer signed", color: "#166534" };
-    if (iv.offerAction === "declined") return { label: "Offer declined", color: theme.danger };
-    if (iv.offerAction === "expired") return { label: "Offer expired", color: "#B45309" };
-    return { label: "Offer sent", color: theme.brand };
+    if (iv.offerAction === "accepted") return { label: "Offer signed", ...GOOD };
+    if (iv.offerAction === "declined") return { label: "Offer declined", ...BAD };
+    if (iv.offerAction === "expired") return { label: "Offer expired", color: "#B45309", tint: "#FEF3C7", icon: "alert-triangle" };
+    return { label: "Offer sent", color: theme.brand, tint: theme.brandSoft, icon: "send" };
   }
-  return { label: "Interview complete", color: theme.ink3 };
+  return { label: "Decision pending", color: "#B45309", tint: "#FEF3C7", icon: "clock" };
 }
 
 // Compact past-interview card for the horizontal Past carousel: date top-right,
@@ -706,26 +777,39 @@ function pastOutcome(iv) {
 function PastCardMini({ iv, tz, onPress }) {
   const outcome = pastOutcome(iv);
   return (
-    <Press onPress={onPress} style={styles.pastMini} scaleTo={0.985} haptic="light">
+    <Press
+      onPress={onPress}
+      style={styles.pastMini}
+      scaleTo={0.985}
+      haptic="light"
+      accessibilityRole="button"
+      accessibilityLabel={`${iv.candidateName}, ${iv.jobTitle}, interviewed ${dayNum(iv.scheduledAt, tz)} ${monShort(iv.scheduledAt, tz)}. ${outcome.label}`}
+    >
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {/* Avatar with a quiet green "done" badge: the interview has taken place. */}
-        <View>
-          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={52} />
-          <View style={styles.pastCheck}><Feather name="check" size={11} color="#fff" /></View>
-        </View>
-        <View style={{ flex: 1, marginLeft: 14 }}>
+        {/* The green "done" tick used to sit on every avatar, including the ones
+            that ended in a rejection. The outcome band below says how it ended;
+            the avatar just says who. */}
+        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={48} />
+        <View style={{ flex: 1, marginLeft: 13 }}>
           <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 16 }]} numberOfLines={1}>{iv.candidateName}</Text>
           <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{iv.jobTitle}</Text>
         </View>
-        <View style={{ alignItems: "flex-end", marginLeft: 10 }}>
-          <Text style={[type.small, { color: theme.ink3, fontVariant: ["tabular-nums"] }]}>{dayNum(iv.scheduledAt, tz)} {monShort(iv.scheduledAt, tz)}</Text>
-          <Feather name="chevron-right" size={18} color={theme.ink4} style={{ marginTop: 7 }} />
+        {/* Date as a stamp, not a grey aside: past interviews span days, so when
+            it happened is a primary sorting cue. */}
+        <View style={styles.pastStamp}>
+          <Text style={styles.pastStampDay}>{dayNum(iv.scheduledAt, tz)}</Text>
+          <Text style={styles.pastStampMon}>{monShort(iv.scheduledAt, tz)}</Text>
         </View>
       </View>
-      <View style={styles.pastDivider} />
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <View style={[styles.pastStatusDot, { backgroundColor: outcome.color }]} />
-        <Text style={[type.small, { color: outcome.color, fontFamily: outcome.label === "Interview complete" ? undefined : "Inter_600SemiBold" }]}>{outcome.label}</Text>
+
+      {/* Outcome as a full-width tinted band. It was a 7px dot and grey text under
+          a divider, which is the smallest thing on a card whose entire reason to
+          exist is where the candidate landed. */}
+      <View style={[styles.pastBand, { backgroundColor: outcome.tint }]}>
+        <Feather name={outcome.icon} size={14} color={outcome.color} />
+        <Text style={[styles.pastBandTxt, { color: outcome.color }]} numberOfLines={1}>{outcome.label}</Text>
+        <View style={{ flex: 1 }} />
+        <Feather name="chevron-right" size={17} color={outcome.color} />
       </View>
     </Press>
   );
@@ -792,14 +876,38 @@ const styles = StyleSheet.create({
     shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14,
     shadowOffset: { width: 0, height: 5 }, elevation: 3,
   },
+  // Blocked-interview card: same surface as pollCard, plus a status rail bleeding
+  // to the card's edge. overflow:hidden keeps the rail inside the corner radius,
+  // and the extra left padding stops content sitting on top of it.
+  pendCard: {
+    backgroundColor: theme.card, borderRadius: 26, overflow: "hidden",
+    paddingHorizontal: space(4), paddingVertical: space(4), paddingLeft: space(4) + 6,
+    marginBottom: space(3),
+    shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 }, elevation: 3,
+  },
+  pendRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 6 },
+  pendStrip: {
+    flexDirection: "row", alignItems: "flex-start", borderRadius: radius.sm,
+    paddingHorizontal: 11, paddingVertical: 10, marginTop: space(3.5),
+  },
+  pendBlocker: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, lineHeight: 18 },
+  pendWaited: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, marginTop: 2, opacity: 0.9, fontVariant: ["tabular-nums"] },
   pollName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, lineHeight: 22, letterSpacing: -0.3, color: theme.ink },
   pollRole: { fontFamily: "Inter_400Regular", fontSize: 13, color: theme.ink3, marginTop: 2 },
   // The times being asked about, so the answer is often obvious without opening
   // anything.
-  slotWrap: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7, marginTop: space(3.5) },
-  slotChip: { backgroundColor: theme.bg, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7 },
-  slotChipTxt: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink2 },
-  slotMore: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: theme.ink4 },
+  // Offered times read as a row of small date cards, day over time, sharing the
+  // width evenly. One long "Tue, 28 Jul, 1:15 pm" per chip wrapped 2-then-1 and
+  // left an orphan on its own line.
+  slotWrap: { flexDirection: "row", alignItems: "stretch", gap: 8, marginTop: space(3.5) },
+  slotChip: {
+    flex: 1, backgroundColor: theme.bg, borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line,
+    paddingVertical: 8, paddingHorizontal: 6, alignItems: "center",
+  },
+  slotDay: { fontFamily: "Inter_500Medium", fontSize: 11, color: theme.ink4, letterSpacing: 0.2 },
+  slotTime: { fontFamily: "Inter_700Bold", fontSize: 13.5, color: theme.ink, marginTop: 2 },
+  slotMore: { fontFamily: "Inter_500Medium", fontSize: 12, color: theme.ink4, marginTop: space(2), marginLeft: 2 },
   // Full width, so the action is unmissable and thumb-reachable rather than a
   // small pill wedged at the end of a row.
   pollCta: {
@@ -916,9 +1024,22 @@ const styles = StyleSheet.create({
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
   // Past interview: quiet, flat card with a mini date rail on the left.
   pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), borderWidth: 1, borderColor: theme.line },
-  pastCheck: { position: "absolute", right: -2, bottom: -2, width: 19, height: 19, borderRadius: 10, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", borderWidth: 2.5, borderColor: theme.card },
-  pastDivider: { height: 1, backgroundColor: theme.line, marginVertical: space(3) },
-  pastStatusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.success, marginRight: 9 },
+  // Date stamp: past interviews span days, so when it happened is a primary cue
+  // rather than a grey aside next to the chevron.
+  pastStamp: {
+    width: 46, alignItems: "center", justifyContent: "center", marginLeft: 10,
+    backgroundColor: theme.bg, borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line,
+    paddingVertical: 6,
+  },
+  pastStampDay: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, lineHeight: 20, color: theme.ink2, fontVariant: ["tabular-nums"] },
+  pastStampMon: { fontFamily: "Inter_600SemiBold", fontSize: 9.5, letterSpacing: 0.6, color: theme.ink4 },
+  // Outcome band: the card exists to say where this landed, so that answer gets
+  // the full width and its own colour rather than a 7px dot under a divider.
+  pastBand: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderRadius: radius.sm, paddingHorizontal: 11, minHeight: 40, marginTop: space(3.5),
+  },
+  pastBandTxt: { fontFamily: "Inter_700Bold", fontSize: 13.5 },
   past: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.md, paddingVertical: space(2.5), paddingHorizontal: space(3), borderWidth: 1, borderColor: theme.line },
   pastDate: { width: 34, alignItems: "center" },
   pastDay: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, color: theme.ink2, lineHeight: 20 },

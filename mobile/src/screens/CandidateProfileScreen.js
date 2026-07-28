@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -60,6 +60,11 @@ function waNumber(phone) {
   return d;
 }
 
+// "THU 6 AUG" — the day line of a ballot card, kept short so two sit side by side.
+function slotDayLabel(iso) {
+  const d = new Date(iso);
+  return `${_WD[d.getDay()]} ${d.getDate()} ${_MON[d.getMonth()]}`;
+}
 function slotRange(startIso, endIso) {
   const s = new Date(startIso);
   const date = `${_WD[s.getDay()]} ${s.getDate()} ${_MON[s.getMonth()]}`;
@@ -97,6 +102,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [cards, setCards] = useState([]);
   const [stage, setStage] = useState(route.params?.stage || "applied");
   const [interview, setInterview] = useState(null); // full loadCandidateInterview record
+  // Which role this profile is about. Arriving from the role list or an interview
+  // card we already have it; a notification tap carries ids only, so fall back to
+  // looking it up rather than leaving the header silent about the position.
+  const [jobTitle, setJobTitle] = useState(route.params?.jobTitle || null);
   const [proposeOpen, setProposeOpen] = useState(false);
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
@@ -127,14 +136,16 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const segScrollRef = useRef(null); // so the active tab is scrolled into view (Result sits off the right edge)
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off, meta, qs] = await Promise.all([
+    const [c, sc, iv, off, meta, qs, title] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId, jobId),
       loadCandidateInterview(profile.companyId, candidateId),
       loadOffer(profile.companyId, candidateId, jobId),
       loadApplicationMeta(profile.companyId, candidateId),
       loadInterviewQuestions(candidateId, jobId),
+      route.params?.jobTitle ? Promise.resolve(route.params.jobTitle) : loadJobTitle(jobId),
     ]);
+    if (title) setJobTitle(title);
     setCandidate(c); setCards(sc); setInterview(iv); setOffer(off); setQuestions(qs || []);
     setMlInput(iv?.meetingLink || "");
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
@@ -421,6 +432,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
           <Text style={styles.badgeTxt}>{stageLabel(stage)}</Text>
         </View>
         <Text style={styles.name} numberOfLines={2}>{name}</Text>
+        {/* The role, named on the profile itself. Opening this screen from a
+            notification gave no clue which position the candidate applied for. */}
+        {jobTitle ? (
+          <View style={styles.roleRow}>
+            <Feather name="briefcase" size={13} color={theme.ink3} />
+            <Text style={styles.roleTxt} numberOfLines={1}>{jobTitle}</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Scrolling content */}
@@ -848,26 +867,48 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 interview?.proposedSlots?.length ? (
                   /* Round 2: candidate suggested their own times → panel votes, HM confirms */
                   <>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[type.bodyStrong, { color: theme.ink }]}>Candidate suggested new times</Text>
-                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>They couldn't make the proposed times. The panel votes on theirs, then you confirm.</Text>
-                      </View>
+                    {/* Eyebrow instead of a boxed icon beside a paragraph: the icon
+                        used to sit centred against three lines of text, floating in
+                        its own dead space. Inline, it reads as one label. */}
+                    <View style={styles.propBand}>
+                      <Feather name="refresh-cw" size={13} color="#7C2D12" />
+                      <Text style={styles.propBandTxt}>CANDIDATE PROPOSED</Text>
+                      <View style={{ flex: 1 }} />
+                      <Text style={styles.propBandCount}>
+                        {interview.proposedSlots.length} option{interview.proposedSlots.length === 1 ? "" : "s"}
+                      </Text>
                     </View>
+                    <Text style={styles.propTitle}>
+                      {nameOf().split(" ")[0]} suggested {interview.proposedSlots.length} new time{interview.proposedSlots.length === 1 ? "" : "s"}
+                    </Text>
+                    <Text style={styles.propSub}>The panel votes on these, then you confirm.</Text>
+
                     {interview?.rescheduleNote ? (
-                      <View style={styles.noteBox}>
-                        <Feather name="message-circle" size={13} color={theme.ink3} />
-                        <Text style={[type.small, { color: theme.ink2, marginLeft: 8, flex: 1, fontStyle: "italic" }]}>&ldquo;{interview.rescheduleNote}&rdquo;</Text>
+                      /* Their words as a pull-quote against an accent rule, not a
+                         grey slab: this is the reason, not boilerplate. */
+                      <View style={styles.propQuote}>
+                        <Text style={styles.propQuoteTxt}>&ldquo;{interview.rescheduleNote}&rdquo;</Text>
                       </View>
                     ) : null}
-                    {interview.proposedSlots.map((s, i) => (
-                      <View key={i} style={styles.slotRow}>
-                        <Feather name="calendar" size={13} color={theme.ink4} />
-                        <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{slotRange(s.start, s.end)}</Text>
-                      </View>
-                    ))}
-                    <Button title="Open panel chat to vote & confirm" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+
+                    {/* Ballot cards, side by side and numbered, so the options read
+                        as things to choose between. As plain rows with a tiny
+                        calendar glyph they looked like fine print. */}
+                    <View style={styles.propSlots}>
+                      {interview.proposedSlots.slice(0, 2).map((s, i) => (
+                        <View key={i} style={styles.propSlot}>
+                          <View style={styles.propSlotNum}><Text style={styles.propSlotNumTxt}>{i + 1}</Text></View>
+                          <Text style={styles.propSlotDay} numberOfLines={1}>{slotDayLabel(s.start)}</Text>
+                          <Text style={styles.propSlotTime} numberOfLines={1}>{_hm(s.start)}{_ap(s.start) !== _ap(s.end || s.start) ? ` ${_ap(s.start)}` : ""}</Text>
+                          <Text style={styles.propSlotEnd} numberOfLines={1}>to {_hm(s.end || s.start)} {_ap(s.end || s.start)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    {interview.proposedSlots.length > 2 ? (
+                      <Text style={styles.propMore}>+{interview.proposedSlots.length - 2} more in the panel chat</Text>
+                    ) : null}
+
+                    <Button title="Vote & confirm" icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(4) }} />
                   </>
                 ) : (
                   /* HM-initiated reschedule (e.g. no-show): run a fresh poll */
@@ -883,8 +924,18 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         </Text>
                       </View>
                     </View>
-                    <Button title={manager ? "1 · Vote" : "Vote"} icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
-                    {manager ? <Button title="2 · Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} /> : null}
+                    {/* Step 1 is the primary button and step 2 is subordinate. It
+                        used to be the other way round: "1 · Vote" was a pale tint and
+                        "2 · Propose times" was solid blue, so the strongest thing on
+                        the card was the step you are meant to do second, and people
+                        tapped it first. */}
+                    <Button title={manager ? "1 · Panel availability" : "Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                    {manager ? (
+                      <>
+                        <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
+                        <Text style={styles.stepHint}>Vote first, so the times you send are ones the panel can actually make.</Text>
+                      </>
+                    ) : null}
                   </>
                 )
               ) : pendingInvite ? (
@@ -941,8 +992,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       ? "Get the panel's availability, then propose a few times for the candidate to choose from."
                       : "Mark the times you can make so the panel can find an overlap."}
                   </Text>
-                  <Button title={manager ? "1 · Vote" : "Vote"} icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
-                  {manager ? <Button title="2 · Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} /> : null}
+                  {/* Same ordering fix as the reschedule branch above: the step you
+                      do first is the one that looks primary. */}
+                  <Button title={manager ? "1 · Panel availability" : "Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                  {manager ? (
+                    <>
+                      <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
+                      <Text style={styles.stepHint}>Vote first, so the times you send are ones the panel can actually make.</Text>
+                    </>
+                  ) : null}
                 </>
               )}
             </Card>
@@ -1398,6 +1456,8 @@ const styles = StyleSheet.create({
   badge: { flexDirection: "row", alignItems: "center", marginTop: -13, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill, shadowColor: "#0A1E9E", shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   badgeTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.white, marginLeft: 6 },
   name: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, lineHeight: 27, letterSpacing: -0.5, color: theme.ink, marginTop: space(3), textAlign: "center" },
+  roleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: space(1.5), paddingHorizontal: space(6) },
+  roleTxt: { ...type.small, color: theme.ink3, marginLeft: 6, flexShrink: 1 },
   aiHead: { flexDirection: "row", alignItems: "center", marginBottom: space(3), marginLeft: space(1) },
   insightErr: { flexDirection: "row", alignItems: "flex-start", marginTop: space(2), backgroundColor: theme.dangerBg, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
   // Matches rankBtn on the job screen so the two AI actions read as siblings.
@@ -1454,6 +1514,35 @@ const styles = StyleSheet.create({
   mlChip: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
   mlChipIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
+  // Candidate-proposed reschedule: a banded header, the reason as a pull-quote,
+  // and the times as ballot cards. Amber throughout, because this is the
+  // candidate's move landing back on the panel, not a neutral status.
+  propBand: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    backgroundColor: "#FEF3C7", borderRadius: radius.sm,
+    paddingHorizontal: 11, paddingVertical: 8,
+  },
+  propBandTxt: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 0.9, color: "#7C2D12" },
+  propBandCount: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#B45309", fontVariant: ["tabular-nums"] },
+  propTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, lineHeight: 23, letterSpacing: -0.3, color: theme.ink, marginTop: space(3) },
+  propSub: { ...type.small, color: theme.ink3, marginTop: 3 },
+  propQuote: { borderLeftWidth: 3, borderLeftColor: "#F59E0B", paddingLeft: 12, marginTop: space(3.5) },
+  propQuoteTxt: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: theme.ink2 },
+  propSlots: { flexDirection: "row", gap: 10, marginTop: space(4) },
+  propSlot: {
+    flex: 1, backgroundColor: theme.card, borderRadius: radius.md,
+    borderWidth: 1, borderColor: theme.line, paddingHorizontal: 12, paddingVertical: 12,
+  },
+  propSlotNum: {
+    width: 20, height: 20, borderRadius: 10, backgroundColor: "#FEF3C7",
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
+  },
+  propSlotNumTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#B45309" },
+  propSlotDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.5, color: theme.ink4, textTransform: "uppercase" },
+  propSlotTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, letterSpacing: -0.3, color: theme.ink, marginTop: 3, fontVariant: ["tabular-nums"] },
+  propSlotEnd: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: theme.ink4, marginTop: 1, fontVariant: ["tabular-nums"] },
+  propMore: { ...type.small, color: theme.ink4, marginTop: space(2.5) },
+  stepHint: { ...type.small, color: theme.ink4, marginTop: space(2), textAlign: "center", paddingHorizontal: space(2) },
   // Handoff tracker
   track: { flexDirection: "row", alignItems: "flex-start" },
   trackDot: { width: 9, height: 9, borderRadius: 5, marginBottom: 5 },

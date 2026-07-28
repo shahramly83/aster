@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadTeam, inviteTeammate, removeTeammate, loadApprovers, addApprover, removeApprover } from "../lib/data";
+import { loadTeam, inviteTeammate, removeTeammate, cancelInvite, loadApprovers, addApprover, removeApprover } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
 import SuccessModal from "../components/SuccessModal";
@@ -48,6 +48,7 @@ function apInitials(s) {
 const ap = StyleSheet.create({
   okPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   okTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 11 },
+  mRemove: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", marginLeft: 6 },
   pendingPill: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
   pendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 11 },
   x: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
@@ -93,8 +94,10 @@ export default function TeamsScreen({ navigation }) {
     if (!ok) { setApprovers(prev); setInviteDone({ title: "Couldn't remove", message: "That approver couldn't be removed. Please try again." }); }
   };
   const removeTeammateRow = async (item) => {
-    const err = await removeTeammate(item.id);
-    if (err) { setInviteDone({ title: "Couldn't remove", message: err }); return; }
+    // A pending invitee has no profile to remove, so cancelling the invitation is
+    // the equivalent action. Same button, different row to delete.
+    const err = item.inviteId ? await cancelInvite(item.inviteId) : await removeTeammate(item.id);
+    if (err) { setInviteDone({ title: item.inviteId ? "Couldn't cancel" : "Couldn't remove", message: err }); return; }
     load();
   };
   const [confirmRemove, setConfirmRemove] = useState(null); // { ...item } pending deletion (approver or teammate)
@@ -279,7 +282,7 @@ export default function TeamsScreen({ navigation }) {
           // Status shows as a dot on the avatar (green = active/confirmed, amber
           // = pending) instead of a pill, leaving a single role chip below the
           // name and the email on its own full-width line.
-          const removable = canInvite && (isApprover || (item.role !== "owner" && !you && !item.pending));
+          const removable = canInvite && (isApprover || (item.role !== "owner" && !you));
           return (
             <Rise delay={Math.min(index, 8) * 35}>
               <View style={styles.mcard}>
@@ -297,12 +300,23 @@ export default function TeamsScreen({ navigation }) {
                         <Feather name={m.icon} size={11} color={m.color} />
                         <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
                       </View>
-                      {removable ? (
-                        <Pressable onPress={() => setConfirmRemove(item)} hitSlop={10} style={styles.mRemoveInline}><Feather name="x" size={16} color={theme.ink4} /></Pressable>
-                      ) : null}
                     </View>
                     {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 3 }]} numberOfLines={1}>{item.email}</Text> : null}
                   </View>
+                  {/* Sits in the outer row so it centres against the whole card.
+                      Nested in the name line it hung off the top, above the email,
+                      and it referenced a style that was never defined. */}
+                  {removable ? (
+                    <Pressable
+                      onPress={() => setConfirmRemove(item)}
+                      hitSlop={10}
+                      style={styles.mRemove}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.inviteId ? "Cancel invite to" : "Remove"} ${item.name || item.email}`}
+                    >
+                      <Feather name="x" size={16} color={theme.ink4} />
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
             </Rise>
@@ -397,13 +411,15 @@ export default function TeamsScreen({ navigation }) {
         visible={!!confirmRemove}
         variant="danger"
         icon="user-x"
-        title={confirmRemove?._approver ? "Remove approver?" : "Remove teammate?"}
+        title={confirmRemove?._approver ? "Remove approver?" : confirmRemove?.inviteId ? "Cancel invite?" : "Remove teammate?"}
         message={confirmRemove
           ? (confirmRemove._approver
             ? `${confirmRemove.name || confirmRemove.email} will no longer be able to approve offers.`
-            : `${confirmRemove.name || confirmRemove.email} will lose access to this workspace. Their scorecards and interviews stay on file.`)
+            : confirmRemove.inviteId
+              ? `The invite to ${confirmRemove.email} will be withdrawn. Their link stops working, and you can invite them again any time.`
+              : `${confirmRemove.name || confirmRemove.email} will lose access to this workspace. Their scorecards and interviews stay on file.`)
           : ""}
-        confirmLabel="Remove"
+        confirmLabel={confirmRemove?.inviteId ? "Cancel invite" : "Remove"}
         cancelLabel="Keep"
         onConfirm={() => {
           if (confirmRemove) { confirmRemove._approver ? removeApproverRow(confirmRemove.id) : removeTeammateRow(confirmRemove); }

@@ -13,7 +13,9 @@ const SIGNED_URL_TTL = 3600; // seconds
 export async function loadMyInterviews(companyId, userId, assignedJobIds = [], manager = false) {
   // proposed_slots so the Action card can show which times are outstanding
   // rather than only that something is outstanding. Same row, no extra query.
-  const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees, proposed_slots";
+  // created_at so a waiting card can say HOW LONG it has been waiting. "Waiting
+  // for Siti" reads the same on day one and day nine; "sent 9d ago" does not.
+  const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees, proposed_slots, created_at";
   // Everything in the interview process: confirmed (scheduled), awaiting the
   // candidate's pick (sent), and needs-new-times (reschedule) — so a rescheduled
   // interview doesn't vanish from the tab.
@@ -110,6 +112,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       stage: stageByKey[`${iv.candidate_id}:${iv.job_id}`] || null, // applied|shortlisted|interviewing|offer|hired|rejected
       offerAction: offerAction[iv.candidate_id] || null, // 'accepted'|'declined'|'expired' → offer-stage candidate still needs the HM
       scheduledAt: iv.scheduled_at,
+      sentAt: iv.created_at || null,
       proposedSlots: Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [],
       provider: iv.provider || "google",
       meetingLink: iv.meeting_link || null,
@@ -763,6 +766,16 @@ export async function loadApplicants(companyId, jobId) {
 // are out of the ranking pool.
 const RANKABLE_STAGES = ["applied", "shortlisted"];
 
+// The role a candidate is being considered for. Screens that arrive with the
+// title already in hand (the role list, the interview cards) pass it through, but
+// a notification tap only carries ids, so the profile has to resolve it or the
+// header can't say which position this is about.
+export async function loadJobTitle(jobId) {
+  if (!jobId) return null;
+  const { data } = await supabase.from("jobs").select("title").eq("id", jobId).maybeSingle();
+  return data?.title || null;
+}
+
 // The last time this job was AI-Ranked (jobs.ai_ranked_at). Drives the per-job
 // lock: once ranked, AI Rank is locked for EVERYONE until a genuinely new
 // candidate applies (an application newer than this stamp).
@@ -868,17 +881,37 @@ export async function runAiRank({ companyId, jobId, job }) {
 // this job (assigned first, then alphabetical).
 export async function loadInterviewers(companyId, jobId) {
   if (!companyId) return [];
-  const [{ data: profs }, { data: assigns }] = await Promise.all([
+  // Invited-but-not-yet-joined interviewers are listed too. Putting someone on a
+  // panel is the main reason you invite them, and they used to be missing from
+  // this picker entirely with nothing to explain the absence. Ticking one stages
+  // the seat on the invite (0138); accept_invite turns it into a real assignment
+  // the moment they sign up.
+  const [{ data: profs }, { data: assigns }, { data: invites }] = await Promise.all([
     supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended"),
     jobId
       ? supabase.from("job_assignments").select("profile_id").eq("company_id", companyId).eq("job_id", jobId)
       : Promise.resolve({ data: [] }),
+    supabase.from("invitations").select("id, email, role, pending_job_ids")
+      .eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
   ]);
   const assigned = new Set((assigns || []).map((a) => a.profile_id));
-  return (profs || [])
+  const members = (profs || [])
     .filter((p) => (p.role || "").toLowerCase() === "interviewer")
-    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: p.role, assigned: assigned.has(p.id) }))
-    .sort((a, b) => (Number(b.assigned) - Number(a.assigned)) || a.name.localeCompare(b.name));
+    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: p.role, assigned: assigned.has(p.id), pending: false }));
+  const seen = new Set(members.map((m) => (m.email || "").toLowerCase()).filter(Boolean));
+  const invited = (invites || [])
+    .filter((i) => (i.role || "").toLowerCase() === "interviewer" && i.email && !seen.has(String(i.email).toLowerCase()))
+    .map((i) => ({
+      id: `invite:${i.id}`,          // never a profile id: nothing downstream may treat it as one
+      inviteId: i.id,
+      name: i.email,                  // no profile yet, so no name to show
+      email: i.email,
+      role: i.role,
+      assigned: Array.isArray(i.pending_job_ids) && jobId ? i.pending_job_ids.includes(jobId) : false,
+      pending: true,
+    }));
+  return [...members, ...invited]
+    .sort((a, b) => (Number(b.assigned) - Number(a.assigned)) || Number(a.pending) - Number(b.pending) || a.name.localeCompare(b.name));
 }
 
 // The whole company team (all active members), for the Teams tab. Sorted by
@@ -904,6 +937,18 @@ export async function inviteTeammate({ email, role }) {
 // Remove a teammate (same web logic: remove_teammate RPC deactivates them and
 // drops job assignments, keeping their scorecards/interviews attached). Returns
 // an error message, or null on success.
+// Cancel a pending invite. The invitee has no profile yet, so remove_teammate has
+// nothing to act on: the row to delete is the invitation itself. Admin-gated by
+// the invitations_admin policy (0021), same rule as sending one.
+export async function cancelInvite(inviteId) {
+  if (!inviteId) return "Not connected.";
+  const { error } = await supabase.from("invitations").delete().eq("id", inviteId);
+  if (!error) return null;
+  console.warn("cancelInvite", error.message);
+  if (error.code === "42501") return "Only an owner or admin can cancel an invite.";
+  return error.message || "Couldn't cancel that invite.";
+}
+
 export async function removeTeammate(profileId) {
   if (!profileId) return "Not connected.";
   const { error } = await supabase.rpc("remove_teammate", { p_profile: profileId });
@@ -916,18 +961,51 @@ export async function removeTeammate(profileId) {
 
 export async function loadTeam(companyId) {
   if (!companyId) return [];
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, status")
-    .eq("company_id", companyId)
-    .neq("status", "suspended");
-  return (data || [])
-    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: (p.role || "").toLowerCase(), pending: p.status === "invited" }))
+  // An invite creates a row in `invitations`, NOT a profile: the profile only
+  // exists once they accept and sign up. Reading profiles alone meant someone you
+  // had just invited was simply absent from the team list, with no sign the
+  // invite had been sent. Web merges both sources; mobile now does the same.
+  const [{ data }, { data: invites }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role, status")
+      .eq("company_id", companyId)
+      .neq("status", "suspended"),
+    supabase
+      .from("invitations")
+      .select("id, email, role")
+      .eq("company_id", companyId)
+      .is("accepted_at", null)
+      .gt("expires_at", new Date().toISOString()),
+  ]);
+  const members = (data || [])
+    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: (p.role || "").toLowerCase(), pending: p.status === "invited" }));
+  // A profile that already exists wins over its own invite row, so an accepted
+  // invite doesn't list the person twice while the row is still unexpired.
+  const seen = new Set(members.map((m) => (m.email || "").toLowerCase()).filter(Boolean));
+  const invited = (invites || [])
+    .filter((i) => i.email && !seen.has(String(i.email).toLowerCase()))
+    // id is prefixed because it is an invitation id, not a profile id: nothing
+    // that expects a profile (assignment, removal) should ever accept it.
+    .map((i) => ({ id: `invite:${i.id}`, inviteId: i.id, name: i.email, email: i.email, role: (i.role || "").toLowerCase(), pending: true }));
+  return [...members, ...invited]
     .sort((a, b) => (ROLE_RANK[a.role] ?? 9) - (ROLE_RANK[b.role] ?? 9) || a.name.localeCompare(b.name));
 }
 
 // Add a teammate to a job's interviewer pool. Owner/admin-gated server-side.
 // Returns an error message, or null on success.
+// Stage (or unstage) a panel seat on a pending invite. The person has no profile
+// yet, so assign_interviewer has nothing to point at; accept_invite applies this
+// when they sign up (0138).
+export async function stageInviteJob(inviteId, jobId, on) {
+  if (!inviteId || !jobId) return "Missing invite or job.";
+  const { error } = await supabase.rpc("stage_invite_job", { p_invite: inviteId, p_job_id: jobId, p_on: !!on });
+  if (!error) return null;
+  if (error.code === "42501") return "Only an owner or admin can change interviewers.";
+  if (error.code === "42883") return "Pending invites can't be assigned yet (migration 0138 missing).";
+  return error.message || "Couldn't update that invite.";
+}
+
 export async function assignInterviewer(jobId, profileId) {
   if (!jobId || !profileId) return "Missing job or teammate.";
   const { error } = await supabase.rpc("assign_interviewer", { p_job_id: jobId, p_profile_id: profileId });

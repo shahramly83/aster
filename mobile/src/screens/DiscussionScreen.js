@@ -391,7 +391,8 @@ export default function DiscussionScreen({ route, navigation }) {
         title={candidateName || "Candidate"}
         onBack={() => navigation.goBack()}
         right={canCreate ? (
-          <Press onPress={() => setComposerOpen(true)} haptic="light" style={styles.headerBtn}>
+          <Press onPress={() => setComposerOpen(true)} haptic="light" style={styles.headerBtn}
+            accessibilityRole="button" accessibilityLabel="Ask the panel for times">
             <Feather name="calendar" size={18} color={theme.white} />
           </Press>
         ) : null}
@@ -429,7 +430,30 @@ export default function DiscussionScreen({ route, navigation }) {
                 </View>
               </>
             }
-            ListEmptyComponent={<View style={{ marginTop: space(8) }}><EmptyState icon="message-circle" title="No messages yet" subtitle="Start the conversation with your interview panel." /></View>}
+            ListEmptyComponent={
+              /* Asking the panel for times used to live ONLY behind the bare
+                 calendar glyph in the header, while the empty state talked about
+                 starting a conversation. People arrive here from "Panel
+                 availability" wanting exactly that one thing, so it is the empty
+                 state's job to offer it. */
+              <View style={{ marginTop: space(8) }}>
+                <EmptyState
+                  icon={canCreate ? "calendar" : "message-circle"}
+                  title={canCreate ? "Collect the panel's availability" : "No messages yet"}
+                  subtitle={canCreate
+                    ? "Send a few times and the panel votes on which they can make. You can also just talk it through below."
+                    : "Start the conversation with your interview panel."}
+                />
+                {canCreate ? (
+                  <Button
+                    title="Ask the panel for times"
+                    icon="calendar"
+                    onPress={() => setComposerOpen(true)}
+                    style={{ marginTop: space(5), marginHorizontal: space(5) }}
+                  />
+                ) : null}
+              </View>
+            }
             renderItem={({ item }) => (
               <Bubble
                 m={item}
