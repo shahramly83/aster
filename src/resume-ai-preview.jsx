@@ -25776,8 +25776,14 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
   // AI Rank is priced 1 credit per 10 applicants (round up). The rankable pool is
   // the active, parsed candidates a run scores (capped at 40 like runMatching), so
   // the cost preview and the actual charge always agree.
-  const rankablePool = applicants
-    .filter((a) => !hiredIds.has(a.candidateId) && (a.fit !== "other" || a.stage === "shortlisted"))
+  // Derived from strongApplicants, NOT from every applicant. Starting from the
+  // full list only removed hired and weak fits, so REJECTED and DECLINED
+  // candidates stayed in the priced pool: the dialog counted people the run would
+  // never score, and at 1 credit per 10 applicants a role with enough rejects
+  // billed an extra credit for nobody. strongApplicants already drops
+  // hired/rejected/declined (activeVisible) and weak fits (isStrongFit), which is
+  // exactly the set a run scores.
+  const rankablePool = strongApplicants
     .filter((a) => { const c = MOCK_CANDIDATES.find((x) => x.id === a.candidateId); return c && c.parsed; });
   const rankCount = Math.min(rankablePool.length, 40);
   const rankUnits = Math.max(1, Math.ceil(rankCount / 10));
