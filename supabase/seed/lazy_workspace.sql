@@ -345,9 +345,23 @@ loop
   -- Digital Marketing Executive (j7)
   (co.id,a14,j7,'interviewing',86,to_jsonb('Hands-on Google and Meta Ads with SEO content experience at the right level.'::text),'Career Page','strong'),
   (co.id,a18,j7,'applied',70,to_jsonb('Strong growth marketer, but well above the junior scope of this role.'::text),'LinkedIn','other'),
-  -- Mobile Engineer (j8, draft) — talent pool interest ahead of publishing
-  (co.id,a13,j8,'applied',95,to_jsonb('Five years React Native with shipped App Store and Play Store releases.'::text),'Referral','strong'),
-  (co.id,a20,j8,'applied',89,to_jsonb('React Native plus native Android depth; strong release experience.'::text),'LinkedIn','strong');
+  -- Mobile Engineer (j8, draft) — talent pool interest ahead of publishing. Left
+  -- unscored on purpose: this is the one role that has never been AI-Ranked, so
+  -- the button reads "AI Rank" rather than "Re-run" and the first-run flow stays
+  -- demoable.
+  (co.id,a13,j8,'applied',null,null,'Referral','strong'),
+  (co.id,a20,j8,'applied',null,null,'LinkedIn','strong');
+
+  -- ---------- AI Rank stamps ----------
+  -- A match_score only exists because AI Rank ran, and jobs.ai_ranked_at is what
+  -- both clients read to decide the list is already ranked. Seeding scores while
+  -- leaving that column null made every role offer "Re-run" on a list that was
+  -- never ranked, and spend a credit doing it. Stamp the scored roles a second
+  -- after the applications, so the "a new candidate applied since the last rank"
+  -- check doesn't unlock them again immediately (the seed runs in one
+  -- transaction, so every now() here is the same instant).
+  update public.jobs set ai_ranked_at = now() + interval '1 second'
+   where company_id = co.id and id <> j8;
 
   -- ---------- interviews ----------
   -- Full coverage for the Interviews tab:
