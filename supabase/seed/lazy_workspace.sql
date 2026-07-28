@@ -418,6 +418,18 @@ loop
     ),
     'Clashes with my current notice period handover. Could we do later in the week?', now() + interval '2 days 6 hours');
 
+  -- ---------- release the scorecard gate on interviews that happened ----------
+  -- 0130 gates scorecards behind the hiring manager tapping "Proceed to
+  -- scorecards", which stamps interviews.scorecards_released_at. The seed jumped
+  -- straight to scorecards and offers without ever stamping it, so seeded
+  -- candidates sat at 'offer' with a gate that had never been opened. The tabs
+  -- still worked, but only via the offer/hired fallback in CandidateProfileScreen,
+  -- which made the gate look bypassable. Stamp it an hour after each interview
+  -- that has already taken place, which is what the real flow does.
+  update public.interviews
+     set scorecards_released_at = scheduled_at + interval '1 hour'
+   where company_id = co.id and status = 'scheduled' and scheduled_at < now();
+
   -- ---------- scorecards ----------
   insert into public.scorecards (company_id, candidate_id, job_id, interviewer_id, ratings, notes) values
   (co.id,a1,j1,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',3,'experience',4),'Strong systems thinking. Clear communicator. Would move to offer.'),
