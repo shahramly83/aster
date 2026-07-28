@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, TextInput, ActivityIndicator, Keyboard } from "react-native";
+import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -12,6 +12,7 @@ import { getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
 import { Avatar, Press, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import { theme, type, space, radius, shadow } from "../theme";
+import SignaturePad from "../components/SignaturePad";
 
 const BIOMETRIC_PREF_KEY = "aster.biometric.enabled";
 
@@ -25,7 +26,9 @@ export default function ProfileScreen({ navigation }) {
   const [savedSig, setSavedSig] = useState(null); // current stored value
 
   useEffect(() => { if (manager) getMyOfferSignature().then(setSavedSig).catch(() => {}); }, [manager]);
-  const sigSummary = savedSig ? (savedSig.startsWith("typed:") ? savedSig.slice(6) : "Drawn signature (set on web)") : "Not set";
+  // A typed signature can still exist on older accounts (and the web app can
+  // still save one), so keep reading it; new ones from here are always drawn.
+  const sigSummary = savedSig ? (savedSig.startsWith("typed:") ? `Typed · ${savedSig.slice(6)}` : "Signed") : "Not set";
 
   useEffect(() => {
     (async () => {
@@ -167,21 +170,26 @@ function Row({ icon, tint, title, subtitle, right, last, onPress }) {
 // the letter/PDF (same as web's "type" option); drawing lives on the web app.
 function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
   const insets = useSafeAreaInsets();
-  const isTyped = !initial || initial.startsWith("typed:");
-  const [text, setText] = useState("");
+  // Drawn only. Typing your name was never a signature, just your name in a
+  // script face, and it made the mobile signature a different artefact from the
+  // one the web app produces. The pad renders a real PNG (SignaturePad), which is
+  // what the offer PDF embeds.
+  const [toPng, setToPng] = useState(null); // () => dataUrl, or null while empty
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  useEffect(() => {
-    if (!visible) return;
-    setErr(null);
-    setText(initial && initial.startsWith("typed:") ? initial.slice(6) : (isTyped ? (name || "") : ""));
-  }, [visible]);
+  useEffect(() => { if (visible) { setErr(null); setToPng(null); } }, [visible]);
 
   const save = async () => {
     Keyboard.dismiss();
-    const val = text.trim() ? `typed:${text.trim()}` : null;
+    if (!toPng) return;
     setBusy(true); setErr(null);
+    let val = null;
+    try {
+      val = toPng();
+    } catch (e2) {
+      setBusy(false); setErr("Couldn't save that signature. Try drawing it again."); return;
+    }
     const e = await saveMyOfferSignature(val);
     setBusy(false);
     if (e) { setErr(e); return; }
@@ -193,7 +201,7 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
     const e = await saveMyOfferSignature(null);
     setBusy(false);
     if (e) { setErr(e); return; }
-    setText(""); onSaved?.(null); onClose();
+    setToPng(null); onSaved?.(null); onClose();
   };
 
   return (
@@ -204,23 +212,12 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
           <View style={styles.sheetHandle} />
           <Text style={[type.h3, { color: theme.ink }]}>Offer signature</Text>
           <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 19 }]}>
-            Type your name to sign off the offers you compose. It's placed above your name in the letter; the candidate then counter-signs. Prefer to draw it? Use the Aster web app.
+            Sign off the offers you compose. It's placed above your name in the letter; the candidate then counter-signs.
           </Text>
 
-          {!isTyped ? (
-            <View style={styles.drawnNote}>
-              <Feather name="edit-2" size={13} color={theme.ink3} />
-              <Text style={[type.small, { color: theme.ink3, marginLeft: 8, flex: 1 }]}>A drawn signature is saved from the web app. Typing below replaces it.</Text>
-            </View>
-          ) : null}
-
-          <Text style={[type.smallStrong, { color: theme.ink2, marginTop: space(4), marginBottom: 7 }]}>Your name</Text>
-          <TextInput value={text} onChangeText={(v) => { setText(v); setErr(null); }} placeholder="e.g. Jane Tan" placeholderTextColor={theme.ink4} style={styles.sigInput} autoFocus />
-          {text.trim() ? (
-            <View style={styles.sigPreview}>
-              <Text style={styles.sigPreviewTxt}>{text.trim()}</Text>
-            </View>
-          ) : null}
+          <View style={{ marginTop: space(4) }}>
+            <SignaturePad onChange={setToPng} />
+          </View>
 
           {err ? <Text style={[type.small, { color: theme.danger, marginTop: 10 }]}>{err}</Text> : null}
 
@@ -230,7 +227,7 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
                 <Text style={[type.smallStrong, { color: theme.ink2 }]}>Clear</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={save} disabled={busy || !text.trim()} style={[styles.sigBtn, { backgroundColor: text.trim() ? theme.brand : theme.line, flex: 1 }]}>
+            <Pressable onPress={save} disabled={busy || !toPng} style={[styles.sigBtn, { backgroundColor: toPng ? theme.brand : theme.line, flex: 1 }]}>
               {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[type.smallStrong, { color: "#fff" }]}>Save signature</Text>}
             </Pressable>
           </View>
@@ -264,9 +261,5 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
-  drawnNote: { flexDirection: "row", alignItems: "center", marginTop: space(3), padding: space(3), borderRadius: radius.md, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line },
-  sigInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, fontFamily: "Inter_500Medium", fontSize: 15, color: theme.ink },
-  sigPreview: { marginTop: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 14, minHeight: 60, justifyContent: "center" },
-  sigPreviewTxt: { fontSize: 28, color: theme.ink, fontStyle: "italic", fontFamily: "Inter_500Medium" },
   sigBtn: { alignItems: "center", justifyContent: "center", borderRadius: radius.md, paddingVertical: 13, paddingHorizontal: 20 },
 });
