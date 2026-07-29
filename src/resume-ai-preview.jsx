@@ -16916,7 +16916,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       ) : null}
     >
         {/* Filter + invite action */}
-        <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           {(() => {
             const opts = [
               { key: "all", label: "All roles" },
@@ -16930,18 +16930,21 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 : team.filter((i) => i.role === "interviewer").length + pendingInvites.filter((i) => i.role === "interviewer").length;
             const active = opts.find((o) => o.key === roleFilter) || opts[0];
             return (
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-none min-w-0">
                 <button
                   onClick={() => setRoleFilterOpen((o) => !o)}
                   aria-haspopup="listbox"
                   aria-expanded={roleFilterOpen}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2 text-sm transition-colors hover:border-neutral-300"
+                  className="w-full sm:w-auto inline-flex items-center gap-2 rounded-xl bg-white border px-3 sm:px-3.5 py-2.5 sm:py-2 text-sm transition-colors hover:border-neutral-300"
                   style={{ borderColor: roleFilterOpen ? "var(--brand)" : "var(--line-strong)", color: "var(--ink-2)" }}
                 >
-                  <Icon name="users" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
-                  <span style={{ color: "var(--ink-3)" }}>Role:</span>
-                  <span className="font-medium" style={{ color: "var(--ink)" }}>{active.label}</span>
-                  <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${roleFilterOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+                  <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+                  {/* "Role:" goes on phones. With it, "Role: All roles" wrapped to
+                      two lines inside the pill and left the control twice as tall
+                      as the button beside it. */}
+                  <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>Role:</span>
+                  <span className="font-medium truncate min-w-0 flex-1 sm:flex-none text-left" style={{ color: "var(--ink)" }}>{active.label}</span>
+                  <Icon name={"chevronDown"} className={`w-4 h-4 shrink-0 ml-auto sm:ml-0 transition-transform ${roleFilterOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
                 </button>
                 {roleFilterOpen && (
                   <>
@@ -16976,7 +16979,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               sent to billing rather than shown a locked button. */}
           <button
             onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setInviteRole(null); setEmail(""); setApproverName(""); setShowForm(true); }}
-            className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center justify-center gap-1.5 min-w-[172px]"
+            className="flex-1 sm:flex-none text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2.5 sm:py-2 transition-opacity inline-flex items-center justify-center gap-1.5 sm:min-w-[172px]"
           >
             {atSeatCap ? "Seats full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
           </button>
