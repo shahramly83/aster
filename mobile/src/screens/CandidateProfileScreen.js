@@ -168,6 +168,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // "panel" = with interviewers. Mirrors the web. Only ever asked when the role
   // has nobody on its panel, because a panel that already exists has answered it.
   const [ivMode, setIvMode] = useState(null);
+  // Set when this candidate is moved to Interview: that act is the question
+  // being asked, so it is asked even on a role that already has a panel. The
+  // role's panel is a default for the answer, not the answer itself. Cleared the
+  // moment one is given.
+  const [askOnMove, setAskOnMove] = useState(false);
   const [rolePanel, setRolePanel] = useState(null); // the role's assigned interviewers; null until loaded
   const [polled, setPolled] = useState(false); // the panel has been asked for availability at least once
   const [removingId, setRemovingId] = useState(null); // panel member being taken off the role
@@ -328,7 +333,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     // Moving someone to Interview is the start of arranging one, and the next
     // thing to answer (who is interviewing them?) is on the Interview tab. Being
     // left on Profile meant the button appeared to do nothing but swap a pill.
-    if (to === "interviewing") switchTab("interview");
+    if (to === "interviewing") { setIvMode(null); setAskOnMove(true); switchTab("interview"); }
     try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to, jobId }); }
     catch (e) {
       setStage(prev);
@@ -636,7 +641,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // someone to the role answers it on its own, which is what makes the mobile
   // screen follow the web without having to be told.
   const panelCount = rolePanel === null ? null : rolePanel.length;
-  const askIvMode = manager && !interview && panelCount === 0 && ivMode === null;
+  const askIvMode = manager && !interview && ivMode === null && (askOnMove || panelCount === 0);
   // A panel exists but has never been asked for availability. Adding people to a
   // role is the decision to interview with them, so the poll is the next step and
   // the only one offered until it has run.
@@ -1240,7 +1245,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                    panel that already exists has answered it. */
                 <>
                   <Text style={[type.small, { color: theme.ink3 }]}>This decides how the times get picked. You can change the panel later.</Text>
-                  <Press haptic="light" onPress={() => setIvMode("solo")} style={{ marginTop: space(3) }}>
+                  <Press haptic="light" onPress={() => { setAskOnMove(false); setIvMode("solo"); }} style={{ marginTop: space(3) }}>
                     <View style={styles.ivPick}>
                       <View style={styles.ivPickIcon}><Feather name="user" size={17} color={theme.brand} /></View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1250,7 +1255,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <Feather name="chevron-right" size={18} color={theme.ink4} />
                     </View>
                   </Press>
-                  <Press haptic="light" onPress={() => { setIvMode("panel"); setPickerOpen(true); }} style={{ marginTop: space(2.5) }}>
+                  <Press haptic="light" onPress={() => { setAskOnMove(false); setIvMode("panel"); setPickerOpen(true); }} style={{ marginTop: space(2.5) }}>
                     <View style={styles.ivPick}>
                       <View style={styles.ivPickIcon}><Feather name="users" size={17} color={theme.brand} /></View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1261,9 +1266,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     </View>
                   </Press>
                 </>
-              ) : ivMode === "solo" && !panelCount ? (
-                /* Interviewing alone: there is no panel to poll, so the
-                   availability step would be a round trip to nobody. */
+              ) : ivMode === "solo" ? (
+                /* Interviewing this candidate alone. Said outright, so it holds
+                   even on a role that has a panel: those people staff the role,
+                   they are not an answer about this candidate. */
                 <>
                   <Text style={[type.small, { color: theme.ink3 }]}>Pick a few times and send them to {nameOf().split(" ")[0]} to choose from.</Text>
                   <Button title="Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(3) }} />
