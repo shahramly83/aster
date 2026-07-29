@@ -164,9 +164,19 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // looking it up rather than leaving the header silent about the position.
   const [jobTitle, setJobTitle] = useState(route.params?.jobTitle || null);
   const [proposeOpen, setProposeOpen] = useState(false);
+  // Who is interviewing: null = not answered, "solo" = the hiring manager alone,
+  // "panel" = with interviewers. Mirrors the web. Only ever asked when the role
+  // has nobody on its panel, because a panel that already exists has answered it.
+  const [ivMode, setIvMode] = useState(null);
+  // Set when this candidate is moved to Interview: that act is the question
+  // being asked, so it is asked even on a role that already has a panel. The
+  // role's panel is a default for the answer, not the answer itself. Cleared the
+  // moment one is given.
+  const [askOnMove, setAskOnMove] = useState(false);
   const [rolePanel, setRolePanel] = useState(null); // the role's assigned interviewers; null until loaded
   const [polled, setPolled] = useState(false); // the panel has been asked for availability at least once
   const [removingId, setRemovingId] = useState(null); // panel member being taken off the role
+  const [undoing, setUndoing] = useState(false); // walking the move to Interview back
   const [team, setTeam] = useState([]); // every interviewer in the workspace, assigned or not
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingId, setSavingId] = useState(null); // teammate being added/removed in the picker
@@ -324,7 +334,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     // Moving someone to Interview is the start of arranging one, and the next
     // thing to answer (who is interviewing them?) is on the Interview tab. Being
     // left on Profile meant the button appeared to do nothing but swap a pill.
-    if (to === "interviewing") switchTab("interview");
+    if (to === "interviewing") { setIvMode(null); setAskOnMove(true); switchTab("interview"); }
     try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to, jobId }); }
     catch (e) {
       setStage(prev);
@@ -354,6 +364,24 @@ export default function CandidateProfileScreen({ route, navigation }) {
     return null;
   };
 
+  // Undo the move to Interview from the question itself. Dismissing the question
+  // would leave the candidate at Interview with nothing arranged and no prompt to
+  // arrange it, so the way out has to put them back rather than just go quiet.
+  const backToApplied = async () => {
+    if (undoing) return;
+    setUndoing(true);
+    try {
+      await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: "applied", notify: false, jobId });
+      setStage("applied");
+      setAskOnMove(false);
+      setIvMode(null);
+      switchTab("profile");
+    } catch (e) {
+      dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" });
+    }
+    setUndoing(false);
+  };
+
   // Add or remove a teammate on this role's panel, from the candidate you are
   // looking at. Someone who has not accepted their invite has no profile to
   // assign, so the seat is staged on the invitation and applied when they sign
@@ -378,9 +406,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
     await load();
   };
 
+  // Leaving the picker having added nobody means the panel answer was not really
+  // given, so hand the screen back to the question rather than to a panel step
+  // with no panel on it.
   const closePicker = () => {
     setPickerOpen(false);
     setInviteNote(null);
+    if (!(rolePanel || []).length && ivMode === "panel") setIvMode(null);
   };
 
   // Invite someone who is not in the workspace yet, and put them on this role in
@@ -621,7 +653,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const decisionReady = (interviewDone && allRated) || !!offer || stage === "hired" || stage === "rejected";
   const decisionTabVisible = (!manager && myCard) || (manager && (canScore || !!offer));
   const decisionLocked = manager && !decisionReady; // waiting on the panel
+  // Ask how the interview should be run only when nothing has answered it: the
+  // hiring manager's view, nothing scheduled, and nobody on the role's panel.
+  // panelCount starts null until loaded, so this stays false for a beat rather
+  // than flashing the question over a panel that turns out to exist. Adding
+  // someone to the role answers it on its own, which is what makes the mobile
+  // screen follow the web without having to be told.
   const panelCount = rolePanel === null ? null : rolePanel.length;
+  const askIvMode = manager && !interview && ivMode === null && (askOnMove || panelCount === 0);
   // A panel exists but has never been asked for availability. Adding people to a
   // role is the decision to interview with them, so the poll is the next step and
   // the only one offered until it has run.
@@ -1216,6 +1255,53 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   </View>
 
                   {manager ? <Button title="Resend invite" icon="mail" variant="ghost" onPress={resendInvite} style={{ marginTop: space(3) }} /> : null}
+                </>
+              ) : askIvMode ? (
+                /* Same question the web asks, for the same reason: moving someone
+                   to Interview says nothing about who is actually interviewing
+                   them, and the two answers lead to completely different steps.
+                   Only asked when the role has nobody on its panel, because a
+                   panel that already exists has answered it. */
+                <>
+                  <View style={styles.ivPicks}>
+                    <Press haptic="light" onPress={() => { setAskOnMove(false); setIvMode("solo"); }} style={styles.ivPick}>
+                      <View style={styles.ivPickIcon}><Feather name="user" size={15} color={theme.brand} /></View>
+                      <View style={{ flex: 1, marginLeft: 11 }}>
+                        <Text style={[type.smallStrong, { color: theme.ink }]}>Just me</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 1, lineHeight: 17 }]}>Send times straight to {nameOf().split(" ")[0]}.</Text>
+                      </View>
+                      <Feather name="chevron-right" size={16} color={theme.ink4} />
+                    </Press>
+                    <View style={styles.ivPickDivider} />
+                    <Press haptic="light" onPress={() => { setAskOnMove(false); setIvMode("panel"); setPickerOpen(true); }} style={styles.ivPick}>
+                      <View style={styles.ivPickIcon}><Feather name="users" size={15} color={theme.brand} /></View>
+                      <View style={{ flex: 1, marginLeft: 11 }}>
+                        <Text style={[type.smallStrong, { color: theme.ink }]}>Me and a panel</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 1, lineHeight: 17 }]}>Add interviewers, then collect availability.</Text>
+                      </View>
+                      <Feather name="chevron-right" size={16} color={theme.ink4} />
+                    </Press>
+                  </View>
+                  {/* Move to interview is one tap from the profile, so landing
+                      here by mistake needs a way out. Undoes the move rather than
+                      just dismissing the question, which would leave the
+                      candidate at Interview with nothing arranged. */}
+                  <Press haptic="light" onPress={backToApplied} disabled={!!undoing} style={styles.ivUndo}>
+                    <Text style={[type.small, { color: theme.ink3 }]}>
+                      {undoing ? "Moving back…" : "Not yet, move back to Applied"}
+                    </Text>
+                  </Press>
+                </>
+              ) : ivMode === "solo" ? (
+                /* Interviewing this candidate alone. Said outright, so it holds
+                   even on a role that has a panel: those people staff the role,
+                   they are not an answer about this candidate. */
+                <>
+                  <Text style={[type.small, { color: theme.ink3 }]}>Pick a few times and send them to {nameOf().split(" ")[0]} to choose from.</Text>
+                  <Button title="Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(3) }} />
+                  <Press haptic="light" onPress={() => setIvMode(null)} style={{ marginTop: space(2.5), alignSelf: "center", padding: 6 }}>
+                    <Text style={[type.smallStrong, { color: theme.brand }]}>Change</Text>
+                  </Press>
                 </>
               ) : (
                 <>
@@ -1922,6 +2008,17 @@ const styles = StyleSheet.create({
   },
   // 28pt of tappable width inside a small chip, so the x is not a pixel hunt.
   panelChipX: { width: 28, height: 28, alignItems: "center", justifyContent: "center", marginLeft: 2 },
+  // Plain rows, not bordered tiles: these sit inside the section Card already, and
+  // a card within a card doubled every border and inset.
+  // No intro line above these: the two rows are the question.
+  ivPicks: { marginTop: -space(1) },
+  ivPick: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  ivUndo: { alignSelf: "center", paddingVertical: 10, paddingHorizontal: 12, marginTop: space(1) },
+  ivPickDivider: { height: 1, backgroundColor: theme.line2 },
+  ivPickIcon: {
+    width: 32, height: 32, borderRadius: radius.sm,
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.brandSoft,
+  },
   stepHint: { ...type.small, color: theme.ink4, marginTop: space(2), textAlign: "center", paddingHorizontal: space(2) },
   // Handoff tracker
   track: { flexDirection: "row", alignItems: "flex-start" },
