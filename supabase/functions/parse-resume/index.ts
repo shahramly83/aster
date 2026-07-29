@@ -204,8 +204,26 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "limit_reached", used: consumed.monthly_used ?? 0, limit: consumed.monthly_limit ?? null }, 200);
     }
 
+    // What this credit went on (0143). A bulk upload charges per file whatever
+    // the outcome, because the model was billed to read it — so the outcomes that
+    // produced no candidate are exactly the ones a customer later queries. Each
+    // exit below says which it was.
+    const pool = consumed?.source ?? null;
+    const logFile = async (label: string, detail: string | null = null) => {
+      try {
+        await admin.rpc("log_credit_spend", {
+          p_company: companyId, p_kind: "resume_screen", p_label: label,
+          p_quantity: 1, p_pool: pool, p_detail: detail,
+          p_candidate: null, p_job: null, p_actor: null,
+        });
+      } catch (e) { console.error("logSpend failed", e); }
+    };
+
     // Unreadable file: charged above, but there's nothing to parse. No AI call.
-    if (unreadable) return json({ ok: false, error: "unreadable" }, 200);
+    if (unreadable) {
+      await logFile(`Screening failed: ${filename || "a file"}`, "The file could not be read, so no candidate was created.");
+      return json({ ok: false, error: "unreadable" }, 200);
+    }
 
     // --- Parse the PDF with Claude ---
     let parsed: Record<string, unknown> = {};
@@ -249,6 +267,7 @@ Deno.serve(async (req) => {
     // as a 200 business outcome (not an HTTP error) so the client reads it off
     // `data` uniformly instead of unwrapping a FunctionsHttpError.
     if (parsed && parsed.is_resume === false) {
+      await logFile(`Screening rejected: ${filename || "a file"}`, "The document was not a resume, so no candidate was created.");
       return json({ ok: false, error: "not_a_resume" }, 200);
     }
 
@@ -258,6 +277,7 @@ Deno.serve(async (req) => {
     // No email → we can't de-duplicate or contact them, so reject the resume
     // (nothing is created), matching the public apply flow.
     if (!finalEmail) {
+      await logFile(`Screening incomplete: ${filename || "a file"}`, "No email address on the resume, so no candidate was created.");
       return json({ ok: false, error: "no_email" }, 200);
     }
 
@@ -348,6 +368,11 @@ Deno.serve(async (req) => {
     // PDF path only: store the file privately and pull the applicant's photo.
     // Word docs come in as extracted text, so there's no PDF to store or scan.
     if (resume_base64) await storeResumeAssets(admin, apiKey, companyId, String(candidateId), resume_base64);
+
+    await logFile(
+      `Screened ${fullName || filename || "a resume"}`,
+      wasExisting ? "Already in your talent pool, so the existing candidate was updated." : null,
+    );
 
     return json({
       ok: true,

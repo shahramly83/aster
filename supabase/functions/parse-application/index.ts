@@ -495,8 +495,26 @@ Deno.serve(async (req) => {
     if (!overLimit) {
       // Spend one applicant screening credit: monthly plan pool first, then the
       // purchased 'applicant_screen' balance (migration 0087).
-      try { await admin.rpc("consume_applicant_screen_for", { p_company: companyId }); }
-      catch (e) { console.error("applicant screen charge failed", e); }
+      try {
+        const { data: spend } = await admin.rpc("consume_applicant_screen_for", { p_company: companyId });
+        const row = Array.isArray(spend) ? spend[0] : spend;
+        // Log what it went on (0143). "6 of 500 used" answers nothing when the
+        // question is why a particular resume cost a credit — especially for one
+        // that did not match the role, which is the case people query.
+        await admin.rpc("log_credit_spend", {
+          p_company: companyId,
+          p_kind: "applicant_screen",
+          p_label: `Screened ${fullName} for ${job.title || "a role"}`,
+          p_quantity: 1,
+          p_pool: row?.source ?? null,
+          p_detail: fit === "other"
+            ? `Not a match for this role${fitReason ? `: ${fitReason}` : ""}. Kept in your talent pool.`
+            : (reopening ? "Re-applied after being turned down." : null),
+          p_candidate: candidateId,
+          p_job: job_id,
+          p_actor: null,   // public apply page: nobody is signed in
+        });
+      } catch (e) { console.error("applicant screen charge failed", e); }
     }
 
     // --- Lifecycle email on a first-time application (best-effort) ---

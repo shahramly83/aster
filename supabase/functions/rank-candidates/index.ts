@@ -8,7 +8,7 @@
 //
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { chargeAiRankUnits, refundAiRankUnits } from "../_shared/meter.ts";
+import { chargeAiRankUnits, refundAiRankUnits, logSpend } from "../_shared/meter.ts";
 import { stripDashes } from "../_shared/text.ts";
 
 const CORS = {
@@ -51,6 +51,18 @@ Deno.serve(async (req) => {
       // `available` lets the client offer a partial run or a top-up.
       return json({ error: paid.error, available: paid.available, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
     }
+    // What the credits bought (0143), while the role and the pool size are still
+    // in hand: a bare "3 AI Rank credits used" tells nobody which run that was.
+    await logSpend({
+      companyId: paid.companyId,
+      kind: "ai_rank",
+      quantity: units,
+      pool: paid.source ?? null,
+      label: role?.title
+        ? `AI Rank against ${role.title}`
+        : "AI Rank against your search criteria",
+      detail: `${candidates.length} candidate${candidates.length === 1 ? "" : "s"} scored, ${perUnit} per credit`,
+    });
 
     // Rank against a specific open role, or against loose skills/industry criteria.
     const criteria = (role && role.title)

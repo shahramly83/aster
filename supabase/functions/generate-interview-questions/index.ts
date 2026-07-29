@@ -8,7 +8,7 @@
 //
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { charge, refund } from "../_shared/meter.ts";
+import { charge, refund, logSpend } from "../_shared/meter.ts";
 import { stripDashes } from "../_shared/text.ts";
 
 const CORS = {
@@ -54,6 +54,10 @@ Deno.serve(async (req) => {
       const status = paid.error === "limit_reached" ? 402 : 503;
       return json({ error: paid.error, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
     }
+    await logSpend({
+      companyId: paid.companyId, kind: "interview_questions", pool: paid.source ?? null,
+      label: `Interview questions for ${parsed.name || "a candidate"} · ${jobTitle}`,
+    });
 
     const resume = {
       name: parsed.name ?? null,

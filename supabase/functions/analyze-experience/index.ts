@@ -9,7 +9,7 @@
 //
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { charge, refund } from "../_shared/meter.ts";
+import { charge, refund, logSpend } from "../_shared/meter.ts";
 import { stripDashes } from "../_shared/text.ts";
 
 const CORS = {
@@ -70,6 +70,10 @@ Deno.serve(async (req) => {
       const status = paid.error === "limit_reached" ? 402 : 503;
       return json({ error: paid.error, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
     }
+    await logSpend({
+      companyId: paid.companyId, kind: "ai_insight", pool: paid.source ?? null,
+      label: `AI Insight for ${parsed.name || "a candidate"}`,
+    });
 
     // Send only the fields the analysis needs — keep the payload lean.
     const resume = {

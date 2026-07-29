@@ -138,6 +138,34 @@ export async function refundAiRankUnits(companyId: string | undefined, monthly =
  * pool that actually paid: a purchased credit goes back to the purchased balance,
  * a monthly credit to the monthly counter.
  */
+/**
+ * Record what a charge was for (0143). Separate from charge() on purpose: the
+ * meter knows the credit was taken, only the caller knows what it bought. Never
+ * throws — the work is already done and paid for, and losing a log line must not
+ * fail the request.
+ */
+export async function logSpend(opts: {
+  companyId?: string; kind: string; label: string;
+  quantity?: number; pool?: string | null; detail?: string | null;
+  candidateId?: string | null; jobId?: string | null; actorId?: string | null;
+}): Promise<void> {
+  if (!opts.companyId) return;
+  try {
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    await admin.rpc("log_credit_spend", {
+      p_company: opts.companyId,
+      p_kind: opts.kind,
+      p_label: opts.label,
+      p_quantity: opts.quantity ?? 1,
+      p_pool: opts.pool ?? null,
+      p_detail: opts.detail ?? null,
+      p_candidate: opts.candidateId ?? null,
+      p_job: opts.jobId ?? null,
+      p_actor: opts.actorId ?? null,
+    });
+  } catch (e) { console.error("logSpend failed", e); }
+}
+
 export async function refund(companyId: string | undefined, meter: Meter, source?: string): Promise<void> {
   if (!companyId) return;
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
