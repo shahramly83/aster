@@ -15812,9 +15812,9 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     const av = people.slice(0, 3);
     const extra = people.length - av.length;
     return (
-      <button key={key} type="button" onClick={() => setStageFilter((s) => (s === key ? null : key))} className="flex-1 min-w-0 text-left focus:outline-none group">
-        <div className="rounded-2xl px-4 py-4 transition-all group-hover:-translate-y-0.5"
-          style={{ background: `color-mix(in srgb, ${color} 5%, #fff)`, minHeight: 104, border: on ? `2px solid ${color}` : "1px solid var(--line)", boxShadow: on ? `0 16px 30px -12px ${color}` : "0 2px 5px rgba(16,19,42,.06), 0 14px 26px -16px rgba(16,19,42,.30)", opacity: dim ? 0.55 : 1 }}>
+      <button key={key} type="button" onClick={() => setStageFilter((s) => (s === key ? null : key))} className="w-[8.5rem] shrink-0 sm:w-auto sm:flex-1 min-w-0 text-left focus:outline-none group">
+        <div className="rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 h-full transition-all group-hover:-translate-y-0.5"
+          style={{ background: `color-mix(in srgb, ${color} 5%, #fff)`, border: on ? `2px solid ${color}` : "1px solid var(--line)", boxShadow: on ? `0 16px 30px -12px ${color}` : "0 2px 5px rgba(16,19,42,.06), 0 14px 26px -16px rgba(16,19,42,.30)", opacity: dim ? 0.55 : 1 }}>
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold font-display tnum leading-none" style={{ color }}>{counts[key]}</span>
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
@@ -15840,8 +15840,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   PIPE_FUNNEL.forEach((st, i) => {
     if (i > 0) {
       funnelEls.push(
-        <div key={`c${i}`} className="flex items-center justify-center px-1 shrink-0 sm:w-14">
-          <Icon name="arrowRight" className="w-5 h-5 rotate-90 sm:rotate-0" style={{ color: "var(--brand)" }} />
+        <div key={`c${i}`} className="flex items-center justify-center px-0.5 shrink-0 sm:w-14">
+          <Icon name="arrowRight" className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "var(--brand)" }} />
         </div>
       );
     }
@@ -15850,7 +15850,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   // Rejected is an exit, not part of the forward flow, so it sits after an ✕
   // separator rather than getting a conversion %.
   funnelEls.push(
-    <div key="rej-sep" className="flex sm:flex-col items-center justify-center gap-1 px-1 shrink-0 sm:w-14">
+    <div key="rej-sep" className="flex items-center justify-center px-0.5 shrink-0 sm:w-14">
       <Icon name="close" className="w-4 h-4" style={{ color: "#DC2626" }} />
     </div>
   );
@@ -15953,7 +15953,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* End-to-end funnel */}
       <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
-        <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-0">{funnelEls}</div>
+        {/* A funnel reads left to right. Stacked into a column on phones it stopped
+            being one: five full-width cards, three of them zeros, a thousand
+            pixels of scrolling before the candidates. It scrolls sideways now,
+            which keeps the shape and the arrows meaningful. */}
+        <div className="flex flex-nowrap items-stretch gap-2 sm:gap-0 overflow-x-auto no-scrollbar -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">{funnelEls}</div>
         {exits > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
             <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Exited</span>
@@ -16024,7 +16028,78 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         {rankMsg && (stageFilter == null || stageFilter === "applied") && (
           <div className="px-4 py-2 text-xs border-b" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>{rankMsg}</div>
         )}
-        <div className="overflow-x-auto">
+        {/* Phones get cards. A 720px seven-column table in a sideways scroller
+            truncated the names it exists to show ("Siti Rahayu binti Abdul Kar…"),
+            cut the AI insight chip mid-word, and hid role, stage, source and match
+            off the right edge behind a scrollbar most people never find. */}
+        <div className="md:hidden">
+          {(() => {
+            const isAppliedView = stageFilter == null || stageFilter === "applied";
+            const card = (a) => {
+              const meta = PIPE_STAGE_META[a.stage] || { label: a.stage, color: "var(--ink-3)" };
+              const starred = shortlistedApps.has(a.applicationId);
+              return (
+                <div key={`c-${a.key}`} className="px-4 py-3.5" style={{ borderBottom: "1px solid var(--line)" }}>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => onToggleShortlist(a.applicationId, a.candidateId)} aria-label={starred ? "Remove from shortlist" : "Shortlist"} className="shrink-0 p-1 -m-1" style={{ color: starred ? "#F5B301" : "var(--ink-4)" }}>
+                      <Icon name="star" className="w-[18px] h-[18px]" style={{ fill: starred ? "#F5B301" : "none" }} />
+                    </button>
+                    <button onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                      <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={38} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                        <span className="block text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{a.jobTitle}{a.source ? ` · ${a.source}` : ""}</span>
+                      </span>
+                    </button>
+                    <span className="shrink-0">
+                      {a.match != null
+                        ? <MatchRing value={a.match} size={38} stroke={3.5} filled />
+                        : <span className="text-xs" style={{ color: "var(--ink-4)" }}>&mdash;</span>}
+                    </span>
+                  </div>
+                  {/* Outside the button on purpose: CountryCell is focusable for its
+                      tooltip, and a focusable element nested inside a button is
+                      unreachable by keyboard and nonsense to a screen reader. */}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} /> {meta.label}</span>
+                    <CountryCell country={a.country} />
+                    <span className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</span>
+                  </div>
+                </div>
+              );
+            };
+            const head = (label, n, color, bg) => (
+              <div key={`h-${label}`} className="px-4 py-2.5" style={{ background: bg, borderBottom: `1px solid ${color}22` }}>
+                <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.05em" }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: color }} /> {label}
+                  <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color, border: `1px solid ${color}33` }}>{n}</span>
+                </span>
+              </div>
+            );
+            if (!isAppliedView) {
+              if (rows.length === 0) return <p className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates in this stage.</p>;
+              return rows.map(card);
+            }
+            const strong = rows.filter(isStrongMatch);
+            const other = rows.filter((a) => !isStrongMatch(a));
+            return (
+              <>
+                {head("Strong matches", strong.length, "#15803D", "rgba(21,128,61,.08)")}
+                {strong.length ? strong.map(card) : <p key="se" className="px-4 py-4 text-center text-xs" style={{ color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>No strong matches yet.</p>}
+                <button onClick={() => setNonMatchOpen((o) => !o)} className="w-full px-4 py-2.5 text-left" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
+                  <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280", letterSpacing: "0.05em" }}>
+                    <Icon name="chevronRight" className={`w-3.5 h-3.5 transition-transform ${nonMatchOpen ? "rotate-90" : ""}`} />
+                    Non-matches
+                    <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color: "#6B7280", border: "1px solid #6B728033" }}>{other.length}</span>
+                  </span>
+                </button>
+                {nonMatchOpen && (other.length ? other.map(card) : <p key="oe" className="px-4 py-4 text-center text-xs" style={{ color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>No non-matches.</p>)}
+              </>
+            );
+          })()}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full" style={{ minWidth: 720, borderCollapse: "collapse" }}>
             <thead>
               <tr>
