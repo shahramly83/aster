@@ -15276,9 +15276,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
 
   const TABS = [
-    { key: "browse", short: "By name", full: "Browse by name", icon: "users" },
-    { key: "skills", short: "Skills", full: "Skills & industry", icon: "matching" },
-    { key: "role", short: "Matches", full: "Matches", icon: "briefcase" },
+    { key: "browse", full: "Browse by name", icon: "users" },
+    { key: "skills", full: "Skills & industry", icon: "matching" },
+    { key: "role", full: "Matches", icon: "briefcase" },
   ];
   // Popular skills across job families (not just engineering), each exists in
   // the candidate pool so a quick-add always returns real matches.
@@ -15336,16 +15336,20 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <div className="lg:col-span-2 min-w-0">
 
         {/* Tabs, three separate ways to find people */}
-        <div className="flex gap-1 p-1 rounded-2xl mb-5 sm:inline-flex" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+        {/* One scrollable row rather than three equal cells with shortened
+            labels. "By name" and "Skills" were abbreviations of "Browse by name"
+            and "Skills & industry" that dropped the part explaining what the tab
+            actually searched. Same treatment as the Team tabs: full labels, and
+            the row scrolls if they do not fit. */}
+        <div className="flex flex-nowrap gap-1 p-1 rounded-2xl mb-5 overflow-x-auto no-scrollbar sm:inline-flex sm:overflow-visible" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           {TABS.map((t) => {
             const active = tab === t.key;
             return (
               <button key={t.key} onClick={() => switchTab(t.key)}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
+                className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
                 style={active ? undefined : { color: "var(--ink-2)" }}>
-                <Icon name={t.icon} className="w-4 h-4" />
-                <span className="sm:hidden">{t.short}</span>
-                <span className="hidden sm:inline">{t.full}</span>
+                <Icon name={t.icon} className="w-4 h-4 shrink-0" />
+                <span>{t.full}</span>
               </button>
             );
           })}
