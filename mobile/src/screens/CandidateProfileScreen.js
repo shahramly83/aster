@@ -683,10 +683,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // screen follow the web without having to be told.
   const panelCount = rolePanel === null ? null : rolePanel.length;
   const askIvMode = manager && !interview && ivMode === null && (askOnMove || panelCount === 0);
-  // A panel exists but has never been asked for availability. Adding people to a
-  // role is the decision to interview with them, so the poll is the next step and
-  // the only one offered until it has run.
-  const awaitingPanelAvailability = manager && !!panelCount && !polled;
+  // With a panel on the role, the availability flow owns sending times: the poll
+  // ends by offering the winning slots to the candidate. A separate "propose
+  // times" button beside it is a way to bypass the very people just added, and
+  // once a poll is open it is worse than redundant, because the times would go
+  // out while the panel is still voting on them. Gated on the panel existing, not
+  // on whether a poll has run, so it does not reappear the moment one does.
+  const panelLedScheduling = manager && !!panelCount;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -1333,10 +1336,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   {/* No blurb while the panel is being assembled: the chips below
                       already say who is on it, and the only button says what to
                       do next. */}
-                  {!manager || !awaitingPanelAvailability ? (
+                  {!manager || !panelLedScheduling ? (
                     <Text style={[type.small, { color: theme.ink3 }]}>
                       {manager
-                        ? "Get the panel's availability, then propose a few times for the candidate to choose from."
+                        ? "Get the panel's availability, then offer the times that work to the candidate."
                         : "Mark the times you can make so the panel can find an overlap."}
                     </Text>
                   ) : null}
@@ -1377,12 +1380,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   ) : null}
                   {/* Same ordering fix as the reschedule branch above: the step you
                       do first is the one that looks primary. */}
-                  <Button title={!manager || awaitingPanelAvailability ? "Panel availability" : "1 · Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
-                  {/* Staffing a panel is the decision to interview with one, so
-                      offering "propose times" alongside it invites skipping the
-                      very people just added, and the poll then has nothing to
-                      change. It comes back once availability has been collected. */}
-                  {manager && !awaitingPanelAvailability ? (
+                  <Button title={!manager || panelLedScheduling ? "Panel availability" : "1 · Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                  {/* No panel: nobody to poll, so the hiring manager offers times
+                      directly. With a panel this is absent for good, because the
+                      availability flow is what sends them. */}
+                  {manager && !panelLedScheduling ? (
                     <>
                       <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
                       <Text style={styles.stepHint}>Vote first, so the times you send are ones the panel can actually make.</Text>
