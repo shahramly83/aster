@@ -543,10 +543,28 @@ async function loadWorkspaceData(companyId) {
   // 'sent' invite for the same key.
   const bookings = {};
   const bookingsByJob = {};
+  // Which of a candidate's interviews wins a slot in these maps. The old rule was
+  // "the first scheduled one to arrive keeps it", and the interviews query has no
+  // ORDER BY, so a candidate interviewing for two roles at once showed whichever
+  // row Postgres happened to return first — an interview from another job, at
+  // another time, wherever no job is in context (the interviews list, the
+  // dashboard). Prefer the soonest one still ahead, and failing that the most
+  // recent one behind, so "their interview" means the next one.
+  const moreRelevant = (next, cur) => {
+    if (!cur) return true;
+    if (cur.status !== "scheduled") return true;      // anything beats a pending invite
+    if (next.status !== "scheduled") return false;    // but a pending invite never displaces a booking
+    const now = Date.now();
+    const ns = new Date(next.confirmedSlot.start).getTime();
+    const cs = new Date(cur.confirmedSlot.start).getTime();
+    const nAhead = ns >= now, cAhead = cs >= now;
+    if (nAhead !== cAhead) return nAhead;             // upcoming beats past
+    return nAhead ? ns < cs : ns > cs;                // soonest ahead, else latest behind
+  };
   const putBooking = (candId, jobId, b) => {
     const cjKey = `${candId}:${jobId || ""}`;
-    if (bookingsByJob[cjKey]?.status !== "scheduled") bookingsByJob[cjKey] = b;
-    if (bookings[candId]?.status !== "scheduled") bookings[candId] = b;
+    if (moreRelevant(b, bookingsByJob[cjKey])) bookingsByJob[cjKey] = b;
+    if (moreRelevant(b, bookings[candId])) bookings[candId] = b;
   };
   for (const iv of ivRes.data || []) {
     const attendees = Array.isArray(iv.attendees) ? iv.attendees : [];
