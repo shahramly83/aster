@@ -32,7 +32,13 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
   const insets = useSafeAreaInsets();
   const dateOnly = mode === "date";
   const today = startOfDay(new Date());
-  const floor = minDate ? startOfDay(new Date(minDate)) : today;
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  const lastSlotM = TIME_SLOTS[TIME_SLOTS.length - 1].h * 60 + TIME_SLOTS[TIME_SLOTS.length - 1].m;
+  // Once the last slot of the day has gone, today is not a day you can offer at
+  // all, so the calendar stops accepting it rather than accepting it and then
+  // having nothing to show in the time row.
+  const firstDay = nowM >= lastSlotM ? new Date(today.getTime() + 86400000) : today;
+  const floor = minDate ? startOfDay(new Date(minDate)) : firstDay;
   const init = initial ? new Date(initial) : null;
   const heading = title || (dateOnly ? "Pick a date" : "Pick a date & time");
 
@@ -56,8 +62,25 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
     }
     return set;
   }, [blocked, day]);
-  const fromBlocked = (t) => blockedMins.has(mins(t));
+  // A slot that has already begun is not a time you can offer. The half-hour in
+  // progress counts as gone: proposing 2:00 at 2:20 is not a real option.
+  const isToday = day ? sameDay(day, new Date()) : false;
+  const isPast = (t) => isToday && mins(t) <= nowM;
+  const fromBlocked = (t) => blockedMins.has(mins(t)) || isPast(t);
   const rangeBlocked = (endT) => { for (let m = mins(from); m < mins(endT); m += 30) if (blockedMins.has(m)) return true; return false; };
+
+  // Choosing a day should leave a usable start selected, which on today means the
+  // next slot still ahead rather than 8:00 AM this morning.
+  const pickDay = (d) => {
+    setDay(d);
+    if (dateOnly) return;
+    const onToday = sameDay(d, new Date());
+    const usable = TIME_SLOTS.find((t) => !blockedMins.has(mins(t)) && !(onToday && mins(t) <= nowM));
+    if (!from || (onToday && mins(from) <= nowM) || blockedMins.has(mins(from))) {
+      setFrom(usable || null);
+      setTo(null);
+    }
+  };
 
   const pickFrom = (t) => {
     if (fromBlocked(t)) return;
@@ -149,7 +172,7 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
               const selected = sameDay(d, day);
               const isToday = sameDay(d, today);
               return (
-                <Pressable key={i} onPress={() => !disabled && setDay(startOfDay(d))} disabled={disabled} style={styles.cell} hitSlop={2}>
+                <Pressable key={i} onPress={() => !disabled && pickDay(startOfDay(d))} disabled={disabled} style={styles.cell} hitSlop={2}>
                   <View style={[styles.dayDot, selected && styles.daySelected]}>
                     <Text style={[styles.dayTxt, disabled && { color: theme.ink4, opacity: 0.5 }, selected && { color: theme.white }, isToday && !selected && { color: theme.brand }]}>
                       {d.getDate()}
@@ -180,7 +203,7 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
               <Text style={styles.timeHead}>TO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
                 {TIME_SLOTS.map((t, i) => {
-                  const disabled = mins(t) <= mins(from) || rangeBlocked(t);
+                  const disabled = mins(t) <= mins(from) || rangeBlocked(t) || isPast(t);
                   const on = to && mins(to) === mins(t);
                   return (
                     <Pressable key={i} onPress={() => !disabled && setTo(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.35 }]}>
