@@ -648,6 +648,30 @@ export async function dbAssignInterviewer(jobId, profileId) {
   return error.message || "Couldn't add that interviewer.";
 }
 
+// Put someone who has been invited but hasn't signed up yet on a role's
+// interview panel (migration 0138). job_assignments.profile_id references
+// profiles, and an invitee has no profile until they accept, so the intent is
+// recorded on the invitation and accept_invite turns it into a real assignment
+// at signup. Takes the email because that is all the caller has just after
+// sending the invite.
+export async function dbStageInviteJob(email, jobId) {
+  if (!hasSupabase || !jobId || !email) return "Not connected to a live workspace.";
+  const { data: inv, error: findErr } = await supabase
+    .from("invitations")
+    .select("id")
+    .ilike("email", email)
+    .is("accepted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (findErr || !inv?.id) return "Couldn't find that invite.";
+  const { error } = await supabase.rpc("stage_invite_job", { p_invite: inv.id, p_job_id: jobId, p_on: true });
+  if (!error) return null;
+  console.error("dbStageInviteJob", error.message);
+  if (error.code === "42883") return "Run migration 0138: stage_invite_job doesn't exist yet.";
+  return error.message || "Couldn't put them on this role.";
+}
+
 // Remove a teammate from a job's interviewer pool. Admin-gated.
 export async function dbUnassignInterviewer(jobId, profileId) {
   if (!hasSupabase || !jobId || !profileId) return "Not connected to a live workspace.";

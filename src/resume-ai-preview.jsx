@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -18062,6 +18062,9 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const [err, setErr] = useState(null);
   const [override, setOverride] = useState(false); // HM proceeds without every vote
   const [addingPanel, setAddingPanel] = useState(autoOpenPanel); // panel picker open
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteNote, setInviteNote] = useState(null); // { type: 'ok'|'err', msg }
   const [assignBusy, setAssignBusy] = useState(null); // profileId being assigned
   const [selected, setSelected] = useState(() => new Set()); // slot ids to offer
   const [sending, setSending] = useState(false);
@@ -18151,6 +18154,36 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const assignedIds = new Set(assignedInterviewers.map((iv) => iv.id));
   const addablePanel = interviewers.filter((iv) => iv.id && isInterviewer(iv.role) && !assignedIds.has(iv.id) && iv.id !== hmId);
   const canEditPanel = isManager && !!jobId && !!onAssignInterviewer;
+
+  // Invite an interviewer from inside the picker, and stage them onto this role
+  // so accepting the invite puts them straight on the panel.
+  const sendPanelInvite = async () => {
+    const em = inviteEmail.trim();
+    if (!em || inviteBusy) return;
+    if (!hasSupabase) { setInviteNote({ type: "err", msg: "Not connected to a live workspace." }); return; }
+    setInviteBusy(true); setInviteNote(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-teammate-invite", { body: { email: em, role: "interviewer" } });
+      let reason = data?.error || "";
+      if (!reason && error?.context?.json) { try { const b = await error.context.json(); reason = b?.error || ""; } catch { /* ignore */ } }
+      if (error || reason) {
+        setInviteNote({ type: "err", msg:
+          /already|exists|duplicate/i.test(reason) ? "They're already on your team or invited."
+          : /seat|limit/i.test(reason) ? "No teammate seats left on your plan."
+          : /permission|denied|forbidden|not authoriz|unauthoriz/i.test(reason) ? "Only an owner or admin can invite teammates."
+          : reason || "Couldn't send the invite." });
+        setInviteBusy(false); return;
+      }
+      // Best effort: the invite is the thing that matters, and a failure here
+      // only means they have to be added to the panel by hand once they join.
+      const stageErr = jobId ? await dbStageInviteJob(em, jobId) : "no role";
+      setInviteNote({ type: "ok", msg: stageErr
+        ? `Invite sent to ${em}. Add them to this panel once they sign up.`
+        : `Invite sent to ${em}. They join this panel as soon as they sign up.` });
+      setInviteEmail("");
+    } catch { setInviteNote({ type: "err", msg: "Couldn't send the invite." }); }
+    setInviteBusy(false);
+  };
 
   // Every way out of the picker goes through here. With nobody added and no poll
   // started this card renders nothing, so simply shutting the modal left the step
@@ -18360,7 +18393,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               <p className="text-sm rounded-xl border p-3.5" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>
                 {interviewers.some((iv) => isInterviewer(iv.role))
                   ? "Everyone with the interviewer role is already on this panel."
-                  : "No teammates have the interviewer role yet. Invite one from Team settings."}
+                  : "Nobody on the team has the interviewer role yet. Invite them below and they land on this panel."}
               </p>
             ) : (
               <div className="space-y-1.5 max-h-[22rem] overflow-y-auto -mx-1 px-1">
@@ -18381,6 +18414,44 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                     <span className="text-xs font-bold shrink-0 rounded-full px-3 py-1.5" style={{ background: "var(--brand)", color: "#fff" }}>{assignBusy === iv.id ? "Adding…" : "Add"}</span>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Inviting is the whole point of opening this on a workspace of one,
+                and sending people to Team settings to do it loses the role they
+                came here to staff. The invite is staged onto this job (0138), so
+                they arrive already on the panel instead of needing to be added
+                again once they accept. */}
+            {canEditPanel && (
+              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+                <label htmlFor="panel-invite-email" className="block text-xs font-semibold mb-1.5" style={{ color: "var(--ink-2)" }}>
+                  Invite someone new
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="panel-invite-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={inviteEmail}
+                    onChange={(e) => { setInviteEmail(e.target.value); setInviteNote(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") sendPanelInvite(); }}
+                    placeholder="name@company.com"
+                    className="flex-1 min-w-0 rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
+                    style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={sendPanelInvite}
+                    disabled={!inviteEmail.trim() || inviteBusy}
+                    className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                  >
+                    <Icon name="userPlus" className="w-4 h-4" /> {inviteBusy ? "Sending…" : "Invite"}
+                  </button>
+                </div>
+                <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: inviteNote?.type === "err" ? "#B42318" : inviteNote ? "#067647" : "var(--ink-3)" }}>
+                  {inviteNote?.msg || "They get the interviewer role and join this role's panel as soon as they sign up."}
+                </p>
               </div>
             )}
           </div>
