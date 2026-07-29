@@ -16014,7 +16014,23 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                       <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
                       <td className="px-4 py-3">
                         <span className="flex justify-end">
-                          {a.match != null ? <MatchRing value={a.match} size={46} stroke={4} filled /> : <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>}
+                          {/* A bare dash reads as a failed score. AI Rank only
+                              ever scores strong matches still at Applied, so say
+                              which of those two this candidate fell outside of
+                              rather than leaving a blank to be interpreted. */}
+                          {a.match != null ? <MatchRing value={a.match} size={46} stroke={4} filled /> : (
+                            <span
+                              className="text-xs cursor-default"
+                              style={{ color: "var(--ink-4)" }}
+                              title={
+                                a.fit === "other" ? "Not ranked: AI Rank skips non-matches."
+                                : a.stage !== "applied" ? `Not ranked: already at ${PIPE_STAGE_META[a.stage]?.label || a.stage} when AI Rank last ran.`
+                                : "Not ranked yet. Run AI Rank to score this candidate."
+                              }
+                            >
+                              &mdash;
+                            </span>
+                          )}
                         </span>
                       </td>
                     </tr>
