@@ -18833,7 +18833,7 @@ function makeMeetingRoom(candidateId) {
 // "without waiting for an interviewer to ask". Between them they left the hiring
 // manager to guess. So ask outright, and let each answer land somewhere that
 // makes sense: alone goes straight to picking times, panel opens the picker.
-function InterviewSetupChoice({ firstName, onSolo, onPanel, pending = [] }) {
+function InterviewSetupChoice({ firstName, onSolo, onPanel }) {
   const tiles = [
     {
       key: "solo",
@@ -18883,14 +18883,6 @@ function InterviewSetupChoice({ firstName, onSolo, onPanel, pending = [] }) {
           </button>
         ))}
       </div>
-      {/* This card replaces the one carrying the invite chips, so the invite has
-          to be restated here or coming back to the question looks like it threw
-          the invite away. */}
-      {pending.length > 0 && (
-        <p className="text-[11px] mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-          {pending.length === 1 ? `${pending[0].email} is invited` : `${pending.length} people are invited`} and still joins the panel on this role when they sign up, whichever you pick.
-        </p>
-      )}
     </div>
   );
 }
@@ -24208,7 +24200,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {askIvMode ? (
           <InterviewSetupChoice
             firstName={candFirstName}
-            pending={pendingPanel}
             onSolo={() => { setForceAsk(false); setIvMode("solo"); }}
             onPanel={() => { setForceAsk(false); setIvMode("panel"); }}
           />
