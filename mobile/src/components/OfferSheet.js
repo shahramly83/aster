@@ -363,81 +363,45 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               )}
             </Field>
 
-            <Field label="Where this offer goes">
-              {/* The rail used to be a per-row segment, so it restarted at every
-                  row boundary and read as three disconnected stubs floating on
-                  the sheet. One spine is drawn behind the whole route instead,
-                  and the nodes sit on top of it with a solid fill so they punch
-                  through. The card gives it an edge; before, it was the only
-                  thing on the sheet with no container. */}
-              <View style={styles.rtCard}>
-                <View style={styles.rtSpine} />
+            <Field label="Approvers">
+              <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 12, lineHeight: 17 }]}>
+                Optional. Anyone here signs off in order before {candidateName ? candidateName.split(" ")[0] : "the candidate"} is emailed the offer. You can send without one.
+              </Text>
 
-                <View style={styles.rtRow}>
-                  <View style={[styles.rtNode, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
-                    <Feather name="edit-3" size={11} color={theme.white} />
-                  </View>
-                  <View style={styles.rtBody}>
-                    <Text style={[type.smallStrong, { color: theme.ink }]}>You sign it</Text>
-                    <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Signed above</Text>
-                  </View>
-                </View>
-
-                {approvers.map((a, i) => {
-                  const pool = approverPool.find((m) => (m.email || "").toLowerCase() === (a.email || "").toLowerCase());
-                  const unconfirmed = pool && pool.status && pool.status !== "confirmed";
-                  return (
-                    <View key={a.id || i} style={styles.rtRow}>
+              {/* Picked approvers, in the order they act. */}
+              {approvers.map((a, i) => {
+                const pool = approverPool.find((m) => (m.email || "").toLowerCase() === (a.email || "").toLowerCase());
+                const unconfirmed = pool && pool.status && pool.status !== "confirmed";
+                return (
+                  <View key={a.id || i} style={styles.rtCard}>
+                    <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
                       <View style={[styles.rtNode, { backgroundColor: theme.card, borderColor: unconfirmed ? theme.warn : theme.brand }]}>
                         <Text style={[styles.rtNodeTxt, unconfirmed && { color: theme.warn }]}>{i + 1}</Text>
                       </View>
                       <View style={styles.rtBody}>
-                        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name || a.email}</Text>
-                            <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{a.email}</Text>
-                          </View>
-                          <Pressable onPress={() => removeApprover(i)} hitSlop={10} accessibilityLabel={`Remove ${a.name || a.email}`} style={styles.rtRemove}>
-                            <Feather name="x" size={15} color={theme.ink3} />
-                          </Pressable>
-                        </View>
-                        {unconfirmed ? (
-                          <View style={styles.rtWarn}>
-                            <Feather name="clock" size={11} color="#92400E" />
-                            <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginLeft: 6, flex: 1, lineHeight: 16 }]}>
-                              We email them to confirm their address, then send the letter to approve. It waits here until they do.
-                            </Text>
-                          </View>
-                        ) : null}
+                        <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name || a.email}</Text>
+                        <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{a.email}</Text>
                       </View>
+                      <Pressable onPress={() => removeApprover(i)} hitSlop={10} accessibilityLabel={`Remove ${a.name || a.email}`} style={styles.rtRemove}>
+                        <Feather name="x" size={15} color={theme.ink3} />
+                      </Pressable>
                     </View>
-                  );
-                })}
-
-                {approvers.length === 0 ? (
-                  <View style={styles.rtRow}>
-                    <View style={styles.rtNodeGhost} />
-                    <View style={styles.rtBody}>
-                      <Text style={[type.small, { color: theme.ink4, fontSize: 12 }]}>No sign-off. It goes straight there.</Text>
-                    </View>
+                    {unconfirmed ? (
+                      <View style={styles.rtWarn}>
+                        <Feather name="clock" size={11} color="#92400E" />
+                        <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginLeft: 6, flex: 1, lineHeight: 16 }]}>
+                          We email them to confirm their address, then send the letter to approve. It waits here until they do.
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
-                ) : null}
-
-                <View style={[styles.rtRow, { marginBottom: 0 }]}>
-                  <View style={[styles.rtNode, { backgroundColor: theme.ink, borderColor: theme.ink }]}>
-                    <Feather name="mail" size={11} color={theme.white} />
-                  </View>
-                  <View style={styles.rtBody}>
-                    <Text style={[type.smallStrong, { color: theme.ink }]}>{candidateName ? `${candidateName.split(" ")[0]} gets it` : "The candidate gets it"}</Text>
-                    <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Emailed a link to review and sign</Text>
-                  </View>
-                </View>
-              </View>
+                );
+              })}
 
               {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).length > 0 ? (
                 <View style={{ marginTop: space(3) }}>
                   <Text style={[type.small, { color: theme.ink3, fontSize: 12, marginBottom: 8 }]}>
-                    {approvers.length ? "Add another" : "Add someone to sign off first"}
+                    {approvers.length ? "Add another" : "Tap to add"}
                   </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                     {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).map((m) => {
@@ -446,7 +410,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                         <Pressable
                           key={m.id || m.email}
                           onPress={() => pickApprover(m)}
-                          accessibilityLabel={`Add ${m.name || m.email} to the route`}
+                          accessibilityLabel={`Add ${m.name || m.email} as an approver`}
                           style={({ pressed }) => [styles.rtChip, pressed && { backgroundColor: theme.bg }]}
                         >
                           <Feather name="plus" size={13} color={theme.brand} />
@@ -584,7 +548,7 @@ const styles = StyleSheet.create({
   apAddBtnTxt: { color: theme.brand, fontFamily: "Inter_700Bold", fontSize: 12.5 },
   apConfirmedPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 7 },
   apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
-  rtCard: { borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
+  rtCard: { borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3), marginBottom: 8 },
   // One unbroken line behind every node. Inset so it starts and ends inside the
   // first and last node rather than poking out past them.
   rtSpine: { position: "absolute", left: space(3) + 11, top: space(3) + 12, bottom: space(3) + 12, width: 2, backgroundColor: theme.line2 },
