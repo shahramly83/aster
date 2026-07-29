@@ -13110,21 +13110,27 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             />
           </div>
 
-          <div className="relative" ref={statusMenuRef}>
+          {/* Status and Sort share a row on phones. Left to the flex-wrap they
+              came out ragged: Status stretched full width, then Sort alone on the
+              next line at whatever width its label happened to need.
+              sm:contents dissolves this wrapper above the breakpoint, so the
+              desktop toolbar is the original one rather than a copy of it. */}
+          <div className="flex w-full gap-3 sm:contents">
+          <div className="relative flex-1 sm:flex-none" ref={statusMenuRef}>
             <button
               onClick={() => setFilterOpen((o) => !o)}
               aria-haspopup="listbox"
               aria-expanded={filterOpen}
-              className="w-full sm:w-auto inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50"
+              className="w-full sm:w-auto inline-flex items-center gap-2 rounded-xl bg-white border px-3 sm:px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50"
               style={{ borderColor: "var(--line-strong)" }}
             >
-              <span style={{ color: "var(--ink-3)" }}><Icon name="filter" className="w-4 h-4" /></span>
-              <span style={{ color: "var(--ink-3)" }}>Status</span>
-              <span className="inline-flex items-center gap-1.5 font-medium" style={{ color: "var(--ink)" }}>
-                {statusFilter !== "all" && <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_DOT[statusFilter] }} />}
-                {STATUS_LABELS[statusFilter]}
+              <span className="shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="filter" className="w-4 h-4" /></span>
+              <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>Status</span>
+              <span className="inline-flex items-center gap-1.5 font-medium min-w-0 flex-1 sm:flex-none" style={{ color: "var(--ink)" }}>
+                {statusFilter !== "all" && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STATUS_DOT[statusFilter] }} />}
+                <span className="truncate">{STATUS_LABELS[statusFilter]}</span>
               </span>
-              <Icon name="chevronDown" className={`w-4 h-4 ml-0.5 transition-transform ${filterOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+              <Icon name="chevronDown" className={`w-4 h-4 ml-auto sm:ml-0.5 shrink-0 transition-transform ${filterOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
             </button>
             {filterOpen && (
               <>
@@ -13153,11 +13159,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
 
           {/* Sort */}
-          <div className="relative" ref={sortMenuRef}>
-            <button onClick={() => setSortOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={sortOpen} className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)" }}>
-              <span style={{ color: "var(--ink-3)" }}>Sort</span>
-              <span className="font-medium" style={{ color: "var(--ink)" }}>{SORT_LABELS[sortBy]}</span>
-              <Icon name="chevronDown" className={`w-4 h-4 ml-0.5 transition-transform ${sortOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+          <div className="relative flex-1 sm:flex-none" ref={sortMenuRef}>
+            <button onClick={() => setSortOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={sortOpen} className="w-full sm:w-auto inline-flex items-center gap-2 rounded-xl bg-white border px-3 sm:px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)" }}>
+              <span className="shrink-0" style={{ color: "var(--ink-3)" }}>Sort</span>
+              <span className="font-medium truncate min-w-0 flex-1 sm:flex-none text-left" style={{ color: "var(--ink)" }}>{SORT_LABELS[sortBy]}</span>
+              <Icon name="chevronDown" className={`w-4 h-4 ml-auto sm:ml-0.5 shrink-0 transition-transform ${sortOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
             </button>
             {sortOpen && (
               <>
@@ -13175,6 +13181,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 </div>
               </>
             )}
+          </div>
           </div>
 
           {/* View toggle, desktop only; mobile always uses cards */}
