@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -20323,7 +20323,16 @@ function RestrictedScreen({ navigate, title, body }) {
   );
 }
 
-function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+// The credit kinds as a customer knows them, not as the columns are named.
+const CREDIT_KIND_LABELS = {
+  applicant_screen: "Applicant screening",
+  resume_screen: "Resume screening",
+  ai_rank: "AI Rank",
+  ai_insight: "AI Insight",
+  interview_questions: "Interview questions",
+};
+
+function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyId = null, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(() => {
     // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
     // confirmation from the fresh page load.
@@ -20377,6 +20386,18 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
   // behind a redirect to the portal.
   const [invoices, setInvoices] = useState([]);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
+  // Where the credits went (0143). Separate from invoices: invoices answer "what
+  // did I pay", this answers "what did it do".
+  const [spend, setSpend] = useState([]);
+  const [spendLoading, setSpendLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    if (!companyId) { setSpendLoading(false); return undefined; }
+    dbListCreditSpend(companyId, 50)
+      .then((rows) => { if (alive) setSpend(rows); })
+      .finally(() => { if (alive) setSpendLoading(false); });
+    return () => { alive = false; };
+  }, [companyId]);
   // Stripe's price for the next invoice, which is not the plan's list price when a
   // proration credit is outstanding.
   const [upcoming, setUpcoming] = useState(null);
@@ -20916,6 +20937,43 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
                 : "No payment method on file."}
             </p>
           )}
+
+          {/* Where the credits went. Invoices answer "what did I pay"; this
+              answers "what did it do", which is the question people actually ask
+              when a balance drops faster than expected. The failures matter most:
+              a resume that could not be read still costs a credit, because the
+              model was billed to read it, and that is exactly what looks like an
+              unexplained charge without a line saying so. */}
+          <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Where your credits went</h3>
+              {spend.length > 0 && <span className="text-xs" style={{ color: "var(--ink-3)" }}>last {spend.length}</span>}
+            </div>
+            {spendLoading ? (
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Loading…</p>
+            ) : spend.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Nothing spent yet. Screening a resume, running AI Rank or generating insights will show up here.</p>
+            ) : (
+              <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+                {spend.map((r) => (
+                  <div key={r.id} className="flex items-start justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm" style={{ color: "var(--ink)" }}>{r.label}</p>
+                      {r.detail && <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{r.detail}</p>}
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-4)" }}>
+                        {CREDIT_KIND_LABELS[r.kind] || r.kind}
+                        {r.pool === "purchased" ? " · from your top-up" : r.pool === "monthly" ? " · from your plan" : ""}
+                        {" · "}{new Date(r.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold tnum" style={{ color: "var(--ink-2)" }}>
+                      {r.quantity} credit{r.quantity === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Invoice history, read straight from Stripe so receipts live here
               rather than only behind a redirect to the portal. */}
@@ -29751,7 +29809,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && isOwner(profile?.role) && (
-          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} initialCycle={billingCycleIntent} onCycleIntentConsumed={() => setBillingCycleIntent(null)} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} initialCycle={billingCycleIntent} onCycleIntentConsumed={() => setBillingCycleIntent(null)} company={company} companyId={companyId} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} trialEndsAt={trialActive ? renewsAt : null} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}

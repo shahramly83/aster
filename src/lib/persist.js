@@ -672,6 +672,21 @@ export async function dbStageInviteJob(email, jobId) {
   return error.message || "Couldn't put them on this role.";
 }
 
+// What the workspace's credits were actually spent on (0143). Read-only, newest
+// first, owner/admin only by RLS. Purely informational: the balances people act
+// on come from usage_counters and purchased_credits, not from here.
+export async function dbListCreditSpend(companyId, limit = 50) {
+  if (!hasSupabase || !companyId) return [];
+  const { data, error } = await supabase
+    .from("credit_spend_log")
+    .select("id, kind, quantity, pool, label, detail, created_at")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("dbListCreditSpend", error.message); return []; }
+  return data || [];
+}
+
 // Remove a teammate from a job's interviewer pool. Admin-gated.
 export async function dbUnassignInterviewer(jobId, profileId) {
   if (!hasSupabase || !jobId || !profileId) return "Not connected to a live workspace.";
