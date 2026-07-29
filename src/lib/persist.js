@@ -132,7 +132,16 @@ export async function dbSetCandidateStage(companyId, candidateId, stage, jobId =
   let q = supabase.from("applications").update({ stage }).eq("company_id", companyId).eq("candidate_id", candidateId);
   if (jobId) q = q.eq("job_id", jobId);
   const { error } = await q;
-  if (error) console.error("dbSetCandidateStage", error.message);
+  if (!error) return { error: null };
+  console.error("dbSetCandidateStage", error.message);
+  // 23505 = one_live_application_per_candidate (0144). Bringing this application
+  // back to life would give the candidate two live ones, which the database now
+  // refuses. Say which rule was hit, not "duplicate key value violates unique
+  // constraint" — the person doing it has no idea what that means.
+  if (error.code === "23505") {
+    return { error: "This candidate already has another application open with you. Close that one first, or leave this one as it is." };
+  }
+  return { error: error.message || "Couldn't update that candidate's stage." };
 }
 
 // Delete a candidate. Applications, interviews and scorecards cascade via FK;

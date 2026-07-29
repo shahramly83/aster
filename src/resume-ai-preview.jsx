@@ -28164,6 +28164,10 @@ export default function ResumeAIPreview() {
   // Stage overrides applied after the initial mock stage, keyed by candidate id.
   // Lets actions elsewhere (like a confirmed booking) advance the pipeline stage.
   const [stageOverrides, setStageOverrides] = useState({});
+  // A stage change the database refused (0144: one live application per
+  // candidate). Shown as a dismissible bar rather than an alert, because the
+  // change has already been rolled back and there is nothing to confirm.
+  const [stageError, setStageError] = useState(null);
   // Search view state (tab, filters, page, results, scroll) kept across the
   // profile round-trip so Back returns to the same place, not a fresh list.
   const searchStateRef = useRef({});
@@ -29161,7 +29165,18 @@ export default function ResumeAIPreview() {
     // Stamp the hire date when a candidate is marked hired (drives "Hired {date}").
     if (stage === "hired") setHiredDates((prev) => (prev[candidateId] ? prev : { ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
     if (!canPersist || prevStage === stage) return;
-    dbSetCandidateStage(companyId, candidateId, stage, jobId);
+    // The database refuses a second live application per candidate (0144), so a
+    // move back into the pipeline can legitimately fail. Put the stage back where
+    // it was and say why, rather than leaving the screen showing a change that
+    // did not happen.
+    dbSetCandidateStage(companyId, candidateId, stage, jobId).then((res) => {
+      if (!res?.error) return;
+      Object.entries(APPLICANTS_BY_JOB).forEach(([jid, list]) => list.forEach((a) => {
+        if (a.candidateId === candidateId && (!jobId || jid === jobId)) a.baseStage = prevStage;
+      }));
+      setStageOverrides((prev) => { const n = { ...prev }; delete n[ovKey]; return n; });
+      setStageError(res.error);
+    });
     if (stage === "hired") dbLogActivity("hired", `${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "A candidate"} was hired`, { candidateId });
     // 'offer' is intentionally excluded: offers are sent via the dedicated
     // sendOffer flow (which emails an accept/decline link), not here.
@@ -29722,6 +29737,18 @@ export default function ResumeAIPreview() {
         activities={activities}
         onOpenNotifications={markActivitiesRead}
       >
+        {/* A stage change the database refused. Sits above whatever screen you are
+            on, because the move can be started from the pipeline, the applicants
+            table or a candidate profile, and the answer is the same everywhere. */}
+        {stageError && (
+          <div className="mb-4 rounded-xl px-4 py-3 flex items-start gap-3" style={{ background: "#FEF2F2", border: "1px solid #FCA5A5" }}>
+            <span className="shrink-0 mt-0.5" style={{ color: "#B42318" }}><Icon name="alertCircle" className="w-4 h-4" /></span>
+            <p className="text-sm flex-1 min-w-0" style={{ color: "#7F1D1D" }}>{stageError}</p>
+            <button onClick={() => setStageError(null)} aria-label="Dismiss" className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-white/60" style={{ color: "#B42318" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <ErrorBoundary key={screen}>
         {screen === "dashboard" && (
           <DashboardScreen
