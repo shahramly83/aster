@@ -18549,7 +18549,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                       ? `${emailDomain(inviteEmail)} is a personal mailbox, not a company one. Check it's the right person: they'll see this role's candidates.`
                       : inviteRisk === "external"
                         ? `${emailDomain(inviteEmail)} is outside ${myDomain}. They'll see this role's candidates.`
-                        : "They get the interviewer role and join this role's panel as soon as they sign up.")}
+                        : "The interviewer will join this role's panel as soon as they sign up.")}
                 </p>
               </div>
             )}
