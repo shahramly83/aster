@@ -18061,7 +18061,7 @@ const FREE_EMAIL_DOMAINS = new Set([
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onInterviewAlone }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -18442,11 +18442,11 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 {pendingPanel.length === 1 ? "One invite is outstanding." : `${pendingPanel.length} invites are outstanding.`} They join this panel and see this role the moment they sign up. There is nobody to poll for availability until then.
               </p>
               {/* Waiting on someone else to sign up is not a state to be stuck in.
-                  This is the same answer the setup question offers, kept reachable
-                  once the panel route has been taken. */}
-              {onInterviewAlone && (
-                <button type="button" onClick={onInterviewAlone} className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
-                  <Icon name="calendar" className="w-3.5 h-3.5" /> Interview {candName.split(" ")[0]} on your own instead
+                  Back to the question rather than straight to solo: an invite is
+                  already out, so the choice is worth making deliberately. */}
+              {onBackToChoice && (
+                <button type="button" onClick={onBackToChoice} className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                  <Icon name="chevronLeft" className="w-3.5 h-3.5" /> Change how this interview runs
                 </button>
               )}
             </div>
@@ -18833,7 +18833,7 @@ function makeMeetingRoom(candidateId) {
 // "without waiting for an interviewer to ask". Between them they left the hiring
 // manager to guess. So ask outright, and let each answer land somewhere that
 // makes sense: alone goes straight to picking times, panel opens the picker.
-function InterviewSetupChoice({ firstName, onSolo, onPanel }) {
+function InterviewSetupChoice({ firstName, onSolo, onPanel, pending = [] }) {
   const tiles = [
     {
       key: "solo",
@@ -18883,6 +18883,14 @@ function InterviewSetupChoice({ firstName, onSolo, onPanel }) {
           </button>
         ))}
       </div>
+      {/* This card replaces the one carrying the invite chips, so the invite has
+          to be restated here or coming back to the question looks like it threw
+          the invite away. */}
+      {pending.length > 0 && (
+        <p className="text-[11px] mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+          {pending.length === 1 ? `${pending[0].email} is invited` : `${pending.length} people are invited`} and still joins the panel on this role when they sign up, whichever you pick.
+        </p>
+      )}
     </div>
   );
 }
@@ -22974,6 +22982,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // interviewers. Only ever asked for a fresh interview on a role with no panel;
   // any existing poll, panel, booking or interviewer request answers it already.
   const [ivMode, setIvMode] = useState(null);
+  // An explicit "take me back to the question" from a state that would otherwise
+  // answer it, such as an invite already being out. Cleared the moment an answer
+  // is given, so it never sticks around and re-asks later.
+  const [forceAsk, setForceAsk] = useState(false);
   const [hasPoll, setHasPoll] = useState(null); // null until PanelPoll reports in
   // The caller may not hand us a stage (e.g. an interviewer opening a profile
   // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
@@ -23524,7 +23536,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // null until PanelPoll reports, so this stays false for a beat rather than
   // flashing the question over a poll that turns out to exist.
   const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
-    && assignedInterviewers.length === 0 && pendingPanel.length === 0 && hasPoll === false && ivMode !== "solo";
+    && assignedInterviewers.length === 0 && hasPoll === false
+    && (forceAsk || (pendingPanel.length === 0 && ivMode !== "solo"));
   // The panel exists on paper but cannot do anything yet: nobody real is on it,
   // and we are either mid-setup or waiting on an invite to be accepted. There is
   // nothing to schedule and no request to wait for, so the scheduler card below
@@ -24164,6 +24177,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <p className="text-sm" style={{ color: "var(--ink)" }}><span className="font-semibold">{requesterName === "you" ? "You" : requesterName}</span> requested an interview with this candidate. Set it up below.</p>
           </div>
         )}
+        {!askIvMode && (
         <PanelPoll
           // Remount when the answer changes. autoOpenPanel only seeds the
           // picker's initial state, so without this "Add interviewers" left the
@@ -24184,17 +24198,19 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onPollLoaded={setHasPoll}
           pendingPanel={pendingPanel}
           reloadTeam={reloadTeam}
-          onInterviewAlone={() => setIvMode("solo")}
+          onBackToChoice={() => { setIvMode(null); setForceAsk(true); }}
           autoOpenPanel={ivMode === "panel"}
           onCancelPanelSetup={() => setIvMode(null)}
           onAssignInterviewer={onAssignInterviewer}
           onUnassignInterviewer={onUnassignInterviewer}
         />
+        )}
         {askIvMode ? (
           <InterviewSetupChoice
             firstName={candFirstName}
-            onSolo={() => setIvMode("solo")}
-            onPanel={() => setIvMode("panel")}
+            pending={pendingPanel}
+            onSolo={() => { setForceAsk(false); setIvMode("solo"); }}
+            onPanel={() => { setForceAsk(false); setIvMode("panel"); }}
           />
         ) : /* While the panel is still being assembled the poll card owns the
               screen; showing the manual scheduler underneath is what produced two
