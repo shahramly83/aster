@@ -570,10 +570,18 @@ async function loadWorkspaceData(companyId) {
     const attendees = Array.isArray(iv.attendees) ? iv.attendees : [];
     if (iv.status === "scheduled" && iv.scheduled_at) {
       const start = new Date(iv.scheduled_at);
+      // The end comes from the slot the candidate actually picked. This used to
+      // be start + 30 minutes flat, so an hour-long interview was displayed as
+      // half an hour: the candidate and the panel had 5:00 - 6:00 in their
+      // invites while the web said 5:00 - 5:30. The fallback only covers rows
+      // with no proposed_slots to match against.
+      const chosen = (Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [])
+        .find((sl) => sl?.start && new Date(sl.start).getTime() === start.getTime());
+      const end = chosen?.end ? new Date(chosen.end) : new Date(start.getTime() + 30 * 60000);
       putBooking(iv.candidate_id, iv.job_id, {
         status: "scheduled",
         jobId: iv.job_id,
-        confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
+        confirmedSlot: { start: start.toISOString(), end: end.toISOString() },
         provider: iv.provider || "google",
         attendees,
         meetingLink: iv.meeting_link || null,
