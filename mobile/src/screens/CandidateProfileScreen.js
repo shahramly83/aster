@@ -326,6 +326,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
     await load();
   };
 
+  // Leaving the picker having added nobody means the panel answer was not really
+  // given, so hand the screen back to the question rather than to a panel step
+  // with no panel on it.
+  const closePicker = () => {
+    setPickerOpen(false);
+    setInviteNote(null);
+    if (!(rolePanel || []).length && ivMode === "panel") setIvMode(null);
+  };
+
   // Invite someone who is not in the workspace yet, and put them on this role in
   // the same breath. inviteTeammate doesn't hand back the invitation id, so the
   // team is re-read and matched by email to find the row to stage; a failure
@@ -1179,12 +1188,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <Feather name="chevron-right" size={18} color={theme.ink4} />
                     </View>
                   </Press>
-                  <Press haptic="light" onPress={() => { setIvMode("panel"); navigation.navigate("JobDetail", { jobId, jobTitle }); }} style={{ marginTop: space(2.5) }}>
+                  <Press haptic="light" onPress={() => { setIvMode("panel"); setPickerOpen(true); }} style={{ marginTop: space(2.5) }}>
                     <View style={styles.ivPick}>
                       <View style={styles.ivPickIcon}><Feather name="users" size={17} color={theme.brand} /></View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[type.bodyStrong, { color: theme.ink }]}>Me and a panel</Text>
-                        <Text style={[type.small, { color: theme.ink2, marginTop: 2, lineHeight: 18 }]}>Add the interviewers on the role first, then collect everyone's availability.</Text>
+                        <Text style={[type.small, { color: theme.ink2, marginTop: 2, lineHeight: 18 }]}>Add the interviewers, then collect everyone's availability before offering times.</Text>
                       </View>
                       <Feather name="chevron-right" size={18} color={theme.ink4} />
                     </View>
@@ -1539,14 +1548,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
       {/* Add an interviewer without leaving the candidate. Same picker as the
           role screen, because the panel is the role's either way. */}
-      <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
+      <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={closePicker}>
         <View style={styles.pickBackdrop}>
-          <Pressable style={{ flex: 1 }} onPress={() => setPickerOpen(false)} />
+          <Pressable style={{ flex: 1 }} onPress={closePicker} />
           <View style={[styles.pickSheet, { paddingBottom: Math.max(insets.bottom, space(4)) }]}>
             <View style={styles.pickHandle} />
             <View style={styles.pickHead}>
               <Text style={[type.h3, { color: theme.ink }]}>Interviewers</Text>
-              <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+              <Pressable onPress={closePicker} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
             </View>
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
             {team.length === 0 ? (
