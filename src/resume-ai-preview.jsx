@@ -17144,7 +17144,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             wrapping block: three counted tabs do not fit a phone, and wrapping
             left a ragged two-line stack whose second row read as a separate
             control. Scrolling keeps them one group and one rhythm. */}
-        <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar scroll-fade -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
           {(() => {
             const memberCount = 1 + team.filter((iv) => iv.status !== "pending").length;
             const inviteCount = team.filter((iv) => iv.status === "pending").length + pendingInvites.length;
@@ -21010,7 +21010,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
           <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
             <div className="flex items-center justify-between gap-3 mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Where your credits went</h3>
-              {spend.length > 0 && <span className="text-xs" style={{ color: "var(--ink-3)" }}>last {spend.length}</span>}
+              {spend.length > 0 && <span className="text-xs" style={{ color: "var(--ink-3)" }}>{spend.length} {spend.length === 1 ? "entry" : "entries"}</span>}
             </div>
             {spendLoading ? (
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Loading…</p>
@@ -24531,7 +24531,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   onClick={() => { if (!t.locked) setIvStep(t.n); }}
                   disabled={t.locked}
                   title={t.locked ? (t.n === 2 ? "Unlocks once the interview time has passed" : "Unlocks once the panel has scored") : undefined}
-                  className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 rounded-lg px-1.5 sm:px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                  className="flex-auto min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 rounded-lg px-1.5 sm:px-2.5 py-1.5 text-xs font-semibold transition-colors"
                   style={active ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: t.locked ? "var(--ink-3)" : "var(--ink-2)", cursor: t.locked ? "not-allowed" : "pointer" }}
                 >
                   <span className="w-4 h-4 shrink-0 rounded-full flex items-center justify-center text-[10px]" style={active ? { background: "var(--brand)", color: "#fff" } : { background: "var(--line)", color: "var(--ink-2)" }}>{t.n}</span>
