@@ -18041,6 +18041,19 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
   };
 }
 
+// Mailbox providers anyone can sign up for. An interviewer invited at one of
+// these gets access to a workspace's candidates on an account that isn't
+// governed by anybody's company directory, so it is worth a second look before
+// the invite goes out. Not a block: contractors and agency interviewers are
+// real, and plenty of small companies run on Gmail.
+const FREE_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "ymail.com",
+  "hotmail.com", "hotmail.co.uk", "outlook.com", "live.com", "msn.com",
+  "icloud.com", "me.com", "mac.com", "aol.com", "gmx.com", "mail.com",
+  "proton.me", "protonmail.com", "pm.me", "yandex.com", "zoho.com",
+  "qq.com", "163.com", "126.com", "naver.com",
+]);
+
 // Panel availability poll — the panel converges on times before the candidate is
 // offered any. The HM proposes ranges; assigned interviewers MUST mark the ones
 // they can make (the HM's own vote is optional). Once every interviewer has voted
@@ -18048,7 +18061,7 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {} }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onInterviewAlone }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -18158,6 +18171,17 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const addablePanel = interviewers.filter((iv) => iv.id && isInterviewer(iv.role) && !assignedIds.has(iv.id) && iv.id !== hmId);
   const canEditPanel = isManager && !!jobId && !!onAssignInterviewer;
 
+  // Flag an invite going somewhere unexpected. Not a block, just a look-twice:
+  // an interviewer sees this role's candidates, and a typo'd or personal address
+  // is the cheapest way to hand that to the wrong person.
+  const myDomain = emailDomain(profile?.email);
+  const inviteTargetDomain = emailDomain(inviteEmail);
+  const inviteRisk = !inviteTargetDomain || !inviteTargetDomain.includes(".")
+    ? null
+    : FREE_EMAIL_DOMAINS.has(inviteTargetDomain) ? "personal"
+    : myDomain && !FREE_EMAIL_DOMAINS.has(myDomain) && inviteTargetDomain !== myDomain ? "external"
+    : null;
+
   // Invite an interviewer from inside the picker, and stage them onto this role
   // so accepting the invite puts them straight on the panel.
   const sendPanelInvite = async () => {
@@ -18199,6 +18223,10 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
       setInviteNote({ type: "ok", msg: stageErr
         ? `Invite sent to ${em}. Add them to this panel once they sign up.`
         : `Invite sent to ${em}. They join this panel as soon as they sign up.` });
+      // Staged successfully: the card behind now shows them as an outstanding
+      // invite, which is a better receipt than a modal the user has to dismiss.
+      // If staging failed there is nothing behind to see, so stay put and say so.
+      if (!stageErr) setAddingPanel(false);
       setInviteEmail("");
       await reloadTeam();   // so the pending chip shows without a reload
     } catch { setInviteNote({ type: "err", msg: "Couldn't send the invite." }); }
@@ -18350,7 +18378,11 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               {round2 ? "Candidate's suggested times" : "Panel availability"}
             </p>
             <p className="text-[11px] leading-tight" style={{ color: "var(--ink-3)" }}>
-              {round2 ? "They couldn't make the offered times" : canSelect ? `Pick the times to offer ${candName.split(" ")[0]}` : assignedInterviewers.length === 0 ? "No interviewers on this role yet." : "Which times can the panel make?"}
+              {round2 ? "They couldn't make the offered times"
+                : canSelect ? `Pick the times to offer ${candName.split(" ")[0]}`
+                : assignedInterviewers.length === 0
+                  ? (pendingPanel.length === 0 ? "No interviewers on this role yet." : pendingPanel.length === 1 ? "Waiting on one invite" : `Waiting on ${pendingPanel.length} invites`)
+                  : "Which times can the panel make?"}
             </p>
           </div>
         </div>
@@ -18404,10 +18436,20 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               </span>
             ))}
           </div>
-          {pendingPanel.length > 0 && (
-            <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
-              {pendingPanel.length === 1 ? "One invite is outstanding." : `${pendingPanel.length} invites are outstanding.`} They join this panel and see this role the moment they sign up.
-            </p>
+          {pendingPanel.length > 0 && assignedInterviewers.length === 0 && (
+            <div className="mt-1.5">
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-3)" }}>
+                {pendingPanel.length === 1 ? "One invite is outstanding." : `${pendingPanel.length} invites are outstanding.`} They join this panel and see this role the moment they sign up. There is nobody to poll for availability until then.
+              </p>
+              {/* Waiting on someone else to sign up is not a state to be stuck in.
+                  This is the same answer the setup question offers, kept reachable
+                  once the panel route has been taken. */}
+              {onInterviewAlone && (
+                <button type="button" onClick={onInterviewAlone} className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                  <Icon name="calendar" className="w-3.5 h-3.5" /> Interview {candName.split(" ")[0]} on your own instead
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -18481,11 +18523,16 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                     disabled={!inviteEmail.trim() || inviteBusy}
                     className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-40"
                   >
-                    <Icon name="userPlus" className="w-4 h-4" /> {inviteBusy ? "Sending…" : "Invite"}
+                    <Icon name="userPlus" className="w-4 h-4" /> {inviteBusy ? "Sending…" : inviteRisk ? "Invite anyway" : "Invite"}
                   </button>
                 </div>
-                <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: inviteNote?.type === "err" ? "#B42318" : inviteNote ? "#067647" : "var(--ink-3)" }}>
-                  {inviteNote?.msg || "They get the interviewer role and join this role's panel as soon as they sign up."}
+                <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: inviteNote?.type === "err" ? "#B42318" : inviteNote ? "#067647" : inviteRisk ? "#B45309" : "var(--ink-3)" }}>
+                  {inviteNote?.msg
+                    || (inviteRisk === "personal"
+                      ? `${emailDomain(inviteEmail)} is a personal mailbox, not a company one. Check it's the right person: they'll see this role's candidates.`
+                      : inviteRisk === "external"
+                        ? `${emailDomain(inviteEmail)} is outside ${myDomain}. They'll see this role's candidates.`
+                        : "They get the interviewer role and join this role's panel as soon as they sign up.")}
                 </p>
               </div>
             )}
@@ -23478,6 +23525,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // flashing the question over a poll that turns out to exist.
   const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
     && assignedInterviewers.length === 0 && pendingPanel.length === 0 && hasPoll === false && ivMode !== "solo";
+  // The panel exists on paper but cannot do anything yet: nobody real is on it,
+  // and we are either mid-setup or waiting on an invite to be accepted. There is
+  // nothing to schedule and no request to wait for, so the scheduler card below
+  // would just say "No interview requested yet" with a "Schedule on my own" link,
+  // which is the exact confusion this whole flow was meant to remove. The poll
+  // card carries the state and the way out of it instead.
+  const panelNotReady = isManagerView && !booking && ivMode !== "solo"
+    && assignedInterviewers.length === 0 && (ivMode === "panel" || pendingPanel.length > 0);
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -24129,6 +24184,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onPollLoaded={setHasPoll}
           pendingPanel={pendingPanel}
           reloadTeam={reloadTeam}
+          onInterviewAlone={() => setIvMode("solo")}
           autoOpenPanel={ivMode === "panel"}
           onCancelPanelSetup={() => setIvMode(null)}
           onAssignInterviewer={onAssignInterviewer}
@@ -24143,7 +24199,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         ) : /* While the panel is still being assembled the poll card owns the
               screen; showing the manual scheduler underneath is what produced two
               competing empty cards in the first place. */
-        ivMode === "panel" && assignedInterviewers.length === 0 && pendingPanel.length === 0 ? null : (
+        panelNotReady ? null : (
         !pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (<>
           {/* Answering "Just me" is a choice, not a commitment: until the times
               are actually out there has to be a way back to it. */}
