@@ -1164,6 +1164,11 @@ html { scrollbar-gutter: stable; }
 /* Horizontal snap carousel (mobile pricing) */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+/* A scrolling strip cut dead at its container edge reads as a clipped item, not
+   as "there is more this way". Fading the last few pixels says it without a
+   scrollbar sitting across the content. Dropped at sm, where these strips fit. */
+.scroll-fade { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%); }
+@media (min-width: 640px) { .scroll-fade { -webkit-mask-image: none; mask-image: none; } }
 
 /* Hide the up/down spinner on number inputs that opt in via .no-spin */
 .no-spin::-webkit-outer-spin-button,
@@ -15184,7 +15189,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         const insight = (aiRank?.reasons?.[c.id]) || matchInsight(c, { pct, mode: rankedMeta?.mode, matched, industryLabel, yrs, role });
         return (
           <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
-            <div className="flex items-center gap-4">
+            {/* Ring, identity and View shared one row with the skills, which on a
+                phone left the middle column about half the card: the name came out
+                as "Priy..." and the descriptor as "Mid-level · 5 yrs · Produ...".
+                The ring and the name lead, the skills and View get the full width
+                underneath, and the three-column row returns from sm up. */}
+            <div className="flex items-start gap-3 sm:gap-4">
               <button onClick={() => onViewCandidate(c.id)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
                 <ScoreRingLight value={pct} size={52} />
               </button>
@@ -15196,10 +15206,14 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   </button>
                   {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
                 </div>
-                <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</p>
-                <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+                <p className="text-xs mt-0.5 leading-snug sm:truncate" style={{ color: "var(--ink-3)" }}>{descriptor}</p>
+                <div className="hidden sm:flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
               </div>
-              <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+              <button onClick={() => onViewCandidate(c.id)} className="hidden sm:block shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+            </div>
+            <div className="sm:hidden">
+              <div className="flex flex-wrap gap-1.5 mt-2.5">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+              <button onClick={() => onViewCandidate(c.id)} className="w-full mt-2.5 text-xs font-semibold rounded-xl px-3.5 py-2.5 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View profile</button>
             </div>
             <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
               <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
@@ -15383,7 +15397,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             scrollable strip whose third tab has nothing to say it is there: the
             icons drop below sm and the labels stay whole. Scrolling remains as a
             fallback for very narrow screens or long translations. */}
-        <div className="flex flex-nowrap gap-1 p-1 rounded-2xl mb-5 overflow-x-auto no-scrollbar sm:inline-flex sm:overflow-visible" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+        <div className="flex flex-nowrap gap-1 p-1 rounded-2xl mb-5 overflow-x-auto no-scrollbar scroll-fade sm:inline-flex sm:overflow-visible" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           {TABS.map((t) => {
             const active = tab === t.key;
             return (
