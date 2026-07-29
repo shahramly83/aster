@@ -23148,6 +23148,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
 
   return (
     <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
+      {(scorecards.length > 0 || !isPaid) && (
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide whitespace-nowrap">Team scorecards</h2>
@@ -23158,6 +23159,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
           <span className="text-xs text-neutral-500 whitespace-nowrap">Team avg <span className="font-semibold text-neutral-800 tnum">{teamAvg.toFixed(1)}</span>/4 · {scorecards.length} submitted</span>
         )}
       </div>
+      )}
 
       {!isPaid ? (
         <div>
@@ -23196,8 +23198,8 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
               </button>
             </div>
           )}
-          {canSeeAll && scorecards.length === 0 && !open && (
-            <p className="text-sm text-neutral-500">{isManager ? "No scorecards yet. Each interviewer's rating collects here once they submit." : "No scorecards yet. Add yours after the interview, and your teammates' will collect here."}</p>
+          {canSeeAll && scorecards.length === 0 && !open && !isManager && (
+            <p className="text-sm text-neutral-500">No scorecards yet. Add yours after the interview, and your teammates&apos; will collect here.</p>
           )}
 
           {canSeeAll && scorecards.map((sc) => {
