@@ -23938,16 +23938,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                               <p className="text-base font-bold tabular-nums leading-tight mt-1" style={{ color: "var(--ink)" }}>{wd}, {t(s)}{e ? ` – ${t(e)}` : ""}</p>
                               <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>with {firstName} · {jobs.find((j) => j.id === contextJobId)?.title || "the role"}</p>
                             </div>
-                            {/* Primary (join) + resume, inline on the right of the event row. */}
+                            {/* Join, on the right of the event row. The resume is a
+                                tab away on the same screen, so a button for it here
+                                competed with the one thing this card is for. */}
                             <div className="shrink-0 flex items-center gap-2">
                               {link && (
                                 <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity">
                                   <Icon name="interview" className="w-4 h-4" /> Join call
                                 </a>
                               )}
-                              <button type="button" onClick={() => setProfileTab("profile")} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
-                                <Icon name="doc" className="w-4 h-4" /> Resume
-                              </button>
                             </div>
                           </div>
                           {!link && (
