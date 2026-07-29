@@ -15379,14 +15379,18 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             and "Skills & industry" that dropped the part explaining what the tab
             actually searched. Same treatment as the Team tabs: full labels, and
             the row scrolls if they do not fit. */}
+        {/* All three fit on a phone without scrolling, which is better than a
+            scrollable strip whose third tab has nothing to say it is there: the
+            icons drop below sm and the labels stay whole. Scrolling remains as a
+            fallback for very narrow screens or long translations. */}
         <div className="flex flex-nowrap gap-1 p-1 rounded-2xl mb-5 overflow-x-auto no-scrollbar sm:inline-flex sm:overflow-visible" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           {TABS.map((t) => {
             const active = tab === t.key;
             return (
               <button key={t.key} onClick={() => switchTab(t.key)}
-                className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
+                className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
                 style={active ? undefined : { color: "var(--ink-2)" }}>
-                <Icon name={t.icon} className="w-4 h-4 shrink-0" />
+                <Icon name={t.icon} className="w-4 h-4 shrink-0 hidden sm:block" />
                 <span>{t.full}</span>
               </button>
             );
@@ -15531,7 +15535,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             )}
             {!matchScores ? (candidates.length === 0
                 ? emptyState("Your database is empty", "Import resumes to search by skill, industry or experience.", null)
-                : emptyState("Find your best fit candidates", "", null))
+                : emptyState("Find your best fit candidates", "Pick a skill, an industry or an experience level above and matching people appear here.", "matching"))
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
           </>
@@ -15580,7 +15584,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
             )}
             {matching ? matchSkeleton
-              : !matchScores ? emptyState("Find your best fit candidates", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "", null)
+              : !matchScores ? emptyState("Find your best fit candidates", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "Choose one of your open positions above and AI Rank scores every candidate against it.", "briefcase")
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
               : rankedList}
             {matchScores && matchJob && list.length > 0 && (
