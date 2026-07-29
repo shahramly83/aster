@@ -1940,20 +1940,52 @@ function OfferCard({ offer, approvals, onViewSigned, canHire, onHire, onResend, 
         {offer.start_date ? <OfferLine icon="calendar" text={`Starts ${offer.start_date}`} /> : null}
         {offer.expires_at ? <OfferLine icon="clock" text={`Expires ${offer.expires_at}`} /> : null}
       </View>
-      {approvals.length ? (
+      {approvals.length ? (() => {
+        // Approvals run in order, so the row that matters is the first one still
+        // pending: that is who everyone is waiting on. The rest are queued
+        // behind it and cannot act yet, which the old list did not show at all.
+        const okCount = approvals.filter((a) => a.status === "approved").length;
+        const firstPending = approvals.findIndex((a) => a.status !== "approved" && a.status !== "declined");
+        return (
         <View style={{ marginTop: space(3), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line2 }}>
-          <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Approvals</Text>
-          {approvals.map((a) => (
-            <View key={a.step} style={styles.apprRow}>
-              <View style={[styles.apprDot, { backgroundColor: a.status === "approved" ? theme.success : a.status === "declined" ? theme.danger : theme.line }]}>
-                {a.status === "approved" ? <Feather name="check" size={10} color={theme.white} /> : a.status === "declined" ? <Feather name="x" size={10} color={theme.white} /> : null}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+            <Text style={[type.smallStrong, { color: theme.ink2, flex: 1 }]}>Approvals</Text>
+            <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{okCount} of {approvals.length} approved</Text>
+          </View>
+          {approvals.map((a, i) => {
+            const done = a.status === "approved";
+            const no = a.status === "declined";
+            const active = !done && !no && i === firstPending;
+            const pill = done
+              ? { label: "Approved", color: "#166534", bg: "#DCFCE7" }
+              : no
+                ? { label: "Declined", color: theme.danger, bg: "#FEF3F2" }
+                : active
+                  ? { label: "Waiting", color: "#92400E", bg: "#FEF3C7" }
+                  : { label: "Queued", color: theme.ink4, bg: theme.bg };
+            return (
+              <View key={a.step} style={styles.apprRow}>
+                {/* Numbered rail: the order is the whole point of a sequence. */}
+                <View style={{ alignItems: "center", width: 22 }}>
+                  <View style={[styles.apprDot, done && { backgroundColor: theme.success }, no && { backgroundColor: theme.danger }, active && { backgroundColor: "#F59E0B" }]}>
+                    {done ? <Feather name="check" size={10} color={theme.white} />
+                      : no ? <Feather name="x" size={10} color={theme.white} />
+                        : <Text style={[styles.apprNum, active && { color: theme.white }]}>{i + 1}</Text>}
+                  </View>
+                  {i < approvals.length - 1 ? <View style={styles.apprRail} /> : null}
+                </View>
+                <Text style={[type.small, { color: active || done || no ? theme.ink : theme.ink3, flex: 1, marginLeft: 10 }]} numberOfLines={1}>
+                  {a.approver_name || a.approver_email}
+                </Text>
+                <View style={[styles.apprPill, { backgroundColor: pill.bg }]}>
+                  <Text style={[styles.apprPillTxt, { color: pill.color }]}>{pill.label}</Text>
+                </View>
               </View>
-              <Text style={[type.small, { color: theme.ink2, flex: 1, marginLeft: 8 }]} numberOfLines={1}>{a.approver_name || a.approver_email}</Text>
-              <Text style={[type.small, { color: a.status === "declined" ? theme.danger : a.status === "approved" ? theme.success : theme.ink4 }]}>{a.status}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
-      ) : null}
+        );
+      })() : null}
       {signed && canHire ? <Button title="Mark as hired" icon="award" variant="success" onPress={onHire} style={{ marginTop: space(3) }} /> : null}
       {signed ? <Button title="View signed offer" icon="file-text" variant="secondary" onPress={onViewSigned} style={{ marginTop: space(2.5) }} /> : null}
       {declined && offer.decline_reason ? (
@@ -2263,8 +2295,12 @@ const styles = StyleSheet.create({
   whyHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: theme.line, marginBottom: space(4) },
   whySheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   offerBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
-  apprRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
-  apprDot: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  apprRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 3 },
+  apprDot: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: theme.line2 },
+  apprNum: { fontSize: 11, fontFamily: "Inter_700Bold", color: theme.ink4 },
+  apprRail: { width: 2, flex: 1, minHeight: 10, backgroundColor: theme.line2, marginTop: 2 },
+  apprPill: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
+  apprPillTxt: { fontSize: 10.5, fontFamily: "Inter_700Bold" },
   // stepper
   stepLine: { flexDirection: "row", alignItems: "center", width: "100%" },
   connector: { flex: 1, height: 2 },
