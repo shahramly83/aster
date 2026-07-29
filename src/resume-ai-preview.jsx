@@ -23234,6 +23234,26 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
             );
           })}
 
+          {canScore && !required && canSeeAll && !(isManager && hmScoreClosed) && !hasMine && (
+            <label className="flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 cursor-pointer select-none" style={{ borderColor: "var(--line)" }}>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>Add my own score</span>
+                <span className="block text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>The decision does not wait on it.</span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={open}
+                aria-label="Add my own score"
+                onClick={() => setOpen((o) => !o)}
+                className="relative shrink-0 w-11 h-6 rounded-full transition-colors"
+                style={{ background: open ? "var(--brand)" : "var(--line-strong)" }}
+              >
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: open ? 22 : 2, boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+              </button>
+            </label>
+          )}
+
           {canScore ? (open ? (
             <div className="rounded-2xl border bg-white p-4 space-y-4" style={{ borderColor: "var(--brand)", boxShadow: "0 18px 40px -24px rgba(var(--brand-rgb),0.4)" }}>
               <div className="flex items-center gap-2">
@@ -23306,12 +23326,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
                 <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
                   <Icon name="plus" className="w-4 h-4" /> Add your scorecard
                 </button>
-              ) : (
-                <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl border font-semibold px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                  <Icon name="plus" className="w-4 h-4" /> Add your scorecard
-                  <span className="ml-0.5 text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>Optional</span>
-                </button>
-              )}
+              ) : null /* the switch above opens it */}
               {onSkip && (
                 <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
                   Skip to decision &rarr;
