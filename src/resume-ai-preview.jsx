@@ -17184,7 +17184,27 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   );
                 }
                 return (
-                  <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
+                  <>
+                  {/* Phones: five columns at 640px minimum meant Status and Remove
+                      lived off-screen. Cards drop the Role column, which reads
+                      "Approver" on every single row, and keep the rest. */}
+                  <div className="md:hidden divide-y" style={{ borderColor: "var(--line)" }}>
+                    {shown.map((a) => {
+                      const confirmed = a.status === "confirmed";
+                      return (
+                        <div key={`m-ap-${a.id}`} className="px-4 py-3 flex items-center gap-3">
+                          <CandidateAvatar name={a.name || a.email} hasPhoto={false} size={36} showPhotoDot={false} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name || a.email}</p>
+                            {a.name && <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{a.email}</p>}
+                            <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold mt-1" style={confirmed ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: confirmed ? "#16A34A" : "#D97706" }} /> {confirmed ? "Confirmed" : "Pending"}</span>
+                          </div>
+                          <button onClick={() => setApproverDel(a)} className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg" style={{ color: "#DC2626" }}>Remove</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <table className="w-full hidden md:table" style={{ minWidth: 640, borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
                         {["Approver", "Email", "Role", "Status", ""].map((h, i) => (
@@ -17216,6 +17236,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                       })}
                     </tbody>
                   </table>
+                  </>
                 );
               }
               // One flat list: the Tenant, active teammates, invited-but-not-yet-joined
@@ -26991,7 +27012,66 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
             </div>
           )
         ) : (<>
-          <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+          {/* Phones: the five-column table needs 760px, so on a 390px screen the
+              match score and the stage control both sat off the right edge,
+              behind a scrollbar. Those two are the reason you open this list.
+              Cards put the score beside the name and the stage under it. */}
+          <div className="md:hidden space-y-2">
+            {shownApps.map((a, idx) => {
+              const c = MOCK_CANDIDATES.find((cand) => cand.id === a.candidateId);
+              if (!c || !c.parsed) return null;
+              const role = c.parsed.experience?.[0]?.title ?? "Applicant";
+              const yrs = c.parsed.years_of_experience;
+              const descriptor = [seniorityFromYears(yrs), yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+              const match = matchResults?.[a.candidateId];
+              const scoreVisible = idx < aiMatchLimit;
+              const ranked = !!match && scoreVisible;
+              const pct = ranked ? Math.round(match.score * 100) : null;
+              const starred = shortlistedApps.has(a.applicationId);
+              const isTop = !!matchResults && idx === 0 && ranked;
+              const act = activityFor(a);
+              return (
+                <div key={`m-${a.candidateId}`} className="rounded-2xl bg-white act-shadow border p-3" style={{ borderColor: "var(--line)", background: isTop ? "rgba(var(--brand-rgb),0.04)" : undefined }}>
+                  <div className="flex items-start gap-2.5">
+                    <button onClick={() => onToggleShortlist(a.applicationId, a.candidateId)} aria-label={starred ? "Remove from shortlist" : "Shortlist"} className="shrink-0 p-0.5 mt-0.5" style={{ color: starred ? "#F5B301" : "var(--ink-3)" }}>
+                      <Icon name="star" className="w-[18px] h-[18px]" style={{ fill: starred ? "#F5B301" : "none" }} />
+                    </button>
+                    <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="flex-1 min-w-0 flex items-start gap-2.5 text-left">
+                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={34} showPhotoDot={false} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</span>
+                          {isTop && <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-bold uppercase">Top</span>}
+                        </span>
+                        <span className="block text-[11px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</span>
+                        <span className="flex flex-wrap items-center gap-1 mt-1">
+                          {act && <span className="inline-flex items-center text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }}>{act.label}</span>}
+                          {!isStrongMatch(a) && <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }}>Not a match</span>}
+                        </span>
+                      </span>
+                      <span className="shrink-0">
+                        {pct != null
+                          ? <MatchRing value={pct} size={40} stroke={4} filled />
+                          : (match && !scoreVisible)
+                            ? <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-3 h-3" /> score</span>
+                            : null}
+                      </span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                    {hiredIds.has(a.candidateId)
+                      ? <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Hired</span>
+                      : isInterviewer(profile?.role)
+                        ? <span className="text-xs" style={{ color: "var(--ink-4)" }}>{a.source || "—"}</span>
+                        : <StageControl stage={a.stage} rejectionEmailSent={a.rejectionEmailSent} />}
+                    <span className="text-[11px] tnum shrink-0" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="rounded-2xl bg-white act-shadow border overflow-hidden hidden md:block" style={{ borderColor: "var(--line)" }}>
           <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: 760, borderCollapse: "collapse" }}>
             <thead>
@@ -27251,7 +27331,33 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
             )}
           </div>
         ) : isHiredView ? (
-          <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+          <>
+          {/* Phones: role and hire date were both past the right edge of a 640px
+              table. Cards stack them under the name. */}
+          <div className="md:hidden rounded-2xl bg-white act-shadow border overflow-hidden divide-y" style={{ borderColor: "var(--line)" }}>
+            {visible.map((c) => {
+              const role = currentRole(c);
+              const jobsFor = appliedJobs[c.id] || [];
+              const when = hiredDates[c.id] ? new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null;
+              return (
+                <button key={`m-h-${c.id}`} onClick={() => onViewCandidate(c.id)} className="w-full text-left px-4 py-3 flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <CandidateAvatar name={c.parsed?.name ?? c.fullName} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={36} showPhotoDot={false} />
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "#16A34A", color: "#fff" }}><Icon name="check" className="w-2.5 h-2.5" /></span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed?.name ?? c.fullName ?? c.fileName}</p>
+                    <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{role || jobsFor[0] || "—"}</p>
+                    {when
+                      ? <p className="text-[11px] mt-0.5 inline-flex items-center gap-1" style={{ color: "var(--ink-3)" }}><Icon name="calendar" className="w-3 h-3" /> Hired {when}</p>
+                      : <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold mt-1" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Hired</span>}
+                  </div>
+                  <Icon name="chevronRight" className="w-5 h-5 shrink-0" style={{ color: "var(--ink-3)" }} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="rounded-2xl bg-white act-shadow border overflow-hidden hidden md:block" style={{ borderColor: "var(--line)" }}>
             <div className="overflow-x-auto">
               <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
                 <thead>
@@ -27291,6 +27397,7 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
               </table>
             </div>
           </div>
+          </>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 lg:gap-3">
             {visible.map((c) => {
