@@ -24560,7 +24560,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {/* Gradient hero: the interview is over, this is the manager's next move. */}
             <div className="px-5 pt-5 pb-4" style={{ background: proceeded ? "linear-gradient(135deg, #ECFDF5, #ffffff 72%)" : "linear-gradient(135deg, var(--brand-soft), #ffffff 72%)" }}>
               <div className="flex items-start gap-3.5">
-                <span className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-white ${proceeded ? "" : "brand-gradient"}`} style={proceeded ? { background: "linear-gradient(135deg,#34D399,#059669)", boxShadow: "0 10px 24px -10px rgba(5,150,105,0.8)" } : { boxShadow: "0 10px 24px -10px rgba(var(--brand-rgb),0.85)" }}>
+                <span className={`w-11 h-11 rounded-2xl hidden sm:flex items-center justify-center shrink-0 text-white ${proceeded ? "" : "brand-gradient"}`} style={proceeded ? { background: "linear-gradient(135deg,#34D399,#059669)", boxShadow: "0 10px 24px -10px rgba(5,150,105,0.8)" } : { boxShadow: "0 10px 24px -10px rgba(var(--brand-rgb),0.85)" }}>
                   <Icon name={proceeded ? "check" : "calendar"} className="w-5 h-5" />
                 </span>
                 <div className="min-w-0 flex-1">
