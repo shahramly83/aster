@@ -207,8 +207,12 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
 
               <Text style={styles.timeHead}>TO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
-                {slots.map((t, i) => {
-                  const disabled = mins(t) <= mins(from) || rangeBlocked(t);
+                {/* Anything at or before the start is not an end time, so it is
+                    dropped for the same reason the past is. What stays and is
+                    dimmed is a range that would run through someone's existing
+                    interview, which is a real option being refused. */}
+                {slots.filter((t) => mins(t) > mins(from)).map((t, i) => {
+                  const disabled = rangeBlocked(t);
                   const on = to && mins(to) === mins(t);
                   return (
                     <Pressable key={i} onPress={() => !disabled && setTo(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.35 }]}>
