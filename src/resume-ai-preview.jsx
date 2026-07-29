@@ -21984,11 +21984,11 @@ function DangerZoneCard({ company }) {
         <span className="h-px flex-1" style={{ background: "#FCA5A5" }} />
       </div>
       <div className="rounded-2xl overflow-hidden border act-shadow" style={{ borderColor: "#FCA5A5" }}>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:p-5 bg-white">
+        <div className="flex flex-wrap items-start sm:items-center gap-3 p-4 sm:p-5 bg-white">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2", color: "#DC2626" }}>
             <Icon name="trash" className="w-5 h-5" />
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 basis-0 min-w-[12rem]">
             <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
             <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
               Permanently removes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. This can't be undone.
@@ -22574,15 +22574,18 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         {/* Save / Cancel bar, sticky within the content column, so it never
             underlaps the sidebar or its Log out button on any screen size. */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs sm:text-sm min-w-0 truncate" style={{ color: savedMsg ? "#166534" : "var(--ink-2)" }}>
+          {/* The status line is squeezed to "Everythi..." on a phone, where it is
+              the least important thing in the bar. It gets its own line above the
+              buttons instead of competing with them for width. */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <p className="text-xs sm:text-sm min-w-0 sm:truncate" style={{ color: savedMsg ? "#166534" : "var(--ink-2)" }}>
               {saving ? "Saving…" : savedMsg ? savedMsg : dirty ? "You have unsaved changes." : "Everything is up to date."}
             </p>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={handleCancel}
                 disabled={!dirty || saving}
-                className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 sm:flex-none text-sm rounded-xl border px-4 py-2.5 sm:py-2 transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
               >
                 Cancel
@@ -22590,7 +22593,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
               <button
                 onClick={handleSave}
                 disabled={!dirty || saving}
-                className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-5 py-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 sm:flex-none text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-5 py-2.5 sm:py-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? "Saving…" : "Save changes"}
               </button>
