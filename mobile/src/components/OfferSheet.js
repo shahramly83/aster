@@ -1,12 +1,12 @@
 // Make-offer bottom sheet. Collects the same terms the web OfferModal does
 // (job title, base salary, currency, employment type, start/expiry dates, an
-// optional letter body) and calls data.sendOffer, which
+// optional letter body and optional approvers) and calls data.sendOffer, which
 // creates the offer, advances the candidate to the offer stage, and either
 // emails the candidate a review-&-sign link or routes it through approval.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sendOffer, getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
+import { sendOffer, loadApprovers, addApprover, getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
 import { Button, Feather } from "./ui";
 import SignaturePad from "./SignaturePad";
 import CalendarSheet from "./CalendarSheet";
@@ -70,6 +70,13 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [body, setBody] = useState("");            // the offer letter (sent as the message)
   const [bodyEdited, setBodyEdited] = useState(false); // stop auto-syncing once hand-edited
   const [letterView, setLetterView] = useState("write"); // 'write' | 'preview'
+  const [approvers, setApprovers] = useState([]); // selected [{ id, name, email }]
+  const [approverPool, setApproverPool] = useState([]); // all approvers [{id,name,email,status}]
+  const [addOpen, setAddOpen] = useState(false); // inline "invite new approver" form
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addMsg, setAddMsg] = useState(null); // { type:'ok'|'err', text }
   const [picker, setPicker] = useState(null); // null | "start" | "expires"
   const [curOpen, setCurOpen] = useState(false); // currency dropdown
   const [sending, setSending] = useState(false);
@@ -78,6 +85,15 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
   // Keep defaults in sync if the sheet is opened for a different role.
   useEffect(() => { if (visible && defaults.jobTitle && !jobTitle) setJobTitle(defaults.jobTitle); }, [visible, defaults.jobTitle]);
+
+  // Load the company's approvers (confirmed = pickable, pending = awaiting email).
+  useEffect(() => {
+    if (!visible || !companyId) return;
+    let alive = true;
+    loadApprovers(companyId).then((r) => { if (alive) setApproverPool(r); });
+    return () => { alive = false; };
+  }, [visible, companyId]);
+  const reloadApprovers = () => { if (companyId) loadApprovers(companyId).then(setApproverPool); };
 
   // The default letter body, composed from the terms — mirrors the web OfferModal
   // (and the server), staying in sync until the manager edits the letter by hand.
@@ -115,7 +131,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const reset = () => {
     setSalary(""); setStartDate(null); setExpiresAt(null);
     setBodyEdited(false); setLetterView("write");
-    setErr(null); setSending(false);
+    setApprovers([]); setErr(null); setSending(false);
     setMode("compose"); setAddOpen(false); setNewName(""); setNewEmail(""); setAddMsg(null);
   };
 
@@ -126,9 +142,29 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     else if (picker === "expires") setExpiresAt(picked);
   };
 
+  const pickApprover = (m) => setApprovers((p) => [...p, { id: m.id, name: m.name, email: m.email }]);
+  const removeApprover = (i) => setApprovers((p) => p.filter((_, idx) => idx !== i));
   // Confirmed and not already added → tappable to add. Pending → awaiting email.
+  const selectedEmails = useMemo(() => new Set(approvers.map((a) => (a.email || "").toLowerCase())), [approvers]);
+  const availableApprovers = useMemo(
+    () => approverPool.filter((m) => m.status === "confirmed" && !selectedEmails.has(m.email.toLowerCase())),
+    [approverPool, selectedEmails],
+  );
+  const pendingApprovers = useMemo(() => approverPool.filter((m) => m.status !== "confirmed"), [approverPool]);
 
+  const submitNewApprover = async () => {
+    const e = newEmail.trim().toLowerCase();
+    if (!e.includes("@")) { setAddMsg({ type: "err", text: "Enter a valid email." }); return; }
+    setAddBusy(true); setAddMsg(null);
+    const res = await addApprover({ email: e, name: newName.trim() || null });
+    setAddBusy(false);
+    if (!res.ok) { setAddMsg({ type: "err", text: res.error || "Couldn't send the invite." }); return; }
+    setNewName(""); setNewEmail(""); setAddOpen(false);
+    setAddMsg({ type: "ok", text: res.already ? "Already a confirmed approver." : "Invite sent. They'll appear once they confirm." });
+    reloadApprovers();
+  };
 
+  const validApprovers = useMemo(() => approvers.filter((a) => a.email && a.email.includes("@")), [approvers]);
 
   useEffect(() => {
     if (!visible) return;
@@ -168,7 +204,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     };
     const res = await sendOffer({
       companyId, candidateId, candidateName, jobId,
-      terms, message: (body && body.trim()) || null, approvers: [], emailSent: true,
+      terms, message: (body && body.trim()) || null, approvers: validApprovers, emailSent: true,
     });
     setSending(false);
     if (!res.ok) { setErr(res.error || "Couldn't send the offer."); return; }
@@ -327,6 +363,124 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               )}
             </Field>
 
+            <Field label="Where this offer goes">
+              {/* The rail used to be a per-row segment, so it restarted at every
+                  row boundary and read as three disconnected stubs floating on
+                  the sheet. One spine is drawn behind the whole route instead,
+                  and the nodes sit on top of it with a solid fill so they punch
+                  through. The card gives it an edge; before, it was the only
+                  thing on the sheet with no container. */}
+              <View style={styles.rtCard}>
+                <View style={styles.rtSpine} />
+
+                <View style={styles.rtRow}>
+                  <View style={[styles.rtNode, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
+                    <Feather name="edit-3" size={11} color={theme.white} />
+                  </View>
+                  <View style={styles.rtBody}>
+                    <Text style={[type.smallStrong, { color: theme.ink }]}>You sign it</Text>
+                    <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Signed above</Text>
+                  </View>
+                </View>
+
+                {approvers.map((a, i) => {
+                  const pool = approverPool.find((m) => (m.email || "").toLowerCase() === (a.email || "").toLowerCase());
+                  const unconfirmed = pool && pool.status && pool.status !== "confirmed";
+                  return (
+                    <View key={a.id || i} style={styles.rtRow}>
+                      <View style={[styles.rtNode, { backgroundColor: theme.card, borderColor: unconfirmed ? theme.warn : theme.brand }]}>
+                        <Text style={[styles.rtNodeTxt, unconfirmed && { color: theme.warn }]}>{i + 1}</Text>
+                      </View>
+                      <View style={styles.rtBody}>
+                        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name || a.email}</Text>
+                            <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{a.email}</Text>
+                          </View>
+                          <Pressable onPress={() => removeApprover(i)} hitSlop={10} accessibilityLabel={`Remove ${a.name || a.email}`} style={styles.rtRemove}>
+                            <Feather name="x" size={15} color={theme.ink3} />
+                          </Pressable>
+                        </View>
+                        {unconfirmed ? (
+                          <View style={styles.rtWarn}>
+                            <Feather name="clock" size={11} color="#92400E" />
+                            <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginLeft: 6, flex: 1, lineHeight: 16 }]}>
+                              We email them to confirm their address, then send the letter to approve. It waits here until they do.
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {approvers.length === 0 ? (
+                  <View style={styles.rtRow}>
+                    <View style={styles.rtNodeGhost} />
+                    <View style={styles.rtBody}>
+                      <Text style={[type.small, { color: theme.ink4, fontSize: 12 }]}>No sign-off. It goes straight there.</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={[styles.rtRow, { marginBottom: 0 }]}>
+                  <View style={[styles.rtNode, { backgroundColor: theme.ink, borderColor: theme.ink }]}>
+                    <Feather name="mail" size={11} color={theme.white} />
+                  </View>
+                  <View style={styles.rtBody}>
+                    <Text style={[type.smallStrong, { color: theme.ink }]}>{candidateName ? `${candidateName.split(" ")[0]} gets it` : "The candidate gets it"}</Text>
+                    <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Emailed a link to review and sign</Text>
+                  </View>
+                </View>
+              </View>
+
+              {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).length > 0 ? (
+                <View style={{ marginTop: space(3) }}>
+                  <Text style={[type.small, { color: theme.ink3, fontSize: 12, marginBottom: 8 }]}>
+                    {approvers.length ? "Add another" : "Add someone to sign off first"}
+                  </Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                    {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).map((m) => {
+                      const unconfirmed = m.status && m.status !== "confirmed";
+                      return (
+                        <Pressable
+                          key={m.id || m.email}
+                          onPress={() => pickApprover(m)}
+                          accessibilityLabel={`Add ${m.name || m.email} to the route`}
+                          style={({ pressed }) => [styles.rtChip, pressed && { backgroundColor: theme.bg }]}
+                        >
+                          <Feather name="plus" size={13} color={theme.brand} />
+                          <Text numberOfLines={1} style={styles.rtChipTxt}>{m.name || m.email}</Text>
+                          {unconfirmed ? <Feather name="clock" size={11} color={theme.ink4} style={{ marginLeft: 5 }} /> : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Invite a new approver — progressive disclosure. */}
+              {addOpen ? (
+                <View style={styles.apAddForm}>
+                  <TextInput value={newName} onChangeText={setNewName} placeholder="Name (optional)" placeholderTextColor={theme.ink4} style={[styles.input, { marginBottom: 8 }]} />
+                  <TextInput value={newEmail} onChangeText={setNewEmail} keyboardType="email-address" autoCapitalize="none" placeholder="approver@email.com" placeholderTextColor={theme.ink4} style={styles.input} />
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                    <Pressable onPress={() => { setAddOpen(false); setAddMsg(null); }} style={[styles.apFormBtn, { backgroundColor: theme.bg }]}><Text style={[type.smallStrong, { color: theme.ink2 }]}>Cancel</Text></Pressable>
+                    <Pressable onPress={submitNewApprover} disabled={addBusy} style={[styles.apFormBtn, { backgroundColor: theme.brand, flex: 1 }]}><Text style={[type.smallStrong, { color: "#fff" }]}>{addBusy ? "Sending…" : "Send invite"}</Text></Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable onPress={() => { setAddOpen(true); setAddMsg(null); }} style={({ pressed }) => [styles.apInvite, pressed && { opacity: 0.7 }]}>
+                  <Feather name="user-plus" size={16} color={theme.brand} />
+                  <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Invite a new approver</Text>
+                </Pressable>
+              )}
+              {addMsg ? <Text style={[type.small, { marginTop: 8, color: addMsg.type === "err" ? "#B42318" : "#166534" }]}>{addMsg.text}</Text> : null}
+
+              {validApprovers.length ? (
+                <Text style={[type.small, { color: theme.ink4, marginTop: 12, lineHeight: 17 }]}>Sent in order, each approves from their email (no login). The candidate is emailed to sign only after the last approval.</Text>
+              ) : null}
+            </Field>
 
             {err ? (
               <View style={styles.err}><Feather name="alert-circle" size={14} color="#B42318" /><Text style={[type.small, { color: "#B42318", marginLeft: 8, flex: 1 }]}>{err}</Text></View>
@@ -415,8 +569,48 @@ const styles = StyleSheet.create({
   curBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.35)", alignItems: "center", justifyContent: "center", padding: 40 },
   curMenu: { backgroundColor: theme.card, borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, overflow: "hidden", width: 200, ...(theme.shadow || {}) },
   curOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
+  apSelRow: { flexDirection: "row", alignItems: "stretch" },
+  apOrder: { width: 22, height: 22, borderRadius: 11, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center", marginTop: 13 },
+  apOrderTxt: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 11 },
+  apRail: { width: 2, flex: 1, backgroundColor: theme.line, marginVertical: 3, borderRadius: 1 },
+  apCard: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 10, marginBottom: 8, marginLeft: 6, backgroundColor: theme.card },
+  apAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  apAvatarTxt: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  apRemove: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  apGroupLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.ink4, letterSpacing: 0.6, textTransform: "uppercase", marginTop: 10, marginBottom: 7 },
+  apAddRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 10, marginBottom: 8, backgroundColor: theme.card },
+  apPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  apAddBtn: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingLeft: 8, paddingRight: 11, paddingVertical: 7 },
+  apAddBtnTxt: { color: theme.brand, fontFamily: "Inter_700Bold", fontSize: 12.5 },
+  apConfirmedPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 7 },
+  apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
+  rtCard: { borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
+  // One unbroken line behind every node. Inset so it starts and ends inside the
+  // first and last node rather than poking out past them.
+  rtSpine: { position: "absolute", left: space(3) + 11, top: space(3) + 12, bottom: space(3) + 12, width: 2, backgroundColor: theme.line2 },
+  rtRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: space(4) },
+  rtNode: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  rtNodeGhost: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
+  rtNodeTxt: { fontSize: 11.5, fontFamily: "Inter_700Bold", color: theme.brand },
+  rtBody: { flex: 1, minWidth: 0, marginLeft: 12, paddingTop: 1 },
+  rtRemove: { padding: 4, marginLeft: 6, marginTop: -2 },
+  rtWarn: { flexDirection: "row", alignItems: "flex-start", marginTop: 6, borderRadius: radius.sm, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", paddingHorizontal: 8, paddingVertical: 6 },
+  rtChip: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: 11, paddingVertical: 8, marginRight: 8, marginBottom: 8, maxWidth: "100%" },
+  rtChipTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.ink, marginLeft: 5, flexShrink: 1 },
+  apPickRow: { flexDirection: "row", alignItems: "flex-start", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3), marginBottom: 8 },
+  apPickRowOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
+  apPickMark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: theme.line2, backgroundColor: theme.card, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  apPickMarkTxt: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 12 },
+  apPendingPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
+  apPendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 12 },
   sigPad: { borderRadius: radius.md, borderWidth: 1, borderColor: "transparent" },
   sigSaved: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
+  apEmpty: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginBottom: 10 },
+  apEmptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  apAddForm: { borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 12, backgroundColor: theme.bg, marginTop: 4 },
+  apFormBtn: { alignItems: "center", justifyContent: "center", borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 16 },
+  apInvite: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.md, paddingVertical: 13, marginTop: 4 },
+  addApprover: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 6 },
   err: { flexDirection: "row", alignItems: "flex-start", marginTop: space(4), padding: space(3), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
   footer: { paddingTop: space(3), marginTop: space(1), borderTopWidth: 1, borderTopColor: theme.line },
   sendingOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, top: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.4)" },
