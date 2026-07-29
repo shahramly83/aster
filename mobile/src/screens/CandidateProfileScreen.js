@@ -1603,7 +1603,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
           {(canScore || cards.length > 0) ? (
           <View style={{ marginTop: space(5) }}>
-            <SectionHeader>{requiredRaters.length ? `Panel feedback · ${ratedRequired}/${requiredRaters.length}` : "Panel feedback"}</SectionHeader>
+            {/* The waiting card above now carries the count and says whose card is
+                missing, so repeating "Panel feedback · 0/1" here said nothing new.
+                For a manager with a panel, what is left below is their own card,
+                which is the one that is optional. */}
+            <SectionHeader>
+              {manager && requiredRaters.length
+                ? "Your score · optional"
+                : requiredRaters.length ? `Panel feedback · ${ratedRequired}/${requiredRaters.length}` : "Panel feedback"}
+            </SectionHeader>
             {cards.length === 0 ? (
               canScore && !(manager && decisionReady) ? (
                 <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.scoreEmpty}>
