@@ -4,10 +4,11 @@
 // creates the offer, advances the candidate to the offer stage, and either
 // emails the candidate a review-&-sign link or routes it through approval.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sendOffer, loadApprovers, addApprover } from "../lib/data";
+import { sendOffer, loadApprovers, addApprover, getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
 import { Button, Feather } from "./ui";
+import SignaturePad from "./SignaturePad";
 import CalendarSheet from "./CalendarSheet";
 import { theme, type, space, radius } from "../theme";
 
@@ -57,6 +58,15 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [empType, setEmpType] = useState("full_time");
   const [startDate, setStartDate] = useState(null); // YYYY-MM-DD
   const [expiresAt, setExpiresAt] = useState(null);
+  // Sign-off. Captured once and kept on the profile, so the second offer and
+  // every one after it reuses it: the same rule the web app follows. Only a
+  // drawn signature counts; a "typed:<name>" left over from the retired typed
+  // option reads as unset, so you draw once and it is replaced.
+  const [savedSig, setSavedSig] = useState(undefined);   // undefined = still loading
+  const [redraw, setRedraw] = useState(false);           // "Change" tapped
+  const [hasInk, setHasInk] = useState(false);
+  const [sigErr, setSigErr] = useState(false);
+  const toPngRef = useRef(null);
   const [body, setBody] = useState("");            // the offer letter (sent as the message)
   const [bodyEdited, setBodyEdited] = useState(false); // stop auto-syncing once hand-edited
   const [letterView, setLetterView] = useState("write"); // 'write' | 'preview'
@@ -156,12 +166,34 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
   const validApprovers = useMemo(() => approvers.filter((a) => a.email && a.email.includes("@")), [approvers]);
 
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    setRedraw(false); setHasInk(false); setSigErr(false); toPngRef.current = null;
+    getMyOfferSignature().then((sig) => {
+      if (alive) setSavedSig(sig && !String(sig).startsWith("typed:") ? sig : null);
+    });
+    return () => { alive = false; };
+  }, [visible]);
+
+  const needsSig = savedSig === null || redraw;
+
   const submit = async () => {
     setErr(null);
     if (!jobTitle.trim()) { setErr("Add the job title for this offer."); return; }
     if (!salary.trim()) { setErr("Add the base salary."); return; }
     if (!startDate) { setErr("Pick a start date."); return; }
+    if (needsSig && !toPngRef.current) { setSigErr(true); setErr("Add your signature to sign off this offer."); return; }
     setSending(true);
+    // A new drawing is saved to the profile before sending. That is what makes
+    // this a one-time step: the letter is signed from the stored signature.
+    if (needsSig && toPngRef.current) {
+      let png = null;
+      try { png = toPngRef.current(); } catch (e2) { setSending(false); setErr("Couldn't save that signature. Try drawing it again."); return; }
+      const se = await saveMyOfferSignature(png);
+      if (se) { setSending(false); setErr(se); return; }
+      setSavedSig(png); setRedraw(false);
+    }
     const terms = {
       jobTitle: jobTitle.trim(),
       baseSalary: salary.trim(),
@@ -301,6 +333,35 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                 </View>
               )}
             </View>
+
+            <Field label="Your signature">
+              {savedSig === undefined ? (
+                <View style={{ paddingVertical: space(4), alignItems: "center" }}><ActivityIndicator color={theme.brand} /></View>
+              ) : needsSig ? (
+                <>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 10, lineHeight: 17 }]}>
+                    Sign once. Aster keeps it for your future offers and places it above your name on the letter.
+                  </Text>
+                  <View style={[styles.sigPad, sigErr && !hasInk && { borderColor: theme.warn }]}>
+                    <SignaturePad onChange={(fn) => { toPngRef.current = fn; setHasInk(!!fn); if (fn) setSigErr(false); }} />
+                  </View>
+                  {savedSig ? (
+                    <Pressable onPress={() => { setRedraw(false); toPngRef.current = null; setHasInk(false); setSigErr(false); }} style={{ alignSelf: "flex-start", paddingVertical: 8 }}>
+                      <Text style={[type.small, { color: theme.ink3, fontFamily: "Inter_600SemiBold" }]}>Keep my current signature</Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              ) : (
+                /* Signed once already: a line of confirmation, not a task. */
+                <View style={styles.sigSaved}>
+                  <Image source={{ uri: savedSig }} resizeMode="contain" style={{ width: 104, height: 38 }} />
+                  <Text style={[type.small, { color: theme.ink3, fontSize: 12, flex: 1, marginLeft: space(3) }]}>Your saved signature</Text>
+                  <Pressable onPress={() => { setRedraw(true); setHasInk(false); toPngRef.current = null; }} hitSlop={8} style={{ paddingVertical: 6, paddingLeft: 8 }}>
+                    <Text style={[type.small, { color: theme.brand, fontFamily: "Inter_600SemiBold" }]}>Change</Text>
+                  </Pressable>
+                </View>
+              )}
+            </Field>
 
             <Field label="Approvers">
               <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 12, lineHeight: 17 }]}>Optional. Route the offer for sign-off first. Approvers confirm by email, no account needed.</Text>
@@ -500,6 +561,8 @@ const styles = StyleSheet.create({
   apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
   apPendingPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
   apPendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 12 },
+  sigPad: { borderRadius: radius.md, borderWidth: 1, borderColor: "transparent" },
+  sigSaved: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
   apEmpty: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginBottom: 10 },
   apEmptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   apAddForm: { borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 12, backgroundColor: theme.bg, marginTop: 4 },

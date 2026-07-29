@@ -166,8 +166,7 @@ function Row({ icon, tint, title, subtitle, right, last, onPress }) {
   return <View style={[styles.row, !last && styles.rowDivider]}>{body}</View>;
 }
 
-// Typed offer-signature capture. Mobile renders the sign-off in a script font on
-// the letter/PDF (same as web's "type" option); drawing lives on the web app.
+// Offer-signature capture. Drawn only, on both platforms.
 function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
   const insets = useSafeAreaInsets();
   // Drawn only. Typing your name was never a signature, just your name in a

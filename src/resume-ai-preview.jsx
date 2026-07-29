@@ -7894,7 +7894,10 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   const jobTitle = data?.job_title || "the role";
 
   const [letter, setLetter] = useState(null); // { html, candidateName }
-  const [mode, setMode] = useState("type");    // 'type' | 'draw'
+  // Drawn only. A typed name is not a signature, it is the same keystrokes
+  // anyone holding the offer link could produce; the drawn PNG is what the PDF
+  // embeds and what the certificate attests to. typedName is still carried, as
+  // the printed name that sits under the signature on the letter.
   const [typedName, setTypedName] = useState("");
   const [drawnPng, setDrawnPng] = useState(null);
   const [consent, setConsent] = useState(false);
@@ -7931,7 +7934,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const hasSignature = mode === "type" ? typedName.trim().length > 1 : !!drawnPng;
+  const hasSignature = !!drawnPng;
   const canSign = consent && hasSignature && !busy;
   // "signed" = the candidate has completed the adopt step AND still holds a valid
   // signature. Guards against a switch-mode-then-cancel leaving adopted=true with
@@ -7941,9 +7944,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   const sign = async () => {
     if (!canSign) return;
     setErr(null); setBusy("sign");
-    const res = await onSign(mode === "type"
-      ? { signatureType: "typed", typedName: typedName.trim(), consent: true }
-      : { signatureType: "drawn", drawnPng, typedName: typedName.trim() || letter?.candidateName || "", consent: true });
+    const res = await onSign({ signatureType: "drawn", drawnPng, typedName: typedName.trim() || letter?.candidateName || "", consent: true });
     setBusy(null);
     if (!res.ok) { setErr(res.error === "already_settled" ? "This offer has already been signed." : (res.error || "Something went wrong. Please try again.")); return; }
     setResult("accepted");
@@ -8045,7 +8046,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
               <div ref={signRef} className="p-3 sm:p-5">
                 <OfferSignPlacement url={letter.pdfUrl} field={letter.signField} readOnly
                   onSignHere={() => setAdoptOpen(true)}
-                  signature={{ adopted: signed, type: mode === "type" ? "type" : "draw", typedName: (typedName.trim() || letter?.candidateName || "You"), drawnPng }} />
+                  signature={{ adopted: signed, type: "draw", typedName: (typedName.trim() || letter?.candidateName || "You"), drawnPng }} />
               </div>
             ) : (
               <div className="p-6 sm:p-10">
@@ -8115,26 +8116,13 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
             </div>
             <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>Confirm your name and signature. This is applied to the offer letter.</p>
 
-            <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-              {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
-                <button key={k} type="button" onClick={() => setMode(k)} className="text-xs font-semibold px-4 py-1.5 rounded-md transition-colors"
-                  style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>{label}</button>
-              ))}
-            </div>
-
-            {mode === "type" ? (
-              <div>
-                <input value={typedName} onChange={(e) => setTypedName(e.target.value)} placeholder="Type your full name"
-                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
-                <div className="mt-2 rounded-lg flex items-center justify-center px-4" style={{ border: "1px solid var(--line)", background: "#fff", height: 96 }}>
-                  {typedName.trim()
-                    ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 38, color: "var(--ink)" }}>{typedName.trim()}</span>
-                    : <span className="text-xs" style={{ color: "var(--ink-4)" }}>Your signature preview</span>}
-                </div>
-              </div>
-            ) : (
-              <SignaturePad onChange={setDrawnPng} />
-            )}
+            {/* Printed name still collected: it is what appears under the
+                signature on the letter, not the signature itself. */}
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--ink-2)" }}>Your full name</label>
+            <input value={typedName} onChange={(e) => setTypedName(e.target.value)} placeholder={letter?.candidateName || "Your full name"}
+              className="w-full rounded-lg px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--ink-2)" }}>Sign below</label>
+            <SignaturePad onChange={setDrawnPng} />
 
             <label className="flex items-start gap-2.5 mt-4 cursor-pointer select-none group">
               <span className="mt-0.5 shrink-0 w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center transition-colors group-hover:border-[color:var(--brand)]"
@@ -22655,8 +22643,11 @@ function BillingCurrencyCard({ value, onChange }) {
 // global "Save changes" bar owns persistence (no per-card Save button). savedSig
 // is the persisted baseline; resetSignal bumps to re-seed the editor on Cancel.
 function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, note = "Saved with the Save button at the bottom of the page." }) {
-  const [mode, setMode] = useState("type");           // 'type' | 'draw'
-  const [typed, setTyped] = useState("");
+  // Drawn only. Typing your name was never a signature, just your name set in a
+  // script face, and it is the same keystrokes anyone with the link could type.
+  // Signatures already saved as "typed:<name>" still render on the letters and
+  // certificates that carry them (see offer-letter.ts / aster-sign); they simply
+  // cannot be created any more, and drawing replaces one.
   const [drawn, setDrawn] = useState(null);            // PNG data URI
 
   // Seed the editor from the persisted baseline on load, re-seed on Cancel
@@ -22664,13 +22655,11 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, n
   useEffect(() => {
     const s = savedSig;
     if (s === undefined) return;                       // still loading
-    if (s && s.startsWith("typed:")) { setMode("type"); setTyped(s.slice(6)); setDrawn(null); }
-    else if (s) { setMode("draw"); setDrawn(s); setTyped(""); }
-    else { setTyped(""); setDrawn(null); }
+    setDrawn(s && !s.startsWith("typed:") ? s : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSig, resetSignal]);
 
-  const current = mode === "type" ? (typed.trim() ? `typed:${typed.trim()}` : null) : drawn;
+  const current = drawn;
 
   // Push the draft up so the page's global Save bar can persist / diff it.
   useEffect(() => { onDraftChange?.(current); }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -22682,36 +22671,15 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, n
           {intro || "Sign off the offer letters you compose in Aster. Your signature is placed above your name in the letter; the candidate then counter-signs. Upload-mode offers use the signature already on your own PDF."}
         </p>
       )}
-      <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-        {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setMode(k)}
-            className="text-xs font-semibold px-3.5 py-1.5 rounded-md transition-colors"
-            style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>
-            {label}
-          </button>
-        ))}
+      <div>
+        {savedSig && !savedSig.startsWith("typed:") && (!drawn || drawn === savedSig) && (
+          <div className="mb-2 rounded-lg px-4 py-2 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff" }}>
+            <img src={savedSig} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
+            <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current — draw below to replace</span>
+          </div>
+        )}
+        <SignaturePad onChange={(d) => setDrawn(d)} />
       </div>
-      {mode === "type" ? (
-        <div>
-          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type your full name"
-            className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
-          {typed.trim() && (
-            <div className="mt-2 rounded-lg px-4 py-3 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff", minHeight: 60 }}>
-              <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 28, color: "var(--ink)" }}>{typed.trim()}</span>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div>
-          {savedSig && !savedSig.startsWith("typed:") && (!drawn || drawn === savedSig) && (
-            <div className="mb-2 rounded-lg px-4 py-2 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff" }}>
-              <img src={savedSig} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
-              <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current — draw below to replace</span>
-            </div>
-          )}
-          <SignaturePad onChange={(d) => setDrawn(d)} />
-        </div>
-      )}
       {note ? <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p> : null}
     </div>
   );
