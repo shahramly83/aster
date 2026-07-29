@@ -1288,7 +1288,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       candidate at Interview with nothing arranged. */}
                   <Press haptic="light" onPress={backToApplied} disabled={!!undoing} style={styles.ivUndo}>
                     <Text style={[type.small, { color: theme.ink3 }]}>
-                      {undoing ? "Moving back…" : "Not yet, move back to Applied"}
+                      {undoing ? "Cancelling…" : "Cancel"}
                     </Text>
                   </Press>
                 </>
