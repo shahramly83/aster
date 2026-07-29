@@ -16993,9 +16993,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               </button>
             ));
           })()}
-          <label className="ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
-            <Icon name="search" className="w-4 h-4" style={{ color: "var(--ink-4)" }} />
-            <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none" style={{ color: "var(--ink)", minWidth: 160 }} />
+          <label className="w-full sm:w-auto sm:ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+            <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
+            <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0 sm:min-w-[160px]" style={{ color: "var(--ink)" }} />
           </label>
         </div>
 
@@ -17071,7 +17071,39 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 );
               }
               return (
-                <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
+                <>
+                {/* Phones get cards, not a 640px table in a sideways scroller.
+                    Five columns cannot be read on a 390px screen, and the actions
+                    sat off the right edge where nobody would find them. */}
+                <div className="md:hidden">
+                  {shown.map((r) => {
+                    const active = r.kind === "owner" || r.kind === "active";
+                    const roleLabel = r.kind === "owner" ? "Tenant" : (ROLE_LABELS[r.role] || "Interviewer");
+                    const upcoming = r.kind === "active" ? scheduledCountFor(r) : 0;
+                    return (
+                      <div key={`m-${r.kind}-${r.id}`} className="px-4 py-3.5" style={{ borderBottom: "1px solid var(--line)" }}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <CandidateAvatar name={r.name} hasPhoto={r.kind === "owner" && ownerIsYou && !!avatarUrl} src={r.kind === "owner" && ownerIsYou ? avatarUrl : null} size={40} showPhotoDot={false} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</p>
+                            <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email || "—"}</p>
+                          </div>
+                          {r.kind === "invite" ? (
+                            <button onClick={() => revokeInvite(r)} disabled={revokeBusyId === r.id} className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>{revokeBusyId === r.id ? "Revoking…" : "Revoke"}</button>
+                          ) : r.kind === "owner" ? null : (
+                            <button onClick={() => setRemoving(r)} className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg" style={{ color: "#DC2626" }}>Remove</button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pl-[52px]">
+                          <span className="text-[11px] px-2 py-1 rounded-lg font-semibold" style={roleTagStyle(roleLabel)}>{roleLabel}</span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={active ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? "#16A34A" : "#D97706" }} /> {active ? "Active" : "Invited"}</span>
+                          {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <table className="w-full hidden md:table" style={{ minWidth: 640, borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
                       {["Member", "Email", "Role", "Status", ""].map((h, i) => (
@@ -17114,6 +17146,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                     })}
                   </tbody>
                 </table>
+                </>
               );
             })()}
           </div>
@@ -21944,7 +21977,7 @@ function DangerZoneCard({ company }) {
         <span className="h-px flex-1" style={{ background: "#FCA5A5" }} />
       </div>
       <div className="rounded-2xl overflow-hidden border act-shadow" style={{ borderColor: "#FCA5A5" }}>
-        <div className="flex items-center gap-3 p-5 bg-white">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:p-5 bg-white">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2", color: "#DC2626" }}>
             <Icon name="trash" className="w-5 h-5" />
           </span>
@@ -21955,11 +21988,11 @@ function DangerZoneCard({ company }) {
             </p>
           </div>
           {!dangerConfirm && (
-            <button onClick={() => setDangerConfirm(true)} className="text-sm rounded-xl px-4 py-2 font-medium shrink-0 transition-colors" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>Delete…</button>
+            <button onClick={() => setDangerConfirm(true)} className="w-full sm:w-auto text-sm rounded-xl px-4 py-2.5 sm:py-2 font-medium shrink-0 transition-colors" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>Delete…</button>
           )}
         </div>
         {dangerConfirm && (
-          <div className="p-5 border-t" style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}>
+          <div className="p-4 sm:p-5 border-t" style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}>
             <p className="text-xs font-medium mb-2" style={{ color: "#991B1B" }}>Deleting also erases:</p>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs mb-4" style={{ color: "#7F1D1D" }}>
               {[
@@ -21988,15 +22021,17 @@ function DangerZoneCard({ company }) {
             />
             {deleteErr && <p className="text-xs mt-2" style={{ color: "#B91C1C" }}>{deleteErr}</p>}
             <p className="text-xs mt-2.5" style={{ color: "#B91C1C" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
-            <div className="flex items-center gap-2 mt-3.5">
+            {/* Stacked on phones. Side by side these two wrapped mid-label, and
+                the destructive one is not a button to leave half-legible. */}
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-2 mt-3.5">
               <button
                 disabled={deleting || dangerText.trim() !== dangerTarget}
                 onClick={handleDeleteAccount}
-                className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                className="w-full sm:w-auto text-sm rounded-xl px-4 py-2.5 sm:py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
                 <Icon name="trash" className="w-4 h-4" /> {deleting ? "Deleting…" : "Permanently delete"}
               </button>
-              <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 bg-white transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "#FCA5A5", color: "var(--ink-2)" }}>Cancel</button>
+              <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="w-full sm:w-auto text-sm rounded-xl border px-4 py-2.5 sm:py-2 bg-white transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "#FCA5A5", color: "var(--ink-2)" }}>Cancel</button>
             </div>
           </div>
         )}
