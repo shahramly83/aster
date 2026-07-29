@@ -9200,20 +9200,12 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         </button>
       </div>
 
-      <div className="flex items-center gap-2 pb-5 md:pb-6">
-        <div className="flex-1 min-w-0">
-          <SidebarProfile avatarUrl={avatarUrl} navigate={go} profile={profile} />
-        </div>
-        <button
-          onClick={onSignOut}
-          className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ color: "var(--ink-2)", border: "1px solid var(--line)" }}
-          aria-label="Log out"
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
-        >
-          <Icon name="logout" className="w-5 h-5" />
-        </button>
+      {/* Log out used to be a bare icon boxed next to the avatar, where it read as
+          a setting for the profile row rather than a way out of the app, and it
+          was the only unlabelled control in the menu. It sits with Settings at the
+          bottom now, labelled like everything else. */}
+      <div className="pb-5 md:pb-6">
+        <SidebarProfile avatarUrl={avatarUrl} navigate={go} profile={profile} />
       </div>
 
       <nav className="space-y-1 mt-2 pb-1">
@@ -9267,6 +9259,16 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
             </button>
           );
         })}
+        <button
+          onClick={onSignOut}
+          className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
+          style={{ color: "var(--ink-2)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--brand)"; e.currentTarget.style.background = "var(--brand-soft)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.background = "transparent"; }}
+        >
+          <Icon name="logout" className="w-5 h-5 shrink-0" />
+          <span>Log out</span>
+        </button>
       </div>
     </div>
   );
