@@ -18428,6 +18428,17 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           voted" with no way to see why, and no way to fix it. */}
       {canEditPanel && (
         <div className="mb-3">
+          {/* Back to the question rather than straight to solo, because an invite
+              is already out and the choice is worth making deliberately. Sits on
+              the panel row, same as the scheduler's. */}
+          {pendingPanel.length > 0 && assignedInterviewers.length === 0 && onBackToChoice && (
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>Interview panel</span>
+              <button type="button" onClick={onBackToChoice} className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                Change
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-1.5">
             {assignedInterviewers.map((iv) => (
               <span key={iv.id} className="inline-flex items-center gap-1.5 text-[11px] rounded-full border pl-2 pr-1 py-1" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
@@ -18452,16 +18463,6 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               </span>
             ))}
           </div>
-          {/* Back to the question rather than straight to solo, because an invite
-              is already out and the choice is worth making deliberately. Same
-              placement as the solo card's Change. */}
-          {pendingPanel.length > 0 && assignedInterviewers.length === 0 && onBackToChoice && (
-            <div className="flex items-center justify-end mt-1.5">
-              <button type="button" onClick={onBackToChoice} className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
-                Change
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -18898,7 +18899,7 @@ function InterviewSetupChoice({ firstName, onSolo, onPanel }) {
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], pendingPanel = [], onSubstitute, startSolo = false }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], pendingPanel = [], onSubstitute, startSolo = false, onChangeMode = null }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   // Meeting link: the HM pastes the video-call URL they made and shares it with
   // the candidate + panel (share-meeting-link sends each their own message, same
@@ -19273,7 +19274,17 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           {/* R2: the panel is the hiring manager plus the interviewers already
               assigned to this role. Assign them from the applicant list. */}
           <div className="mb-3">
-            <label className="block text-xs text-neutral-500 mb-1.5">Interview panel</label>
+            {/* Answering "Just me" is a choice, not a commitment: until the
+                times are out there has to be a way back to it, and the panel row
+                is where you look when reconsidering who is interviewing. */}
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <label className="block text-xs text-neutral-500">Interview panel</label>
+              {onChangeMode && (
+                <button type="button" onClick={onChangeMode} className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                  Change
+                </button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 text-sm rounded-full px-3 py-1.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <Icon name="shield" className="w-3.5 h-3.5" /> {hmName}
@@ -23551,7 +23562,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // flashing the question over a poll that turns out to exist.
   const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
     && assignedInterviewers.length === 0 && hasPoll === false
-    && (forceAsk || (pendingPanel.length === 0 && ivMode !== "solo"));
+    && (forceAsk || (pendingPanel.length === 0 && ivMode === null));
   // The panel exists on paper but cannot do anything yet: nobody real is on it,
   // and we are either mid-setup or waiting on an invite to be accepted. There is
   // nothing to schedule and no request to wait for, so the scheduler card below
@@ -24233,20 +24244,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               competing empty cards in the first place. */
         panelNotReady ? null : (
         !pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (<>
-          {/* Answering "Just me" is a choice, not a commitment: until the times
-              are actually out there has to be a way back to it. */}
-          {ivMode === "solo" && !booking && (
-            <div className="flex items-center justify-end gap-3 mb-2.5">
-              <button
-                type="button"
-                onClick={() => setIvMode(null)}
-                className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70"
-                style={{ color: "var(--brand)" }}
-              >
-                Change
-              </button>
-            </div>
-          )}
           <ScheduleInterviewPanel
             candidate={candidate}
             jobs={jobs}
@@ -24262,6 +24259,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             pendingPanel={pendingPanel}
             onSubstitute={onSubstitute}
             startSolo={ivMode === "solo"}
+            onChangeMode={ivMode === "solo" && !booking ? () => setIvMode(null) : null}
           />
         </>))}
         </>)}
