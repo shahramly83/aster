@@ -23950,16 +23950,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <span className="text-[11px] rounded-full px-2 py-0.5 font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{seniorityFromYears(parsed.years_of_experience)}</span>
           </div>
         )}
+        {/* These two are the only values long enough to wrap, and right-aligned
+            wrapped text reads badly and crowds the card edge. Label above, value
+            below, both left-aligned — the short rows keep their tidy two-column
+            shape. */}
         {topRole && (
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Current role</span>
-            <span className="text-sm font-medium text-right min-w-0" style={{ color: "var(--ink)" }}>{topRole.title}<span className="block text-xs font-normal" style={{ color: "var(--ink-3)" }}>{topRole.company}</span></span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Current role</span>
+            <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{topRole.title}<span className="block text-xs font-normal" style={{ color: "var(--ink-3)" }}>{topRole.company}</span></span>
           </div>
         )}
         {parsed.location && (
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
             <span className="text-xs" style={{ color: "var(--ink-3)" }}>Location</span>
-            <span className="text-sm font-medium text-right" style={{ color: "var(--ink)" }}>{parsed.location}</span>
+            <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{parsed.location}</span>
           </div>
         )}
       </div>
@@ -24055,7 +24059,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+          {/* whitespace-nowrap on the buttons: "View resume" was wrapping to two
+              lines while Reject and Delete stayed on one, so the row came out
+              ragged. They wrap as a group instead. */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center [&_button]:whitespace-nowrap">
             {planLimits(plan).storeOriginal ? (
               <button onClick={() => setShowPdf(true)} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
                 <Icon name="doc" className="w-4 h-4" /> View resume
@@ -24089,7 +24096,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {/* Profile / Interview tabs (segmented, like the search filters).
                 Only shown in a job pipeline, where the interview flow exists. */}
             {contextJobId && (
-              <div className="flex items-center gap-1 rounded-xl p-1 sm:inline-flex" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+              <div className="flex w-full items-center gap-1 rounded-xl p-1 sm:w-auto sm:inline-flex" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
                 {[
                   { k: "profile", label: "Profile", icon: "doc" },
                   { k: "interview", label: "Interview", icon: "calendar" },
@@ -24104,7 +24111,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   const on = profileTab === t.k;
                   const locked = !!t.locked;
                   return (
-                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Opens once the hiring manager confirms the interview happened" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-3)" : "var(--ink-2)" }}>
+                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Opens once the hiring manager confirms the interview happened" : undefined} className={`flex-1 sm:flex-none min-w-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-sm font-semibold rounded-lg px-2 sm:px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-3)" : "var(--ink-2)" }}>
                       <Icon name={locked ? "lock" : t.icon} className="w-4 h-4" style={locked ? { opacity: 0.85 } : undefined} /> {t.label}
                       {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? "#fff" : "var(--brand)" }} />}
                     </button>
@@ -24461,10 +24468,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   onClick={() => { if (!t.locked) setIvStep(t.n); }}
                   disabled={t.locked}
                   title={t.locked ? (t.n === 2 ? "Unlocks once the interview time has passed" : "Unlocks once the panel has scored") : undefined}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                  className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 rounded-lg px-1.5 sm:px-2.5 py-1.5 text-xs font-semibold transition-colors"
                   style={active ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: t.locked ? "var(--ink-3)" : "var(--ink-2)", cursor: t.locked ? "not-allowed" : "pointer" }}
                 >
-                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]" style={active ? { background: "var(--brand)", color: "#fff" } : { background: "var(--line)", color: "var(--ink-2)" }}>{t.n}</span>
+                  <span className="w-4 h-4 shrink-0 rounded-full flex items-center justify-center text-[10px]" style={active ? { background: "var(--brand)", color: "#fff" } : { background: "var(--line)", color: "var(--ink-2)" }}>{t.n}</span>
                   <span className="truncate">{t.label}</span>
                   {t.locked && <Icon name="lock" className="w-3 h-3 shrink-0" />}
                 </button>
