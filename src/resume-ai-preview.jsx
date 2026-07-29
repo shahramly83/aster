@@ -28342,6 +28342,15 @@ export default function ResumeAIPreview() {
     const data = await loadWorkspaceData(companyId);
     if (!data) return;
     applyWorkspaceData(data);          // swaps candidates / applicants / matches
+    // Session stage overrides are a write-through cache covering the gap between
+    // an optimistic move and the next hydrate. Once fresh rows are in hand the
+    // server is authoritative, and keeping them meant a stage the DB changed on
+    // its own — a panel emptied on another device, a trigger reverting a
+    // candidate — stayed masked by a stale local value for the rest of the
+    // session. Dropping them can briefly show the old stage if a hydrate races a
+    // write still in flight, which the next refresh corrects; hiding the truth
+    // indefinitely does not correct itself.
+    setStageOverrides({});
     setJobs(data.jobs);
     // Keep the job the URL points at (e.g. /applicants/<id> on refresh); only
     // fall back to the first job when the current id isn't a real one.
