@@ -482,8 +482,11 @@ async function loadWorkspaceData(companyId) {
 
   // Pending teammate invitations (no profile yet). They still consume a seat on
   // the server, so the team-seats meter must count them to match enforcement.
-  const invRes = await supabase.from("invitations").select("id, email, role").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString());
-  const pendingInvites = (invRes.data || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer" }));
+  const invRes = await supabase.from("invitations").select("id, email, role, pending_job_ids").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString());
+  // jobIds: roles this invitee is staged onto (0138). They show as pending on
+  // that role's panel, and accept_invite turns them into real assignments the
+  // moment they sign up.
+  const pendingInvites = (invRes.data || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer", jobIds: v.pending_job_ids || [] }));
 
   // Job interviewer pools: which teammates can see each job's applicants.
   const jaRes = await supabase.from("job_assignments").select("job_id, profile_id").eq("company_id", companyId);
@@ -18045,7 +18048,7 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {} }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -18181,6 +18184,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
         ? `Invite sent to ${em}. Add them to this panel once they sign up.`
         : `Invite sent to ${em}. They join this panel as soon as they sign up.` });
       setInviteEmail("");
+      await reloadTeam();   // so the pending chip shows without a reload
     } catch { setInviteNote({ type: "err", msg: "Couldn't send the invite." }); }
     setInviteBusy(false);
   };
@@ -18227,7 +18231,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   // sitting above a second card that also said nothing was happening. The parent
   // asks how the interview should be run instead, and remounts this with the
   // picker already open if the answer is a panel.
-  if (!poll && assignedInterviewers.length === 0 && !addingPanel) return null;
+  if (!poll && assignedInterviewers.length === 0 && pendingPanel.length === 0 && !addingPanel) return null;
 
   const addDraft = (range) => {
     if (!range?.start || !range?.end) return;
@@ -18372,8 +18376,23 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 )}
               </span>
             ))}
+            {/* Invited, not signed up yet. Shown greyed with a dashed edge so the
+                panel reads as "one person coming" rather than empty, and so
+                nobody waits on a vote that cannot arrive: they have no profile,
+                so they are not in requiredVoters and never hold the poll up. */}
+            {pendingPanel.map((inv) => (
+              <span key={inv.id} title={`${inv.email} has not signed up yet`} className="inline-flex items-center gap-1.5 text-[11px] rounded-full border border-dashed pl-2 pr-2 py-1" style={{ borderColor: "var(--line-strong)", color: "var(--ink-3)", background: "var(--bg)" }}>
+                <Icon name="clock" className="w-3 h-3" />
+                <span className="max-w-[11rem] truncate">{inv.email}</span>
+                <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full" style={{ background: "#FFFBEB", color: "#B45309", letterSpacing: "0.04em" }}>Invited</span>
+              </span>
+            ))}
           </div>
-
+          {pendingPanel.length > 0 && (
+            <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+              {pendingPanel.length === 1 ? "One invite is outstanding." : `${pendingPanel.length} invites are outstanding.`} They join this panel and see this role the moment they sign up.
+            </p>
+          )}
         </div>
       )}
 
@@ -22879,7 +22898,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyLogoUrl = null, companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, pendingInvites = [], reloadTeam = async () => {}, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyLogoUrl = null, companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -23425,6 +23444,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const assignedInterviewers = contextJobId
     ? interviewers.filter((iv) => isInterviewer(iv.role) && jobAssignments.some((a) => a.job_id === contextJobId && a.profile_id === iv.id))
     : [];
+  // Invited but not signed up yet, and staged onto this role (0138). They are not
+  // interviewers yet — no profile, no vote — but the panel has to show them, or
+  // inviting someone from the picker looks like it did nothing.
+  const pendingPanel = contextJobId
+    ? pendingInvites.filter((inv) => inv.role === "interviewer" && (inv.jobIds || []).includes(contextJobId))
+    : [];
   const candFirstName = (candidate?.parsed?.name || "").trim().split(" ")[0] || "this candidate";
   // Ask how to run the interview whenever this step has nothing else to show: no
   // booking or invite out, no interviewer waiting on a request, nobody on the
@@ -23436,7 +23461,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // null until PanelPoll reports, so this stays false for a beat rather than
   // flashing the question over a poll that turns out to exist.
   const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
-    && assignedInterviewers.length === 0 && hasPoll === false && ivMode !== "solo";
+    && assignedInterviewers.length === 0 && pendingPanel.length === 0 && hasPoll === false && ivMode !== "solo";
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -24086,6 +24111,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onInviteSent={onInviteSent}
           onActiveChange={setPollActive}
           onPollLoaded={setHasPoll}
+          pendingPanel={pendingPanel}
+          reloadTeam={reloadTeam}
           autoOpenPanel={ivMode === "panel"}
           onCancelPanelSetup={() => setIvMode(null)}
           onAssignInterviewer={onAssignInterviewer}
@@ -24100,7 +24127,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         ) : /* While the panel is still being assembled the poll card owns the
               screen; showing the manual scheduler underneath is what produced two
               competing empty cards in the first place. */
-        ivMode === "panel" && assignedInterviewers.length === 0 ? null : (
+        ivMode === "panel" && assignedInterviewers.length === 0 && pendingPanel.length === 0 ? null : (
         !pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (<>
           {/* Answering "Just me" is a choice, not a commitment: until the times
               are actually out there has to be a way back to it. */}
@@ -28057,10 +28084,10 @@ export default function ResumeAIPreview() {
     if (!hasSupabase || !companyId) return;
     const [{ data: profs }, { data: invs }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended"),
-      supabase.from("invitations").select("id, email, role").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
+      supabase.from("invitations").select("id, email, role, pending_job_ids").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
     ]);
     setInterviewers((profs || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", role: p.role, pending: p.status === "invited", timezone: "Asia/Kuala_Lumpur" })));
-    setPendingInvites((invs || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer" })));
+    setPendingInvites((invs || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer", jobIds: v.pending_job_ids || [] })));
   };
 
   // The signed-in user's own candidate shortlist. Loaded once identity is known
@@ -29492,6 +29519,8 @@ export default function ResumeAIPreview() {
             jobAssignments={jobAssignments}
             onAssignInterviewer={assignInterviewer}
             onUnassignInterviewer={unassignInterviewer}
+            pendingInvites={pendingInvites}
+            reloadTeam={reloadTeam}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
             questionsUsed={questionsUsed}
