@@ -364,21 +364,20 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             </Field>
 
             <Field label="Where this offer goes">
-              {/* A checkbox list never answered "add to what?", because the thing
-                  being added to was never on screen. An offer travels: you sign
-                  it, each approver signs off in turn, then it reaches the
-                  candidate. So draw the journey. Picking someone visibly drops a
-                  stop into the line, and the line always ends at the candidate,
-                  which is the answer to the question. */}
-              <View style={{ marginTop: -2 }}>
+              {/* The rail used to be a per-row segment, so it restarted at every
+                  row boundary and read as three disconnected stubs floating on
+                  the sheet. One spine is drawn behind the whole route instead,
+                  and the nodes sit on top of it with a solid fill so they punch
+                  through. The card gives it an edge; before, it was the only
+                  thing on the sheet with no container. */}
+              <View style={styles.rtCard}>
+                <View style={styles.rtSpine} />
+
                 <View style={styles.rtRow}>
-                  <View style={styles.rtGutter}>
-                    <View style={[styles.rtNode, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
-                      <Feather name="edit-3" size={11} color={theme.white} />
-                    </View>
-                    <View style={styles.rtLine} />
+                  <View style={[styles.rtNode, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
+                    <Feather name="edit-3" size={11} color={theme.white} />
                   </View>
-                  <View style={{ flex: 1, paddingBottom: space(4) }}>
+                  <View style={styles.rtBody}>
                     <Text style={[type.smallStrong, { color: theme.ink }]}>You sign it</Text>
                     <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Signed above</Text>
                   </View>
@@ -389,25 +388,27 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                   const unconfirmed = pool && pool.status && pool.status !== "confirmed";
                   return (
                     <View key={a.id || i} style={styles.rtRow}>
-                      <View style={styles.rtGutter}>
-                        <View style={[styles.rtNode, { backgroundColor: theme.card, borderColor: unconfirmed ? theme.warn : theme.brand }]}>
-                          <Text style={[styles.rtNodeTxt, unconfirmed && { color: theme.warn }]}>{i + 1}</Text>
-                        </View>
-                        <View style={styles.rtLine} />
+                      <View style={[styles.rtNode, { backgroundColor: theme.card, borderColor: unconfirmed ? theme.warn : theme.brand }]}>
+                        <Text style={[styles.rtNodeTxt, unconfirmed && { color: theme.warn }]}>{i + 1}</Text>
                       </View>
-                      <View style={[styles.rtStop, unconfirmed && { borderColor: theme.warn, backgroundColor: "#FFFBEB" }]}>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name || a.email}</Text>
-                          <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{a.email}</Text>
-                          {unconfirmed ? (
-                            <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginTop: 3, lineHeight: 15 }]}>
-                              We email them to confirm their address first, then send the letter for approval. It waits here until they confirm.
-                            </Text>
-                          ) : null}
+                      <View style={styles.rtBody}>
+                        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name || a.email}</Text>
+                            <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{a.email}</Text>
+                          </View>
+                          <Pressable onPress={() => removeApprover(i)} hitSlop={10} accessibilityLabel={`Remove ${a.name || a.email}`} style={styles.rtRemove}>
+                            <Feather name="x" size={15} color={theme.ink3} />
+                          </Pressable>
                         </View>
-                        <Pressable onPress={() => removeApprover(i)} hitSlop={10} accessibilityLabel={`Remove ${a.name || a.email} from the route`} style={styles.rtRemove}>
-                          <Feather name="x" size={15} color={theme.ink3} />
-                        </Pressable>
+                        {unconfirmed ? (
+                          <View style={styles.rtWarn}>
+                            <Feather name="clock" size={11} color="#92400E" />
+                            <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginLeft: 6, flex: 1, lineHeight: 16 }]}>
+                              We email them to confirm their address, then send the letter to approve. It waits here until they do.
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
                   );
@@ -415,20 +416,18 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
                 {approvers.length === 0 ? (
                   <View style={styles.rtRow}>
-                    <View style={styles.rtGutter}><View style={styles.rtLineDashed} /></View>
-                    <View style={{ flex: 1, paddingBottom: space(4), justifyContent: "center" }}>
-                      <Text style={[type.small, { color: theme.ink4, fontSize: 12 }]}>Goes straight there. No sign-off.</Text>
+                    <View style={styles.rtNodeGhost} />
+                    <View style={styles.rtBody}>
+                      <Text style={[type.small, { color: theme.ink4, fontSize: 12 }]}>No sign-off. It goes straight there.</Text>
                     </View>
                   </View>
                 ) : null}
 
-                <View style={styles.rtRow}>
-                  <View style={styles.rtGutter}>
-                    <View style={[styles.rtNode, { backgroundColor: theme.ink, borderColor: theme.ink }]}>
-                      <Feather name="mail" size={11} color={theme.white} />
-                    </View>
+                <View style={[styles.rtRow, { marginBottom: 0 }]}>
+                  <View style={[styles.rtNode, { backgroundColor: theme.ink, borderColor: theme.ink }]}>
+                    <Feather name="mail" size={11} color={theme.white} />
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.rtBody}>
                     <Text style={[type.smallStrong, { color: theme.ink }]}>{candidateName ? `${candidateName.split(" ")[0]} gets it` : "The candidate gets it"}</Text>
                     <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Emailed a link to review and sign</Text>
                   </View>
@@ -436,11 +435,11 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               </View>
 
               {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).length > 0 ? (
-                <View style={{ marginTop: space(4) }}>
+                <View style={{ marginTop: space(3) }}>
                   <Text style={[type.small, { color: theme.ink3, fontSize: 12, marginBottom: 8 }]}>
-                    {approvers.length ? "Add another stop" : "Add a stop before it reaches them"}
+                    {approvers.length ? "Add another" : "Add someone to sign off first"}
                   </Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                     {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).map((m) => {
                       const unconfirmed = m.status && m.status !== "confirmed";
                       return (
@@ -448,11 +447,11 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                           key={m.id || m.email}
                           onPress={() => pickApprover(m)}
                           accessibilityLabel={`Add ${m.name || m.email} to the route`}
-                          style={({ pressed }) => [styles.rtChip, unconfirmed && { borderColor: theme.warn, backgroundColor: "#FFFBEB" }, pressed && { opacity: 0.7 }]}
+                          style={({ pressed }) => [styles.rtChip, pressed && { backgroundColor: theme.bg }]}
                         >
-                          <Feather name="plus" size={13} color={unconfirmed ? theme.warn : theme.brand} />
-                          <Text numberOfLines={1} style={[styles.rtChipTxt, unconfirmed && { color: "#92400E" }]}>{m.name || m.email}</Text>
-                          {unconfirmed ? <Feather name="clock" size={11} color={theme.warn} style={{ marginLeft: 5 }} /> : null}
+                          <Feather name="plus" size={13} color={theme.brand} />
+                          <Text numberOfLines={1} style={styles.rtChipTxt}>{m.name || m.email}</Text>
+                          {unconfirmed ? <Feather name="clock" size={11} color={theme.ink4} style={{ marginLeft: 5 }} /> : null}
                         </Pressable>
                       );
                     })}
@@ -585,15 +584,18 @@ const styles = StyleSheet.create({
   apAddBtnTxt: { color: theme.brand, fontFamily: "Inter_700Bold", fontSize: 12.5 },
   apConfirmedPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 7 },
   apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
-  rtRow: { flexDirection: "row", alignItems: "stretch" },
-  rtGutter: { width: 26, alignItems: "center" },
+  rtCard: { borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
+  // One unbroken line behind every node. Inset so it starts and ends inside the
+  // first and last node rather than poking out past them.
+  rtSpine: { position: "absolute", left: space(3) + 11, top: space(3) + 12, bottom: space(3) + 12, width: 2, backgroundColor: theme.line2 },
+  rtRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: space(4) },
   rtNode: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  rtNodeGhost: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
   rtNodeTxt: { fontSize: 11.5, fontFamily: "Inter_700Bold", color: theme.brand },
-  rtLine: { width: 2, flex: 1, minHeight: 16, backgroundColor: theme.line2, marginVertical: 3 },
-  rtLineDashed: { width: 2, flex: 1, minHeight: 26, marginVertical: 3, borderLeftWidth: 2, borderLeftColor: theme.line2, borderStyle: "dashed" },
-  rtStop: { flex: 1, flexDirection: "row", alignItems: "flex-start", marginLeft: 10, marginBottom: space(3), borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(2.5) },
+  rtBody: { flex: 1, minWidth: 0, marginLeft: 12, paddingTop: 1 },
   rtRemove: { padding: 4, marginLeft: 6, marginTop: -2 },
-  rtChip: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: 11, paddingVertical: 8, maxWidth: "100%" },
+  rtWarn: { flexDirection: "row", alignItems: "flex-start", marginTop: 6, borderRadius: radius.sm, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", paddingHorizontal: 8, paddingVertical: 6 },
+  rtChip: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: 11, paddingVertical: 8, marginRight: 8, marginBottom: 8, maxWidth: "100%" },
   rtChipTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.ink, marginLeft: 5, flexShrink: 1 },
   apPickRow: { flexDirection: "row", alignItems: "flex-start", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3), marginBottom: 8 },
   apPickRowOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
