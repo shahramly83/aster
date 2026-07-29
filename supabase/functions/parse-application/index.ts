@@ -411,7 +411,27 @@ Deno.serve(async (req) => {
 
     // --- File the application (one per candidate per job) ---
     const { data: app } = await admin
-      .from("applications").select("id").eq("company_id", companyId).eq("candidate_id", candidateId).eq("job_id", job_id).maybeSingle();
+      .from("applications").select("id, stage, created_at").eq("company_id", companyId).eq("candidate_id", candidateId).eq("job_id", job_id).maybeSingle();
+    // Re-applying to a role you were turned down for. Previously this fell into
+    // the re-submission branch below, which only refreshed `fit` and `source`:
+    // the row stayed at 'rejected', nothing was logged, nobody was notified, and
+    // the applicant was shown "Application received" for something that had gone
+    // nowhere. Reopening it puts them back in front of the hiring manager with
+    // their newer CV, and rejecting again is one click.
+    //
+    // Not immediately, though. A decision should hold for a while, or someone you
+    // turned down can put themselves straight back in the pile. Inside the window
+    // they are told plainly and nothing is written or charged.
+    const REAPPLY_COOLDOWN_DAYS = 30;
+    const closed = app && (app.stage === "rejected" || app.stage === "declined");
+    const reopening = !!closed;
+    if (closed) {
+      const decidedAt = new Date(app.created_at as string).getTime();
+      const daysSince = (Date.now() - decidedAt) / 86400000;
+      if (daysSince < REAPPLY_COOLDOWN_DAYS) {
+        return json({ error: "recently_decided", days: Math.max(1, Math.ceil(REAPPLY_COOLDOWN_DAYS - daysSince)) }, 409);
+      }
+    }
     const isNewApplication = !app;
     if (isNewApplication) {
       await admin.from("applications").insert({
@@ -437,11 +457,33 @@ Deno.serve(async (req) => {
           data: { url: `aster://candidate/${candidateId}` },
         })));
       } catch (e) { console.error("new-applicant push failed", e); }
+    } else if (reopening) {
+      // Back to the top of the pipeline with the CV they have just sent.
+      await admin.from("applications")
+        .update({ stage: "applied", fit, source: (source || "Career Page"), match_reasons: fit === "other" ? (fitReason || null) : null })
+        .eq("id", app.id);
+      await admin.from("activity_log").insert({
+        company_id: companyId, type: "new_application",
+        title: `${fullName} applied again`,
+        description: `Re-applied for ${job.title || "a role"} after being turned down`,
+        candidate_id: candidateId, job_id,
+      });
+      try {
+        const { data: asg } = await admin.from("job_assignments")
+          .select("profile_id").eq("company_id", companyId).eq("job_id", job_id);
+        const ids = [...new Set((asg || []).map((a: { profile_id?: string }) => a.profile_id).filter(Boolean))];
+        await Promise.all(ids.map((uid: string) => pushToUser(admin, uid, {
+          title: "Applicant returned",
+          body: `${fullName} applied again for ${job.title || "a role"}`,
+          data: { url: `aster://candidate/${candidateId}` },
+        })));
+      } catch (e) { console.error("re-application push failed", e); }
     } else {
-      // A re-submission (same candidate + job): refresh the classification in
-      // case the role changed, and update the source to whatever channel they
-      // came back through this time — otherwise the very first application's tag
-      // is frozen forever, so a later apply via a new ?source= link never shows.
+      // A re-submission while still live (same candidate + job): refresh the
+      // classification in case the role changed, and update the source to
+      // whatever channel they came back through this time — otherwise the very
+      // first application's tag is frozen forever, so a later apply via a new
+      // ?source= link never shows.
       await admin.from("applications").update({ fit, source: (source || "Career Page") }).eq("id", app.id);
     }
 
@@ -462,7 +504,7 @@ Deno.serve(async (req) => {
     // sends are Tier 2 (company-branded, company-editable) and use the company's
     // template override when one exists, else the code default below. A duplicate
     // re-apply doesn't re-email.
-    if (isNewApplication) {
+    if (isNewApplication || reopening) {
       const companyRel = (job as { companies?: { name?: string; logo_url?: string; slug?: string } }).companies;
       const companyName = companyRel?.name || "the hiring team";
       const logoUrl = companyRel?.logo_url || null;

@@ -19960,6 +19960,12 @@ This is what a candidate sees if they open the link after the role has closed.
         // One live application per person per company. Naming the role they are
         // already in the running for matters: without it this reads as a bug
         // rather than a rule, and they cannot tell what to do about it.
+        // Turned down for this same role recently. Say so, and say when they can
+        // try again, rather than accepting an application that goes nowhere.
+        if (code === "recently_decided") {
+          setSubmitErr(`You applied for this role before and weren't selected that time. You're welcome to try again in about ${detail?.days || 30} day${(detail?.days || 30) === 1 ? "" : "s"}, or apply for one of our other open positions now.`);
+          setStage("form"); return;
+        }
         if (code === "active_application") {
           setSubmitErr(detail?.role
             ? `You already have an application with ${company || "this company"} for ${detail.role}. The team will be in touch about that one first, and you can apply for another role once it is decided.`
