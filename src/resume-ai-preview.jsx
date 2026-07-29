@@ -18269,7 +18269,12 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     setErr(null); setAssignBusy(iv.id);
     const error = await onUnassignInterviewer(jobId, iv.id);
     setAssignBusy(null);
-    if (error) setErr(error);
+    if (error) { setErr(error); return; }
+    // Taking the last person off an unstarted panel leaves this card with
+    // nothing to render, and the parent has no way to see that from the outside.
+    // Say so, so the screen goes back to asking how the interview should run
+    // instead of going blank.
+    if (!poll && assignedInterviewers.length <= 1 && pendingPanel.length === 0) onCancelPanelSetup?.();
   };
 
   // Entering select mode: default to the two most-available times.
