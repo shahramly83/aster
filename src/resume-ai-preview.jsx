@@ -23354,13 +23354,18 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const assignedInterviewers = contextJobId
     ? interviewers.filter((iv) => isInterviewer(iv.role) && jobAssignments.some((a) => a.job_id === contextJobId && a.profile_id === iv.id))
     : [];
-  // Ask how to run the interview only when nothing else has already decided it:
-  // no booking or invite out, no interviewer waiting on a request, nobody on the
-  // panel, and no poll running. hasPoll starts null (PanelPoll hasn't reported
-  // yet), so this stays false for a beat rather than flashing the question over a
-  // poll that turns out to exist.
+  const candFirstName = (candidate?.parsed?.name || "").trim().split(" ")[0] || "this candidate";
+  // Ask how to run the interview whenever this step has nothing else to show: no
+  // booking or invite out, no interviewer waiting on a request, nobody on the
+  // panel, no poll. Deliberately keyed on what exists rather than on the answer
+  // given, because the answer can stop being true: pick a panel and then remove
+  // everyone from it and there is nothing left to render, which used to leave the
+  // step blank with no way back. "solo" is the one answer that fills the step by
+  // itself, so it is the only one that suppresses the question. hasPoll starts
+  // null until PanelPoll reports, so this stays false for a beat rather than
+  // flashing the question over a poll that turns out to exist.
   const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
-    && assignedInterviewers.length === 0 && hasPoll === false && ivMode === null;
+    && assignedInterviewers.length === 0 && hasPoll === false && ivMode !== "solo";
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -24017,7 +24022,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         />
         {askIvMode ? (
           <InterviewSetupChoice
-            firstName={(candidate?.parsed?.name || "").trim().split(" ")[0] || "this candidate"}
+            firstName={candFirstName}
             onSolo={() => setIvMode("solo")}
             onPanel={() => setIvMode("panel")}
           />
@@ -24025,7 +24030,22 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               screen; showing the manual scheduler underneath is what produced two
               competing empty cards in the first place. */
         ivMode === "panel" && assignedInterviewers.length === 0 ? null : (
-        !pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (
+        !pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (<>
+          {/* Answering "Just me" is a choice, not a commitment: until the times
+              are actually out there has to be a way back to it. */}
+          {ivMode === "solo" && !booking && (
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>You are interviewing {candFirstName} on your own.</p>
+              <button
+                type="button"
+                onClick={() => setIvMode(null)}
+                className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70"
+                style={{ color: "var(--brand)" }}
+              >
+                Change
+              </button>
+            </div>
+          )}
           <ScheduleInterviewPanel
             candidate={candidate}
             jobs={jobs}
@@ -24041,7 +24061,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             onSubstitute={onSubstitute}
             startSolo={ivMode === "solo"}
           />
-        ))}
+        </>))}
         </>)}
 
         {/* AI interview questions live LAST in step 1: the hiring manager generates
