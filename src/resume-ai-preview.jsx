@@ -18166,6 +18166,13 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const pending = poll ? requiredVoters.filter((iv) => !poll.voterIds.includes(iv.id)) : requiredVoters;
   const votedCount = requiredVoters.length - pending.length;
   const complete = requiredVoters.length === 0 || pending.length === 0;
+  // Why the poll cannot start yet, or null when it can. A reason beats an absent
+  // control: "waiting on someone to accept" is a state the user can act on,
+  // whereas a missing button is something they have to guess about.
+  const pollBlockedReason = requiredVoters.length > 0 ? null
+    : pendingPanel.length === 1 ? `Waiting on ${pendingPanel[0].email} to sign up.`
+    : pendingPanel.length > 1 ? `Waiting on ${pendingPanel.length} invites to be accepted.`
+    : "Add an interviewer to this role first. There is nobody to poll yet.";
   const canSelect = isManager && !round2 && poll?.status === "open" && (complete || override);
   // How many slots the viewer has marked. Only read on the non-manager branch,
   // which is why the missing declaration crashed the interviewer's vote modal
@@ -18580,20 +18587,26 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
         </div>
       )}
 
-      {/* No poll yet → HM can start one, but only once the role has at least one
-          interviewer to poll. With nobody to poll the poll is meaningless, so the
-          button is hidden entirely until an interviewer is added. */}
-      {!poll && isManager && requiredVoters.length > 0 && (
+      {/* No poll yet → the HM starts one, but there has to be somebody to poll.
+          The button used to disappear entirely until an interviewer was added,
+          which reads as a missing feature rather than a blocked one, on the very
+          card whose whole purpose it is. Shown disabled with the reason instead. */}
+      {!poll && isManager && (
         !creating ? (
           <div>
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80"
-              style={{ color: "var(--brand)" }}
+              disabled={!!pollBlockedReason}
+              title={pollBlockedReason || undefined}
+              className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors enabled:hover:opacity-80 disabled:cursor-not-allowed"
+              style={{ color: pollBlockedReason ? "var(--ink-4)" : "var(--brand)" }}
             >
               <Icon name="plus" className="w-4 h-4" /> Run a panel availability poll
             </button>
+            {pollBlockedReason && (
+              <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>{pollBlockedReason}</p>
+            )}
           </div>
         ) : (
           <div>
