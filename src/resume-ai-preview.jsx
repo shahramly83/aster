@@ -18166,14 +18166,30 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     if (!hasSupabase) { setInviteNote({ type: "err", msg: "Not connected to a live workspace." }); return; }
     setInviteBusy(true); setInviteNote(null);
     try {
+      // getSession refreshes an access token that is expiring, which is the
+      // difference between the invite working and the function seeing no caller
+      // at all. A tab left open while the same account signs in elsewhere can be
+      // holding a token the server has already rotated away from.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setInviteNote({ type: "err", msg: "You're signed out. Refresh the page and sign in again." });
+        setInviteBusy(false); return;
+      }
       const { data, error } = await supabase.functions.invoke("send-teammate-invite", { body: { email: em, role: "interviewer" } });
       let reason = data?.error || "";
       if (!reason && error?.context?.json) { try { const b = await error.context.json(); reason = b?.error || ""; } catch { /* ignore */ } }
       if (error || reason) {
+        // "unauthorized" (the function couldn't resolve the caller) and
+        // "forbidden" (it could, and they're not an owner/admin) are opposite
+        // problems with opposite fixes, and one regex reported both as a
+        // permissions error. That told an owner they lacked permission they
+        // plainly had, and sent them looking in the wrong place. Session first,
+        // since "unauthorized" contains "authoriz" and would match either test.
         setInviteNote({ type: "err", msg:
           /already|exists|duplicate/i.test(reason) ? "They're already on your team or invited."
           : /seat|limit/i.test(reason) ? "No teammate seats left on your plan."
-          : /permission|denied|forbidden|not authoriz|unauthoriz/i.test(reason) ? "Only an owner or admin can invite teammates."
+          : /unauthori[sz]/i.test(reason) ? "Your session has expired. Refresh the page and try again."
+          : /permission|denied|forbidden|not authori[sz]/i.test(reason) ? "Only an owner or admin can invite teammates."
           : reason || "Couldn't send the invite." });
         setInviteBusy(false); return;
       }
