@@ -11767,7 +11767,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 </span>
                 <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Upload"}</span>
                 <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
-                  PDF, Word, or a ZIP of up to 100
+                  PDF, Word, or a ZIP of up to 100 resumes
                 </span>
                 <span className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient group-hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="upload" className="w-4 h-4" /> Browse files
@@ -11902,15 +11902,18 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{run.fileCount} file{run.fileCount === 1 ? "" : "s"} imported</p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{run.label}</p>
+                        {/* Inside the text block, not indented under the whole row.
+                            A 48px left pad left five badges fighting over what was
+                            left of a phone's width. */}
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {stats.map((st) => (
+                            <span key={st.label} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
+                              <span className="tnum">{st.count}</span> {st.label}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-12">
-                      {stats.map((st) => (
-                        <span key={st.label} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
-                          <span className="tnum">{st.count}</span> {st.label}
-                        </span>
-                      ))}
                     </div>
                   </button>
                 );
@@ -14355,7 +14358,11 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         className="flex items-center gap-2 rounded-full pl-3.5 pr-1.5 py-1.5 cursor-default outline-none"
         style={{ background: "var(--brand-soft)" }}
       >
-        <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
+        {/* min-w-0 is what makes truncate work here. A flex item defaults to
+            min-width:auto, so the title refused to shrink below its own text and
+            shoved the Buy button out past the pill's rounded edge on a narrow
+            column. The title is the part that can afford to lose characters. */}
+        <span className="text-[11px] font-semibold uppercase tracking-wide truncate min-w-0" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
         <span className="ml-auto flex items-baseline gap-1 whitespace-nowrap">
           <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
           <span className="text-[11px] font-bold" style={{ color: accent }}>{leftNoun}</span>
