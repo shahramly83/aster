@@ -10607,9 +10607,13 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
         <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>{emptySub}</p>
       </div>
     ) : (
-      <div className="flex items-center gap-5">
+      <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4 sm:gap-5">
+        {/* Stacked on phones. Side by side the donut took nearly half the width
+            and left the legend too narrow for its own labels, so every role read
+            "Drupal D...", "Senior Fr...", "WordPres...". Knowing which role is
+            the chart's whole purpose, and that was the part being cut. */}
         <DonutChart total={total} segments={segments} />
-        <div className="flex-1 space-y-2 min-w-0">
+        <div className="w-full sm:flex-1 space-y-2 min-w-0">
           {segments.map((s) => (
             <LegendRow key={s.label} color={s.color} label={s.label} value={`${s.value} (${Math.round((s.value / total) * 100)}%)`} />
           ))}
