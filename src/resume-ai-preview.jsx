@@ -23107,6 +23107,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [purchasedQuestions, reloadPurchasedQuestions] = usePurchasedBalance("interview_questions");
   const [insightTip, setInsightTip] = useState(false); // AI Insight credit wallet hover breakdown
   const [questionTip, setQuestionTip] = useState(false); // AI Question credit wallet hover breakdown
+  // These wallets sit low on the page as often as not, and a panel that only ever
+  // opens downward runs off the bottom of the window with its totals below the
+  // fold. Measured on hover rather than assumed, so it flips only when it has to.
+  const [tipUp, setTipUp] = useState({ q: false, i: false });
+  const openTip = (which, el) => {
+    const r = el?.getBoundingClientRect?.();
+    const noRoomBelow = r ? window.innerHeight - r.bottom < 230 && r.top > 230 : false;
+    setTipUp((p) => ({ ...p, [which]: noRoomBelow }));
+    (which === "q" ? setQuestionTip : setInsightTip)(true);
+  };
   const [buyInsightOpen, setBuyInsightOpen] = useState(false);
   const [buyQuestionsOpen, setBuyQuestionsOpen] = useState(false);
   const [insightErr, setInsightErr] = useState(null);
@@ -23449,15 +23459,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const qTotalLeft = qMonthlyLeft === Infinity ? Infinity : qMonthlyLeft + qPurchased;
   const qOut = qTotalLeft !== Infinity && qTotalLeft <= 0;
   const questionWallet = questionsUnlimited ? null : (
-    <div className="relative shrink-0" onMouseEnter={() => setQuestionTip(true)} onMouseLeave={() => setQuestionTip(false)}>
+    <div className="relative shrink-0" onMouseEnter={(e) => openTip("q", e.currentTarget)} onMouseLeave={() => setQuestionTip(false)}>
       <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
         <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
         <span className="text-xs font-semibold whitespace-nowrap" style={{ color: qOut ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{qTotalLeft === Infinity ? "∞" : qTotalLeft}</span> credits left</span>
         {qIsMgr && <button onClick={() => setBuyQuestionsOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
       </div>
       {questionTip && (
-        <div className="absolute z-40 right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
-          <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+        <div className={`absolute z-40 right-0 w-56 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-3.5 act-panel-in ${tipUp.q ? "bottom-full mb-2" : "top-full mt-2"}`} style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className={`absolute right-7 w-3 h-3 rotate-45 bg-white ${tipUp.q ? "-bottom-1.5" : "-top-1.5"}`} style={tipUp.q ? { borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" } : { borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
           <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Question credits</p>
           {qIsMgr ? (
             <>
@@ -23493,15 +23503,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const insPurchased = insightIsMgr ? purchasedAiInsight : 0;
   const insTotalLeft = insMonthlyLeft === Infinity ? Infinity : insMonthlyLeft + insPurchased;
   const insightWallet = insightsUnlimited ? null : (
-    <div className="relative shrink-0" onMouseEnter={() => setInsightTip(true)} onMouseLeave={() => setInsightTip(false)}>
+    <div className="relative shrink-0" onMouseEnter={(e) => openTip("i", e.currentTarget)} onMouseLeave={() => setInsightTip(false)}>
       <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
         <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
         <span className="text-xs font-semibold whitespace-nowrap" style={{ color: outOfInsightCredits ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{insTotalLeft === Infinity ? "∞" : insTotalLeft}</span> credits left</span>
         {insightIsMgr && <button onClick={() => setBuyInsightOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
       </div>
       {insightTip && (
-        <div className="absolute z-40 right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
-          <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+        <div className={`absolute z-40 right-0 w-56 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-3.5 act-panel-in ${tipUp.i ? "bottom-full mb-2" : "top-full mt-2"}`} style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className={`absolute right-7 w-3 h-3 rotate-45 bg-white ${tipUp.i ? "-bottom-1.5" : "-top-1.5"}`} style={tipUp.i ? { borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" } : { borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
           <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Insight credits</p>
           {insightIsMgr ? (
             <>
