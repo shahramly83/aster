@@ -325,8 +325,16 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const applyStage = async (to) => {
     const prev = stage;
     setStage(to);
+    // Moving someone to Interview is the start of arranging one, and the next
+    // thing to answer (who is interviewing them?) is on the Interview tab. Being
+    // left on Profile meant the button appeared to do nothing but swap a pill.
+    if (to === "interviewing") switchTab("interview");
     try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to, jobId }); }
-    catch (e) { setStage(prev); dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
+    catch (e) {
+      setStage(prev);
+      if (to === "interviewing") switchTab("profile");   // the move failed; do not strand them on a tab the stage no longer unlocks
+      dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" });
+    }
   };
 
   // Setting this candidate's panel is the act of starting THEIR interview, and
