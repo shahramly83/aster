@@ -47,7 +47,7 @@ export default function ConfirmDialog({
 
         <View style={styles.body}>
           <View style={[styles.medallion, { backgroundColor: v.tint }]}>
-            <Feather name={icon || v.icon} size={30} color={v.accent} />
+            <Feather name={icon || v.icon} size={22} color={v.accent} />
           </View>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -94,12 +94,19 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end" },
   // ~Half the screen: tall enough for the question to breathe, short enough that
   // the work behind it stays on screen.
-  screen: { minHeight: "48%", backgroundColor: theme.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: space(5), paddingTop: space(3), shadowColor: "#0A0E28", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 24 },
+  screen: { minHeight: "48%", maxHeight: "90%", backgroundColor: theme.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: space(5), paddingTop: space(3), shadowColor: "#0A0E28", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 24 },
   grabber: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
-  body: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: space(4) },
-  medallion: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: space(4) },
-  title: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, lineHeight: 28, letterSpacing: -0.6, color: theme.ink, textAlign: "center" },
-  message: { fontFamily: "Inter_400Regular", fontSize: 15.5, lineHeight: 23, color: theme.ink3, textAlign: "center", marginTop: space(3), maxWidth: 340 },
+  // flexBasis "auto", NOT the flex:1 this used to be. In React Native flex:1
+  // means flexBasis:0, so the body contributed nothing to the sheet's intrinsic
+  // height: the sheet sized itself from the grabber and the buttons, minHeight
+  // fixed it at 48%, and anything taller than that spilled out underneath the
+  // actions. A three-line message with a two-line title had its last line drawn
+  // under the confirm button. Growing to fill a taller sheet still works, the
+  // sheet just measures the content first now.
+  body: { flexGrow: 1, flexShrink: 1, flexBasis: "auto", alignItems: "center", justifyContent: "center", paddingVertical: space(4) },
+  medallion: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", marginBottom: space(3) },
+  title: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 18, lineHeight: 24, letterSpacing: -0.3, color: theme.ink, textAlign: "center" },
+  message: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: theme.ink3, textAlign: "center", marginTop: space(2), maxWidth: 320 },
   detail: { alignSelf: "stretch", backgroundColor: theme.bg, borderRadius: radius.md, borderLeftWidth: 3, paddingHorizontal: 16, paddingVertical: 14, marginTop: space(5) },
   detailTxt: { ...type.bodyStrong, color: theme.ink, textAlign: "center" },
   actions: { alignSelf: "stretch", marginTop: space(5) },
