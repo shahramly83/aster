@@ -18452,20 +18452,14 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               </span>
             ))}
           </div>
-          {/* Same shape as the solo card's line: the state on the left, one word
-              to reconsider it on the right. Back to the question rather than
-              straight to solo, because an invite is already out and the choice is
-              worth making deliberately. */}
-          {pendingPanel.length > 0 && assignedInterviewers.length === 0 && (
-            <div className="flex items-start justify-between gap-3 mt-1.5">
-              <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-3)" }}>
-                {pendingPanel.length === 1 ? "One invite is outstanding." : `${pendingPanel.length} invites are outstanding.`} They join this panel and see this role the moment they sign up. There is nobody to poll for availability until then.
-              </p>
-              {onBackToChoice && (
-                <button type="button" onClick={onBackToChoice} className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
-                  Change
-                </button>
-              )}
+          {/* Back to the question rather than straight to solo, because an invite
+              is already out and the choice is worth making deliberately. Same
+              placement as the solo card's Change. */}
+          {pendingPanel.length > 0 && assignedInterviewers.length === 0 && onBackToChoice && (
+            <div className="flex items-center justify-end mt-1.5">
+              <button type="button" onClick={onBackToChoice} className="text-xs font-semibold shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                Change
+              </button>
             </div>
           )}
         </div>
