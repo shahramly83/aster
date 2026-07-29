@@ -1000,24 +1000,44 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {interviewDone && manager && !noShowDismissed && !scorecardsReleased ? (
             <View style={styles.ivHappenCard}>
               <View style={styles.ivHappenHead}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {/* The chip is wide, so on a phone the date beside it ran out to
+                    the card's edge with no padding left, and a longer date would
+                    have been clipped outright. Wrapping drops it onto its own
+                    line when it does not fit. */}
+                <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 9, rowGap: 6 }}>
                   <View style={styles.ivHappenChip}>
                     <View style={styles.ivHappenDot} />
                     <Text style={styles.ivHappenChipTxt}>INTERVIEW TIME PASSED</Text>
                   </View>
-                  {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 9 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
+                  {scheduledAt ? <Text style={[type.small, { color: theme.ink3, fontSize: 12.5 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
                 </View>
-                <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 11, fontSize: 17, letterSpacing: -0.2 }]}>Did the interview happen?</Text>
-                <Text style={[type.small, { color: theme.ink2, marginTop: 5, lineHeight: 20 }]}>Confirming opens the panel's scorecards. If it was a no-show or needs another time, reschedule instead.</Text>
+                {/* The body copy under this only restated the two buttons, so it
+                    was read twice and skipped once. The question plus the two
+                    labels carry it. */}
+                <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 11, fontSize: 16, letterSpacing: -0.2 }]}>Did the interview happen?</Text>
               </View>
               <View style={styles.ivHappenBody}>
-                <Pressable onPress={() => { if (interview?.id) releaseScorecards(interview.id); setInterview((iv) => (iv ? { ...iv, scorecardsReleasedAt: new Date().toISOString() } : iv)); setNoShowDismissed(true); }} style={styles.ivHappenPrimary}>
-                  <Feather name="check" size={16} color="#fff" />
-                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>Proceed to scorecards</Text>
+                <Pressable
+                  onPress={() => { if (interview?.id) releaseScorecards(interview.id); setInterview((iv) => (iv ? { ...iv, scorecardsReleasedAt: new Date().toISOString() } : iv)); setNoShowDismissed(true); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Yes, the interview happened. Open the panel's scorecards."
+                  style={({ pressed }) => [styles.ivHappenPrimary, pressed && { opacity: 0.85 }]}
+                >
+                  <Feather name="check" size={15} color="#fff" />
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7, fontSize: 13.5 }]}>Yes, proceed to scorecards</Text>
                 </Pressable>
-                <Pressable onPress={doReschedule} style={styles.ivHappenGhost}>
-                  <Feather name="refresh-cw" size={14} color={theme.ink3} />
-                  <Text style={[type.small, { color: theme.ink3, marginLeft: 7, fontFamily: "Inter_600SemiBold" }]}>No-show or reschedule</Text>
+                {/* This was a flat grey block with grey text, which is how every
+                    disabled control in the app looks, so the one escape route out
+                    of this card read as unavailable. It is an outlined warning
+                    action now: clearly live, still second to the primary. */}
+                <Pressable
+                  onPress={doReschedule}
+                  accessibilityRole="button"
+                  accessibilityLabel="No-show, or reschedule the interview"
+                  style={({ pressed }) => [styles.ivHappenGhost, pressed && { backgroundColor: theme.warnBg }]}
+                >
+                  <Feather name="refresh-cw" size={14} color={theme.warn} />
+                  <Text style={[type.small, { color: theme.warn, marginLeft: 7, fontFamily: "Inter_600SemiBold", fontSize: 13 }]}>No-show or reschedule</Text>
                 </Pressable>
               </View>
             </View>
@@ -2061,14 +2081,16 @@ const styles = StyleSheet.create({
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
   slotTileTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, letterSpacing: -0.2, color: theme.ink, marginTop: 2, fontVariant: ["tabular-nums"] },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
-  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
-  ivHappenHead: { paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: space(1) },
-  ivHappenChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, overflow: "hidden" },
+  // Tinted head so the card reads as the tab's one open question, the way the
+  // web card's gradient hero does, instead of another white box in the stack.
+  ivHappenHead: { paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: space(3), backgroundColor: theme.brandSoft },
+  ivHappenChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
   ivHappenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.success, marginRight: 6 },
   ivHappenChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: theme.brand },
-  ivHappenBody: { paddingHorizontal: space(4), paddingBottom: space(4), paddingTop: space(3), gap: 8 },
-  ivHappenPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 50, borderRadius: radius.md, backgroundColor: theme.brand },
-  ivHappenGhost: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md, backgroundColor: theme.line2 },
+  ivHappenBody: { paddingHorizontal: space(4), paddingBottom: space(4), paddingTop: space(4), gap: 10 },
+  ivHappenPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md, backgroundColor: theme.brand },
+  ivHappenGhost: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: radius.md, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.warn },
   ivDoneCard: { marginTop: space(5), borderRadius: radius.lg, borderWidth: 1, borderColor: "#A7F3D0", backgroundColor: theme.card, overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
   ivDoneMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", shadowColor: theme.success, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   ivDoneChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: "#A7F3D0", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
