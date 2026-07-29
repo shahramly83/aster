@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { inviteTeammate, assignInterviewer, stageInviteJob, unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { subscribePanel, inviteTeammate, assignInterviewer, stageInviteJob, unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -247,6 +247,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
     if (!profile?.companyId) return undefined;
     return subscribeInterviews(profile.companyId, () => load());
   }, [profile?.companyId, load]);
+  // The role's panel changing elsewhere. Editing a panel touches neither
+  // interviews nor activity_log, so neither subscription above notices it, and
+  // this screen sat showing an interviewer who had been removed on the web until
+  // it happened to lose and regain focus.
+  useEffect(() => {
+    if (!profile?.companyId || !jobId || !manager) return undefined;
+    return subscribePanel(profile.companyId, jobId, () => load());
+  }, [profile?.companyId, jobId, manager, load]);
   // Also react to activity_log / application changes (offer sign or decline,
   // approvals, another panellist's scorecard, stage / mark-hired) made on another
   // device, so this profile doesn't sit stale while focused. Every server action

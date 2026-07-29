@@ -1622,6 +1622,23 @@ export function subscribeInterviews(companyId, onChange) {
   return () => { supabase.removeChannel(channel); };
 }
 
+// A role's panel changing, from anywhere. Both tables carry the whole old row in
+// their delete payloads (0142 sets REPLICA IDENTITY FULL), so removals can be
+// filtered by company like everything else. invitations is here because a staged
+// invite counts as being on the panel, and unstaging one is an UPDATE to it.
+// The payload is only a nudge; the callback re-reads.
+let _panelChanSeq = 0;
+export function subscribePanel(companyId, jobId, onChange) {
+  if (!companyId || !jobId) return () => {};
+  const flt = `company_id=eq.${companyId}`;
+  const channel = supabase
+    .channel(`panel:${companyId}:${jobId}:${++_panelChanSeq}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "job_assignments", filter: flt }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "invitations", filter: flt }, onChange)
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
 // ---- Candidate discussion (chat) ----------------------------------------------
 
 // Load a candidate's discussion thread, oldest first, with author names.
