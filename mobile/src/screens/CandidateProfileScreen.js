@@ -229,6 +229,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setMatchScore(meta?.score ?? null);
     setApprovals(off?.id && off.approval_status ? await loadOfferApprovals(off.id) : []);
     setLoading(false);
+    return meta?.stage || null;   // so a caller can see a stage the DB moved
   }, [candidateId, jobId, profile.companyId, manager]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -392,7 +393,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setRolePanel((prev) => (prev || []).filter((x) => x.id !== m.id));
     setRemovingId(null);
     // The stage may have changed underneath us, so re-read rather than guess.
-    await load();
+    const newStage = await load();
+    // Taking the last interviewer off sends the candidate back to Applied, which
+    // locks this tab. Staying here would leave the reader looking at a tab that
+    // no longer applies, so follow them to the one that does.
+    if (newStage && newStage !== "interviewing") setTab("profile");
   };
 
   const moveTo = (to) => {
