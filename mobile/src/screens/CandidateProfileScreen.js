@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { assignInterviewer, stageInviteJob, unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { inviteTeammate, assignInterviewer, stageInviteJob, unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -174,6 +174,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [team, setTeam] = useState([]); // every interviewer in the workspace, assigned or not
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingId, setSavingId] = useState(null); // teammate being added/removed in the picker
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteNote, setInviteNote] = useState(null); // { ok: bool, msg }
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
@@ -320,6 +323,36 @@ export default function CandidateProfileScreen({ route, navigation }) {
       dialog.alert({ title: "Couldn't update the panel", message: err, icon: "alert-triangle", variant: "danger" });
       return;
     }
+    await load();
+  };
+
+  // Invite someone who is not in the workspace yet, and put them on this role in
+  // the same breath. inviteTeammate doesn't hand back the invitation id, so the
+  // team is re-read and matched by email to find the row to stage; a failure
+  // there costs the panel seat, not the invite, and the note says which happened.
+  const sendInvite = async () => {
+    const em = inviteEmail.trim();
+    if (!em || inviting) return;
+    Keyboard.dismiss();
+    setInviting(true); setInviteNote(null);
+    const res = await inviteTeammate({ email: em, role: "interviewer" });
+    if (!res.ok) {
+      setInviting(false);
+      setInviteNote({ ok: false, msg: res.error || "Couldn't send the invite." });
+      return;
+    }
+    let staged = false;
+    try {
+      const crew = await loadInterviewers(profile.companyId, jobId);
+      const row = (crew || []).find((m) => (m.email || "").toLowerCase() === res.email);
+      if (row?.inviteId) staged = !(await stageInviteJob(row.inviteId, jobId, true));
+      else if (row?.id) staged = !(await assignInterviewer(jobId, row.id)); // already had an account
+    } catch { /* the invite still stands */ }
+    setInviting(false);
+    setInviteEmail("");
+    setInviteNote({ ok: true, msg: staged
+      ? `Invite sent to ${res.email}. They join this panel when they sign up.`
+      : `Invite sent to ${res.email}. Add them to this panel once they sign up.` });
     await load();
   };
 
@@ -1517,8 +1550,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </View>
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
             {team.length === 0 ? (
-              <Text style={[type.small, { color: theme.ink3, paddingVertical: space(6), textAlign: "center" }]}>
-                Nobody has the interviewer role yet. Invite one from the Team tab, then add them here.
+              <Text style={[type.small, { color: theme.ink3, paddingVertical: space(5), textAlign: "center" }]}>
+                Nobody has the interviewer role yet. Invite one below and they land on this panel.
               </Text>
             ) : (
               <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
@@ -1544,6 +1577,34 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 ))}
               </ScrollView>
             )}
+            {/* Inviting is most of the reason this opens on a small team, and
+                sending people to the Team tab loses the role they came here to
+                staff. The invite is staged onto this job, so accepting puts them
+                straight on the panel. */}
+            <View style={styles.pickInvite}>
+              <Text style={[type.label, { color: theme.ink3, marginBottom: space(2) }]}>INVITE SOMEONE NEW</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TextInput
+                  value={inviteEmail}
+                  onChangeText={(t) => { setInviteEmail(t); setInviteNote(null); }}
+                  placeholder="name@company.com"
+                  placeholderTextColor={theme.ink4}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  onSubmitEditing={sendInvite}
+                  editable={!inviting}
+                  style={styles.pickInviteInput}
+                />
+                <Press haptic="light" onPress={sendInvite} disabled={!inviteEmail.trim() || inviting} accessibilityLabel="Send invite" style={styles.pickInviteBtn}>
+                  {inviting ? <ActivityIndicator size="small" color={theme.white} /> : <Feather name="send" size={16} color={theme.white} />}
+                </Press>
+              </View>
+              {inviteNote ? (
+                <Text style={[type.small, { color: inviteNote.ok ? theme.success : theme.danger, marginTop: space(2), lineHeight: 18 }]}>{inviteNote.msg}</Text>
+              ) : null}
+            </View>
           </View>
         </View>
       </Modal>
@@ -1815,6 +1876,16 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17,
     alignItems: "center", justifyContent: "center",
     backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.line,
+  },
+  pickInvite: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line },
+  pickInviteInput: {
+    flex: 1, height: 46, borderRadius: radius.md, borderWidth: 1, borderColor: theme.line,
+    backgroundColor: theme.bg, paddingHorizontal: 13,
+    fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink,
+  },
+  pickInviteBtn: {
+    width: 46, height: 46, borderRadius: radius.md, marginLeft: 8,
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.brand,
   },
   pickBackdrop: { flex: 1, backgroundColor: "rgba(15,18,40,0.45)", justifyContent: "flex-end" },
   pickSheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
