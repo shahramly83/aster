@@ -29,6 +29,7 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "email": string | null,
   "phone": string | null,
   "location": string | null,
+  "country": string | null,
   "summary": string | null,
   "years_of_experience": number | null,
   "skills": string[],
@@ -40,6 +41,7 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "fit_reason": string
 }
 For each experience item, set "industry" to ONE concise, standard industry for that COMPANY, based on what the company itself mainly does. Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Software Development", "Digital Agency", "Furniture Manufacturing", "Interior Design", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Keep it to a short standard label (usually 1 to 3 words). NEVER combine two different industries into one label (no "X / Y" and no "X & Y" style tags): if a company spans several, choose the single most representative one. Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you don't already know the company (for example a small or local business), USE THE web_search TOOL to look up what that company does before deciding its industry. Search each unfamiliar company by its full name. Only set "industry" to "Unknown" if a web search still doesn't reveal what the company does.
+Set "country" to the country the candidate is based in, as a full English country name ("Malaysia", "Singapore", "United Kingdom"). This must be a COUNTRY, never a state, province, region or city: a resume that says "Shah Alam, Selangor" is "Malaysia", "Austin, TX" is "United States", "Mumbai" is "India". Work it out from the address, the state or city, the phone country code, or the employers listed. Only use null if there is genuinely nothing to go on.
 Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.
 Judge "is_fit" against the TARGET ROLE described at the end of this message. Set is_fit to true when the candidate is a plausible fit — they have clearly relevant skills/experience and are roughly in the right seniority range. Set is_fit to false ONLY when the candidate is clearly from an unrelated field or clearly far below what the role needs. In "fit_reason", give ONE concise sentence naming the matching or missing skills/experience. If no target role is provided, set is_fit to true and fit_reason to "".`;
 
@@ -297,6 +299,9 @@ Deno.serve(async (req) => {
       email: finalEmail,
       phone: (parsed.phone as string) ?? null,
       location: (parsed.location as string) ?? null,
+      // Resolved by the model, because "Shah Alam, Selangor" has no country in it
+      // and the applicants table shows a flag, not a state.
+      country: (parsed.country as string) ?? null,
       summary: (parsed.summary as string) ?? null,
       years_of_experience: (parsed.years_of_experience as number) ?? null,
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],

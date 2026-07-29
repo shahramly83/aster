@@ -454,7 +454,21 @@ async function loadWorkspaceData(companyId) {
     avatarUrl: c.photo_path ? (urlByPath[c.photo_path] || null) : null,
     resumeUrl: c.resume_path ? (urlByPath[c.resume_path] || null) : null,
     createdAt: c.created_at || null,   // for real period-over-period growth
-    parsed: c.parsed || null,
+    // The whole app reads c.parsed.name / .experience / .skills directly, in far
+    // too many places to guard one by one, so a row whose blob is missing took
+    // the screen down with "Cannot read properties of null". Both parsers always
+    // write a blob, but a candidate created any other way (a seed, an import, a
+    // future code path) has none, and that must not be fatal. Synthesize one from
+    // the columns instead; `parsedOk` stays as the honest "the AI actually read
+    // this CV" signal for the places that need to tell the difference.
+    parsedOk: !!c.parsed,
+    parsed: c.parsed || {
+      name: c.full_name || "Candidate",
+      email: c.email || null,
+      phone: null, location: null, summary: null,
+      years_of_experience: null,
+      skills: [], languages: [], certifications: [], experience: [], education: [], industries: [],
+    },
   }));
 
   // Company team members double as the interviewer pool (no separate
@@ -10903,25 +10917,25 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Recent candidates</p>
                   <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>{stats.totalCandidates} total</button>
                 </div>
-                {candidates.filter((c) => c.parsed).length === 0 ? (
+                {candidates.filter(isParsed).length === 0 ? (
                   <p className="text-xs" style={{ color: "var(--ink-2)" }}>No candidates yet. Upload CVs or share an apply link.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
+                    {candidates.filter(isParsed).slice(0, 7).map((c, i) => (
                       <button key={c.id} onClick={() => (onViewCandidate ? onViewCandidate(c.id) : goToCandidates(null))} title={c.parsed.name} aria-label={`View ${c.parsed.name}`} className={`shrink-0 rounded-full transition-transform hover:-translate-y-0.5 hover:opacity-90 ${i >= 5 ? "hidden sm:block" : ""}`}>
                         <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={38} />
                       </button>
                     ))}
                     {/* mobile: max 5 + overflow */}
-                    {candidates.filter((c) => c.parsed).length > 5 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
-                        {candidates.filter((c) => c.parsed).length - 5 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 5}`}
+                    {candidates.filter(isParsed).length > 5 && (
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter(isParsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
+                        {candidates.filter(isParsed).length - 5 > 99 ? "99+" : `+${candidates.filter(isParsed).length - 5}`}
                       </button>
                     )}
                     {/* sm+: max 7 + overflow */}
-                    {candidates.filter((c) => c.parsed).length > 7 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
-                        {candidates.filter((c) => c.parsed).length - 7 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 7}`}
+                    {candidates.filter(isParsed).length > 7 && (
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter(isParsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
+                        {candidates.filter(isParsed).length - 7 > 99 ? "99+" : `+${candidates.filter(isParsed).length - 7}`}
                       </button>
                     )}
                   </div>
@@ -14130,6 +14144,80 @@ const COUNTRY_CODES = {
   "south africa": "za", nigeria: "ng", kenya: "ke", egypt: "eg",
   brazil: "br", mexico: "mx", argentina: "ar", chile: "cl",
 };
+// The parsers now ask the model for an explicit "country", but every resume read
+// before that still only carries a location, and plenty of those read "Shah Alam,
+// Selangor". Taking the last comma segment as the country put a STATE under a
+// flag column. These are the regions and cities common enough in the applicant
+// pool to resolve on the client. Deliberately excludes names that belong to more
+// than one country (Georgia, Punjab), which are better left as-is than guessed.
+// "The AI actually read this CV", as opposed to a row we synthesized a blob for
+// (see loadWorkspaceData). The demo datasets predate parsedOk and carry a real
+// parsed blob, so fall back to that rather than filtering the whole preview away.
+const isParsed = (c) => c?.parsedOk ?? !!c?.parsed;
+
+const REGION_COUNTRY = {
+  // Malaysia: states, federal territories, and the towns that turn up as the
+  // last segment of an address.
+  selangor: "Malaysia", johor: "Malaysia", kedah: "Malaysia", kelantan: "Malaysia",
+  melaka: "Malaysia", malacca: "Malaysia", "negeri sembilan": "Malaysia", pahang: "Malaysia",
+  perak: "Malaysia", perlis: "Malaysia", penang: "Malaysia", "pulau pinang": "Malaysia",
+  sabah: "Malaysia", sarawak: "Malaysia", terengganu: "Malaysia",
+  "kuala lumpur": "Malaysia", "wilayah persekutuan": "Malaysia", labuan: "Malaysia", putrajaya: "Malaysia",
+  "shah alam": "Malaysia", "petaling jaya": "Malaysia", "subang jaya": "Malaysia", cyberjaya: "Malaysia",
+  puchong: "Malaysia", bangi: "Malaysia", kajang: "Malaysia", klang: "Malaysia", cheras: "Malaysia",
+  seremban: "Malaysia", ipoh: "Malaysia", "johor bahru": "Malaysia", kuching: "Malaysia",
+  "kota kinabalu": "Malaysia", "george town": "Malaysia", "alor setar": "Malaysia",
+  "kota bharu": "Malaysia", "kuala terengganu": "Malaysia", "batu pahat": "Malaysia",
+  // Rest of the region
+  jakarta: "Indonesia", bandung: "Indonesia", surabaya: "Indonesia", bali: "Indonesia",
+  bangkok: "Thailand", manila: "Philippines", "metro manila": "Philippines", cebu: "Philippines",
+  makati: "Philippines", "quezon city": "Philippines",
+  hanoi: "Vietnam", "ho chi minh city": "Vietnam", "ho chi minh": "Vietnam",
+  "bandar seri begawan": "Brunei", "phnom penh": "Cambodia", yangon: "Myanmar",
+  // South Asia
+  bengaluru: "India", bangalore: "India", mumbai: "India", "new delhi": "India", delhi: "India",
+  hyderabad: "India", chennai: "India", pune: "India", maharashtra: "India", karnataka: "India",
+  "tamil nadu": "India", telangana: "India", kerala: "India", "uttar pradesh": "India", gujarat: "India",
+  karachi: "Pakistan", lahore: "Pakistan", islamabad: "Pakistan", dhaka: "Bangladesh",
+  colombo: "Sri Lanka", kathmandu: "Nepal",
+  // East Asia
+  shanghai: "China", beijing: "China", shenzhen: "China", guangzhou: "China",
+  tokyo: "Japan", osaka: "Japan", seoul: "South Korea", taipei: "Taiwan",
+  // Middle East
+  dubai: "United Arab Emirates", "abu dhabi": "United Arab Emirates", sharjah: "United Arab Emirates",
+  riyadh: "Saudi Arabia", jeddah: "Saudi Arabia", doha: "Qatar",
+  // Oceania
+  sydney: "Australia", melbourne: "Australia", brisbane: "Australia", perth: "Australia",
+  "new south wales": "Australia", nsw: "Australia", victoria: "Australia", queensland: "Australia",
+  auckland: "New Zealand", wellington: "New Zealand",
+  // Europe / North America
+  london: "United Kingdom", manchester: "United Kingdom", scotland: "United Kingdom", wales: "United Kingdom",
+  dublin: "Ireland", berlin: "Germany", munich: "Germany", paris: "France", amsterdam: "Netherlands",
+  madrid: "Spain", barcelona: "Spain", lisbon: "Portugal",
+  california: "United States", texas: "United States", "new york": "United States",
+  florida: "United States", illinois: "United States", massachusetts: "United States",
+  "new jersey": "United States", ontario: "Canada", "british columbia": "Canada",
+  quebec: "Canada", alberta: "Canada", toronto: "Canada", vancouver: "Canada",
+};
+// The country to show for a candidate: what the parser resolved, else worked out
+// from the location string, else the raw last segment so a country we have no
+// flag for is still shown rather than dropped.
+function countryOf(parsed) {
+  const explicit = String(parsed?.country || "").trim();
+  if (explicit) return explicit;
+  const loc = String(parsed?.location || "").trim();
+  if (!loc) return null;
+  const parts = loc.split(",").map((s) => s.trim()).filter(Boolean);
+  // Right to left: the country is conventionally last, but this has to handle
+  // both "Kajang, Selangor, Malaysia" and "Shah Alam, Selangor".
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const k = parts[i].toLowerCase();
+    if (COUNTRY_CODES[k]) return parts[i];
+    if (REGION_COUNTRY[k]) return REGION_COUNTRY[k];
+  }
+  return parts[parts.length - 1] || null;
+}
+
 function CountryCell({ country }) {
   if (!country) return <span className="text-sm" style={{ color: "var(--ink-4)" }}>&mdash;</span>;
   const code = COUNTRY_CODES[String(country).trim().toLowerCase()];
@@ -14708,7 +14796,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // (an old CV and a newer one). A real ATS shows them once, not twice.
   const seenEmails = new Set();
   const parsed = candidates.filter((c) => {
-    if (!c.parsed) return false;
+    if (!isParsed(c)) return false;
     const email = (c.parsed.email || "").trim().toLowerCase();
     if (email && seenEmails.has(email)) return false;
     if (email) seenEmails.add(email);
@@ -15494,19 +15582,28 @@ const candidateOutcome = (candidateId) => {
 // stage-filterable candidate table. Reads the live workspace data (applications,
 // stages, matches) with in-session stage overrides applied, so it always matches
 // what the rest of the app shows.
+// Same hues as PIPE_STAGE_META below, so a stage looks the same in the funnel
+// card at the top of the page as it does in the pill on its row.
 const PIPE_FUNNEL = [
-  { key: "applied", label: "Applied", color: "var(--brand)" },
-  { key: "interviewing", label: "Interview", color: "#6366F1" },
+  { key: "applied", label: "Applied", color: "#475569" },
+  { key: "interviewing", label: "Interview", color: "var(--brand)" },
   { key: "offer", label: "Offer", color: "#D97706" },
   { key: "hired", label: "Hired", color: "#16A34A" },
 ];
+// One hue per stage, and they have to survive being tinted down to a pale pill
+// background. Applied was brand blue and Interview was indigo, two neighbours on
+// the wheel, so at pill size the two most common stages in the table were
+// indistinguishable. Applied is now slate, which is also the more honest reading:
+// nothing has happened to this candidate yet. Interview takes the brand blue, so
+// the one stage that means work is under way is the one that stands out, and the
+// rest step through warm to green or red as the outcome lands.
 const PIPE_STAGE_META = {
-  applied: { label: "Applied", color: "var(--brand)" },
-  shortlisted: { label: "Shortlisted", color: "#2563EB" },
-  interviewing: { label: "Interview", color: "#6366F1" },
+  applied: { label: "Applied", color: "#475569" },
+  shortlisted: { label: "Shortlisted", color: "#0891B2" },
+  interviewing: { label: "Interview", color: "var(--brand)" },
   offer: { label: "Offer", color: "#B45309" },
   hired: { label: "Hired", color: "#15803D" },
-  declined: { label: "Declined", color: "#6B7280" },
+  declined: { label: "Declined", color: "#78716C" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
 // Stages that promote a candidate into "Strong matches" regardless of the AI's
@@ -15561,7 +15658,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         name: cand?.parsed?.name || cand?.name || "Candidate",
         hasPhoto: cand?.hasPhoto, avatar: cand?.avatarUrl,
         // Country from the parsed location (last comma-separated part, else the whole string).
-        country: (() => { const loc = (cand?.parsed?.location || "").trim(); return loc ? (loc.includes(",") ? loc.split(",").pop().trim() : loc) : null; })(),
+        country: countryOf(cand?.parsed),
         jobTitle: job?.title || "Role",
         stage, source: a.source || "Career Page",
         appliedAt: a.appliedAt, appliedAtIso: a.appliedAtIso,
@@ -15594,7 +15691,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     const pool = scoped
       .filter((a) => a.stage === "applied" && a.fit !== "other")
       .map((a) => candidates.find((c) => c.id === a.candidateId))
-      .filter((c) => c && c.parsed)
+      .filter((c) => c && isParsed(c))
       .slice(0, 40);
     if (pool.length < 2) { setRankMsg("AI Rank needs at least 2 strong-match applied candidates."); return; }
     const units = Math.max(1, Math.ceil(pool.length / 10)); // 1 credit / 10 applicants
@@ -17948,7 +18045,7 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -17964,7 +18061,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const [busy, setBusy] = useState(null); // slotId | 'create'
   const [err, setErr] = useState(null);
   const [override, setOverride] = useState(false); // HM proceeds without every vote
-  const [addingPanel, setAddingPanel] = useState(false); // panel picker open
+  const [addingPanel, setAddingPanel] = useState(autoOpenPanel); // panel picker open
   const [assignBusy, setAssignBusy] = useState(null); // profileId being assigned
   const [selected, setSelected] = useState(() => new Set()); // slot ids to offer
   const [sending, setSending] = useState(false);
@@ -18021,6 +18118,13 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     return () => onActiveChange?.(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pollActive]);
+  // Whether a poll exists at all, which is different from one being active: the
+  // parent needs it to decide between asking how to run the interview and simply
+  // getting out of the way of a poll that is already under way.
+  useEffect(() => {
+    if (!loading) onPollLoaded?.(!!poll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, !!poll]);
 
   const round2 = poll?.proposedBy === "candidate";
   const requiredVoters = assignedInterviewers.filter((iv) => iv.id && iv.id !== hmId);
@@ -18076,6 +18180,13 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   if (booking?.status === "scheduled" || booking?.status === "sent") return null;
   if (loading && !poll) return null;
   if (!poll && !isManager) return null;
+  // A panel poll with nobody on the panel is nothing to run. It used to render
+  // anyway, as a card headed "Panel availability" whose only message was "No
+  // interviewers on this role yet" — an availability grid with no one to fill it,
+  // sitting above a second card that also said nothing was happening. The parent
+  // asks how the interview should be run instead, and remounts this with the
+  // picker already open if the answer is a panel.
+  if (!poll && assignedInterviewers.length === 0 && !addingPanel) return null;
 
   const addDraft = (range) => {
     if (!range?.start || !range?.end) return;
@@ -18191,7 +18302,16 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           {canEditPanel && !round2 && (
             <button
               type="button"
-              onClick={() => { setErr(null); setAddingPanel((v) => !v); }}
+              onClick={() => {
+                setErr(null);
+                setAddingPanel((v) => {
+                  // Closing the picker with nobody added and no poll started
+                  // leaves this card with nothing to render, so hand the screen
+                  // back to the question rather than to blank space.
+                  if (v && !poll && assignedInterviewers.length === 0) onCancelPanelSetup?.();
+                  return !v;
+                });
+              }}
               title="Add an interviewer to this role"
               aria-label="Add an interviewer to this role"
               aria-expanded={addingPanel}
@@ -18554,7 +18674,68 @@ function makeMeetingRoom(candidateId) {
   return `https://meet.jit.si/Aster-${tag}-${rand}`;
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute }) {
+// The first thing the interview step has to establish, and the one thing it never
+// asked. It used to open on two empty cards: a "Panel availability" poll with no
+// panel, and a "No interview requested yet" notice whose only action was called
+// "Schedule on my own" — which reads as "without the panel" but actually meant
+// "without waiting for an interviewer to ask". Between them they left the hiring
+// manager to guess. So ask outright, and let each answer land somewhere that
+// makes sense: alone goes straight to picking times, panel opens the picker.
+function InterviewSetupChoice({ firstName, onSolo, onPanel }) {
+  const tiles = [
+    {
+      key: "solo",
+      icon: "user",
+      title: "Just me",
+      body: `Pick a few times and send them straight to ${firstName}.`,
+      cta: "Pick times",
+      onClick: onSolo,
+    },
+    {
+      key: "panel",
+      icon: "users",
+      title: "Me and a panel",
+      body: "Add the interviewers first. Everyone marks what they can make, then you send the times that work for all of you.",
+      cta: "Add interviewers",
+      onClick: onPanel,
+    },
+  ];
+  return (
+    <div className="rounded-2xl border p-4 sm:p-5 mb-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
+      <div className="flex items-center gap-2.5">
+        <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <Icon name="calendar" className="w-4 h-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>Who is interviewing {firstName}?</p>
+          <p className="text-[11px] leading-tight mt-0.5" style={{ color: "var(--ink-3)" }}>This decides how the times get picked. You can change the panel later.</p>
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-2.5 mt-3.5">
+        {tiles.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={t.onClick}
+            className="group text-left rounded-xl border p-3.5 bg-white transition-all hover:-translate-y-0.5 hover:border-[color:var(--brand)] hover:shadow-[0_12px_26px_-16px_rgba(18,19,42,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-2"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name={t.icon} className="w-[18px] h-[18px]" />
+            </span>
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{t.title}</p>
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{t.body}</p>
+            <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold transition-transform group-hover:translate-x-0.5" style={{ color: "var(--brand)" }}>
+              {t.cta} <Icon name="arrowRight" className="w-3.5 h-3.5" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute, startSolo = false }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   // Meeting link: the HM pastes the video-call URL they made and shares it with
   // the candidate + panel (share-meeting-link sends each their own message, same
@@ -18621,7 +18802,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const [confirmedOffline, setConfirmedOffline] = useState(false); // panel confirmed the times
   // Scheduling normally starts from an interviewer's request. The hiring manager
   // can also start it themselves via "Schedule on my own".
-  const [selfSchedule, setSelfSchedule] = useState(false);
+  const [selfSchedule, setSelfSchedule] = useState(startSolo);
   const [confirmOne, setConfirmOne] = useState(false); // one-time-only send guard
   const canSchedule = !!openRequest || selfSchedule;
   const candFirst = candidate?.parsed?.name?.split(" ")[0] || "this candidate";
@@ -19416,12 +19597,15 @@ This is what a candidate sees. A public page, no login, reached only through the
             <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-emerald-600 text-xl">✓</span>
             </div>
-            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>You're in</h1>
-            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              We've read your resume and added you as an applicant for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
+            <h1 className="text-lg font-bold font-display mb-1.5" style={{ color: "var(--ink)" }}>Application received</h1>
+            <p className="text-sm font-medium mb-3" style={{ color: "var(--ink)" }}>
+              {job.title}{company ? ` at ${company}` : ""}
+            </p>
+            <p className="text-sm mb-1.5" style={{ color: "var(--ink-2)" }}>
+              A confirmation is on its way to the email on your resume.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-              The team reviews every applicant and will be in touch if there's a fit. Look out for a confirmation in your inbox.
+              The team reviews every application and will be in touch if there's a fit. Nothing else is needed from you, so you can close this page.
             </p>
             <div className="mt-8 pt-5 flex items-center justify-center gap-1.5 border-t" style={{ borderColor: "var(--line)" }}>
               <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Powered by</span>
@@ -22633,6 +22817,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // While a panel availability poll is running, it owns "send to candidate", so
   // the manual scheduler below is hidden to avoid two ways to offer times.
   const [pollActive, setPollActive] = useState(false);
+  // How this interview is being run, when there is nothing yet to infer it from.
+  // null = not asked, "solo" = the hiring manager alone, "panel" = with
+  // interviewers. Only ever asked for a fresh interview on a role with no panel;
+  // any existing poll, panel, booking or interviewer request answers it already.
+  const [ivMode, setIvMode] = useState(null);
+  const [hasPoll, setHasPoll] = useState(null); // null until PanelPoll reports in
   // The caller may not hand us a stage (e.g. an interviewer opening a profile
   // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
   // from the loaded pipeline so the header/pill never wrongly reads "Applied"
@@ -23165,6 +23355,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const assignedInterviewers = contextJobId
     ? interviewers.filter((iv) => isInterviewer(iv.role) && jobAssignments.some((a) => a.job_id === contextJobId && a.profile_id === iv.id))
     : [];
+  // Ask how to run the interview only when nothing else has already decided it:
+  // no booking or invite out, no interviewer waiting on a request, nobody on the
+  // panel, and no poll running. hasPoll starts null (PanelPoll hasn't reported
+  // yet), so this stays false for a beat rather than flashing the question over a
+  // poll that turns out to exist.
+  const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
+    && assignedInterviewers.length === 0 && hasPoll === false && ivMode === null;
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -23808,10 +24005,23 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           assignedInterviewers={assignedInterviewers}
           onInviteSent={onInviteSent}
           onActiveChange={setPollActive}
+          onPollLoaded={setHasPoll}
+          autoOpenPanel={ivMode === "panel"}
+          onCancelPanelSetup={() => setIvMode(null)}
           onAssignInterviewer={onAssignInterviewer}
           onUnassignInterviewer={onUnassignInterviewer}
         />
-        {!pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (
+        {askIvMode ? (
+          <InterviewSetupChoice
+            firstName={(candidate?.parsed?.name || "").trim().split(" ")[0] || "this candidate"}
+            onSolo={() => setIvMode("solo")}
+            onPanel={() => setIvMode("panel")}
+          />
+        ) : /* While the panel is still being assembled the poll card owns the
+              screen; showing the manual scheduler underneath is what produced two
+              competing empty cards in the first place. */
+        ivMode === "panel" && assignedInterviewers.length === 0 ? null : (
+        !pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (
           <ScheduleInterviewPanel
             candidate={candidate}
             jobs={jobs}
@@ -23825,8 +24035,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             openRequest={openRequest}
             assignedInterviewers={assignedInterviewers}
             onSubstitute={onSubstitute}
+            startSolo={ivMode === "solo"}
           />
-        )}
+        ))}
         </>)}
 
         {/* AI interview questions live LAST in step 1: the hiring manager generates
@@ -25711,7 +25922,7 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
     let activePool = applicants
       .filter((a) => !hiredIds.has(a.candidateId) && (a.fit !== "other" || a.stage === "shortlisted"))
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
-      .filter((c) => c && c.parsed)
+      .filter((c) => c && isParsed(c))
       .slice(0, 40);
     // Partial run: keep only the first maxUnits*10 (the pool is newest-first).
     if (maxUnits) activePool = activePool.slice(0, Math.max(2, maxUnits * 10));
@@ -27341,7 +27552,13 @@ export default function ResumeAIPreview() {
   // dashboard "Recent Activity" card read from this list; `read` drives
   // the unread badge on the bell.
   // profiles.activities_seen_at — the watermark the unread badge is measured against.
-  const [activitiesSeenAt, setActivitiesSeenAt] = useState(null);
+  // A ref, not state: the auto-refresh effect and the realtime subscription below
+  // are created once per companyId, so a state value would be frozen at whatever
+  // it was on login. Every re-hydrate then re-marked the whole feed against that
+  // stale watermark and the badge came back within 45 seconds of every read, even
+  // though the server had already recorded it as seen. Nothing renders off this,
+  // so a ref loses no re-render that matters.
+  const activitiesSeenRef = useRef(null);
   const [activities, setActivities] = useState(() => buildActivities(null));
   // Persist the watermark so the badge does not come back on reload. Optimistic:
   // the bell clears immediately, and a failed write is logged, not shown — a
@@ -27351,7 +27568,7 @@ export default function ResumeAIPreview() {
     if (!hasSupabase) return;
     const { data, error } = await supabase.rpc("mark_activities_seen");
     if (error) { console.error("mark_activities_seen failed:", error.message || error); return; }
-    setActivitiesSeenAt(data || new Date().toISOString());
+    activitiesSeenRef.current = data || new Date().toISOString();
   };
   // Dashboard date range. Defaults to the last 30 days so the range-scoped
   // metrics (New Applications) show meaningful data out of the box.
@@ -27727,7 +27944,7 @@ export default function ResumeAIPreview() {
       setScheduledPlan(sess.scheduledPlan || null);
       setScheduledCycle(sess.scheduledCycle || null);
       setScheduledEffective(sess.scheduledEffective || null);
-      setActivitiesSeenAt(sess.activitiesSeenAt || null);
+      activitiesSeenRef.current = sess.activitiesSeenAt || null;
       if (sess.calendarProvider) setProvider(sess.calendarProvider);
       if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); }
@@ -27848,9 +28065,9 @@ export default function ResumeAIPreview() {
     // derived feed is kept only for the unauthenticated marketing preview.
     if (companyId) {
       setActivities([]);
-      dbListActivity(companyId).then((rows) => setActivities(rows.map((r) => mapActivityRow(r, opts.seenAt ?? activitiesSeenAt))));
+      dbListActivity(companyId).then((rows) => setActivities(rows.map((r) => mapActivityRow(r, opts.seenAt ?? activitiesSeenRef.current))));
     } else {
-      setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt, { hiredDates }));
+      setActivities(buildActivities(opts.seenAt ?? activitiesSeenRef.current, { hiredDates }));
     }
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -28118,7 +28335,7 @@ export default function ResumeAIPreview() {
         setScheduledPlan(sess.scheduledPlan || null);
         setScheduledCycle(sess.scheduledCycle || null);
         setScheduledEffective(sess.scheduledEffective || null);
-        setActivitiesSeenAt(sess.activitiesSeenAt || null);
+        activitiesSeenRef.current = sess.activitiesSeenAt || null;
         if (sess.calendarProvider) setProvider(sess.calendarProvider);
         if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
         if (sess.companyId) {
