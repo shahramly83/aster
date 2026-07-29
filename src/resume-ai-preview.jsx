@@ -8881,7 +8881,10 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   // 32.1px read as cramped on a phone, and because the lockup lives in a flex row
   // it could also be squeezed narrower than its own aspect ratio, which looks like
   // the wordmark has been cut off. shrink-0 keeps it at its natural width.
-  const h = compact ? "h-9 sm:h-10" : xl ? "h-9 sm:h-[40px]" : large ? "h-9 sm:h-[40px]" : "h-10 sm:h-12";
+  // `compact` is the in-app header size. 40px of wordmark next to a burger and a
+  // bell on a 390px screen left the logo as the loudest thing on the page, ahead
+  // of whatever the page was actually for.
+  const h = compact ? "h-7 sm:h-8" : xl ? "h-9 sm:h-[40px]" : large ? "h-9 sm:h-[40px]" : "h-10 sm:h-12";
   if (logoUrl) {
     return <img src={logoUrl} alt="Aster: smarter hiring, stronger teams" className={`${h} w-auto object-contain block shrink-0`} />;
   }
@@ -9446,7 +9449,7 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
               <span className="burger-bar block h-[2px] w-[12px] rounded-full" style={{ background: "var(--ink-2)" }} />
             </button>
             <button onClick={() => navigate("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
-              <BrandLogo logoUrl={logoUrl} />
+              <BrandLogo logoUrl={logoUrl} compact />
             </button>
             <div className="ml-auto">
               <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
@@ -10634,13 +10637,14 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
               ? { accent: "#D97706", soft: "#FFFBEB", line: "#FCD34D", ink: "#92400E" }
               : { accent: "#DC2626", soft: "#FEF2F2", line: "#FCA5A5", ink: "#7F1D1D" };
           return (
-            <div className="mb-5 rounded-2xl px-4 sm:px-5 py-4 flex items-center gap-4" style={{ background: tone.soft, border: `1px solid ${tone.line}` }}>
+            <div className="mb-5 rounded-2xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4" style={{ background: tone.soft, border: `1px solid ${tone.line}` }}>
               {/* The countdown is a ring around the number, not a bar. Stretched
                   across a full-width banner a bar reads as a rule underlining the
                   sentence, whatever its height; a ring keeps the meter attached
                   to the figure it describes and takes no horizontal room. */}
-              <div className="relative shrink-0 w-14 h-14">
-                <svg viewBox="0 0 44 44" className="w-14 h-14 -rotate-90" aria-hidden="true">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0 sm:contents">
+              <div className="relative shrink-0 w-12 h-12 sm:w-14 sm:h-14">
+                <svg viewBox="0 0 44 44" className="w-12 h-12 sm:w-14 sm:h-14 -rotate-90" aria-hidden="true">
                   <circle cx="22" cy="22" r="19" fill="none" strokeWidth="3.5" stroke="rgba(15,27,51,0.10)" />
                   <circle
                     cx="22" cy="22" r="19" fill="none" strokeWidth="3.5" stroke={tone.accent} strokeLinecap="round"
@@ -10663,11 +10667,12 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
                 </p>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
+              </div>
+              <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
                 <TrialPromoStrip accent={tone.accent} daysLeft={left} />
                 <button
                   onClick={() => (onSubscribeYearly ? onSubscribeYearly() : navigate("billing"))}
-                  className="text-sm text-white font-semibold px-4 py-2.5 rounded-xl shrink-0 transition-all hover:-translate-y-0.5 hover:opacity-95"
+                  className="flex-1 sm:flex-none text-sm text-white font-semibold px-4 py-2.5 rounded-xl transition-all hover:-translate-y-0.5 hover:opacity-95"
                   style={{ background: tone.accent, boxShadow: `0 10px 24px -12px ${tone.accent}` }}
                 >
                   Subscribe
