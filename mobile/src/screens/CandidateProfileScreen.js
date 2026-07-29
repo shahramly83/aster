@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator, Keyboard, Platform, Animated } from "react-native";
+import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator, Keyboard, Platform, Animated, Switch } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
@@ -12,7 +12,6 @@ import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
-import SlideAction from "../components/SlideAction";
 import SuccessModal from "../components/SuccessModal";
 import AiInsight from "../components/AiInsight";
 import AiQuestions from "../components/AiQuestions";
@@ -200,7 +199,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [questions, setQuestions] = useState([]); // AI interview questions [{category, question}]
   const [genQ, setGenQ] = useState(false);
-  const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule prompt
+  const [noShowDismissed, setNoShowDismissed] = useState(false);
+  // Manager opting in to score alongside the panel. Off by default: their card
+  // is optional, so the scoring block stays folded until they say otherwise.
+  const [wantScore, setWantScore] = useState(false); // hide the post-interview reschedule prompt
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile"); // interview page sub-tabs: profile | interview | feedback
   const [lockNote, setLockNote] = useState(null); // message shown when a locked tab is tapped
@@ -1618,17 +1620,35 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 manager && requiredRaters.length ? (
                   /* The manager's own card is optional, and a full-width primary
                      button next to the panel's pending list read as the thing to
-                     do next. A slide keeps it reachable, asks for real intent,
-                     and stops competing with the scores the decision waits on. */
+                     do next. The switch answers "am I scoring too?", which is the
+                     real question, and only then does the scoring block appear.
+                     Off, this is one quiet row instead of a competing CTA. */
                   <Card>
-                    <Text style={[type.small, { color: theme.ink3, marginBottom: space(3), lineHeight: 18 }]}>
-                      You can add your own read on {name.split(" ")[0]}. The decision does not wait on it.
-                    </Text>
-                    <SlideAction
-                      label="Slide to score"
-                      doneLabel="Opening scorecard…"
-                      onComplete={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })}
-                    />
+                    <Pressable onPress={() => setWantScore((v) => !v)} style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View style={{ flex: 1, marginRight: space(3) }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 14 }]}>Add my own score</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 2, fontSize: 12, lineHeight: 16 }]}>
+                          The decision does not wait on it.
+                        </Text>
+                      </View>
+                      <Switch
+                        value={wantScore}
+                        onValueChange={setWantScore}
+                        trackColor={{ false: theme.line, true: theme.brandSoft }}
+                        thumbColor={wantScore ? theme.brand : "#fff"}
+                        accessibilityLabel="Add my own score"
+                      />
+                    </Pressable>
+                    {wantScore ? (
+                      <View style={{ marginTop: space(4) }}>
+                        <View style={[styles.scoreChips, { marginTop: 0 }]}>
+                          {["Technical skills", "Communication", "Culture fit", "Experience"].map((c) => (
+                            <View key={c} style={styles.scoreChip}><Text style={styles.scoreChipTxt}>{c}</Text></View>
+                          ))}
+                        </View>
+                        <Button title="Start scoring" icon="plus" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(4), alignSelf: "stretch" }} />
+                      </View>
+                    ) : null}
                   </Card>
                 ) : (
                 <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.scoreEmpty}>
@@ -1655,12 +1675,24 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 ))}
                 {canScore && !myCard && !(manager && decisionReady) ? (
                   manager && requiredRaters.length ? (
-                    <SlideAction
-                      label="Slide to add yours"
-                      doneLabel="Opening scorecard…"
-                      onComplete={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })}
-                      style={{ marginTop: space(3) }}
-                    />
+                    <Card style={{ marginTop: space(3) }}>
+                      <Pressable onPress={() => setWantScore((v) => !v)} style={{ flexDirection: "row", alignItems: "center" }}>
+                        <View style={{ flex: 1, marginRight: space(3) }}>
+                          <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 14 }]}>Add my own score</Text>
+                          <Text style={[type.small, { color: theme.ink3, marginTop: 2, fontSize: 12, lineHeight: 16 }]}>The decision does not wait on it.</Text>
+                        </View>
+                        <Switch
+                          value={wantScore}
+                          onValueChange={setWantScore}
+                          trackColor={{ false: theme.line, true: theme.brandSoft }}
+                          thumbColor={wantScore ? theme.brand : "#fff"}
+                          accessibilityLabel="Add my own score"
+                        />
+                      </Pressable>
+                      {wantScore ? (
+                        <Button title="Start scoring" icon="plus" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(4), alignSelf: "stretch" }} />
+                      ) : null}
+                    </Card>
                   ) : (
                     <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
                   )
