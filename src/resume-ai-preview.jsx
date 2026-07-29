@@ -23598,8 +23598,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // would just say "No interview requested yet" with a "Schedule on my own" link,
   // which is the exact confusion this whole flow was meant to remove. The poll
   // card carries the state and the way out of it instead.
-  const panelNotReady = isManagerView && !booking && ivMode !== "solo"
-    && assignedInterviewers.length === 0 && (ivMode === "panel" || pendingPanel.length > 0);
+  // Once the panel route is in play, the poll card owns this step until a poll is
+  // running or an interview is booked. The scheduler below would otherwise render
+  // its "No interview requested yet / Schedule on my own" empty state right under
+  // a working "Run a panel availability poll" button: two competing ways to start
+  // the same thing, one of them phrased as if nothing had happened yet. An
+  // interviewer's own request is the exception, since that fills the scheduler
+  // with something real to act on rather than the empty state.
+  const panelNotReady = isManagerView && !booking && !openRequest && ivMode !== "solo"
+    && hasPoll !== true
+    && (ivMode === "panel" || pendingPanel.length > 0 || assignedInterviewers.length > 0);
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -23912,6 +23920,21 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <p className="text-sm font-semibold" style={{ color: "#92400E" }}>{firstName} asked to reschedule</p>
                     <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#92400E" }}>The hiring manager is arranging new times. You'll be notified once it's booked.</p>
                   </div>
+                </div>
+              ) : stage === "interviewing" && !openRequest ? (
+                /* Already on the panel of a candidate the hiring manager has moved
+                   to Interview: asking them to "Request interview" invites a
+                   request for something already under way, and reads as though
+                   nothing has started. Nothing to do but wait for times, or mark
+                   availability once the poll below opens. */
+                <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                  <h2 className="text-sm font-semibold mb-1 inline-flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+                    <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name="check" className="w-4 h-4" /></span>
+                    You&rsquo;re on this panel
+                  </h2>
+                  <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                    The hiring manager is arranging the interview with {firstName}. If they open an availability poll it appears below, and you&rsquo;ll be notified once a time is booked.
+                  </p>
                 </div>
               ) : (
                 <RequestInterviewControl applicationId={applicationId} openRequest={openRequest} requesterName={requesterName} onRequest={onRequestScheduling} />
