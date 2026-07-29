@@ -13310,14 +13310,20 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                           <Icon name="jobs" className="w-5 h-5" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold font-display leading-snug min-w-0 group-hover/card:underline decoration-1 underline-offset-2" style={{ color: "var(--ink)" }}>{job.title}</h3>
-                            {/* Status shown as just a coloured dot next to the title
-                                (green open · grey closed · amber draft/unpublished …);
-                                the label is on hover. */}
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: badge.dot }} title={badge.label} aria-label={badge.label} />
+                          <h3 className="font-semibold font-display leading-snug min-w-0 group-hover/card:underline decoration-1 underline-offset-2" style={{ color: "var(--ink)" }}>{job.title}</h3>
+                          {/* Status sits with the department rather than beside the
+                              title, and says its name. As a bare dot on the title
+                              row its only label was a hover tooltip, which a touch
+                              screen never shows, and against a title that wrapped to
+                              two lines it floated off to the right on its own,
+                              reading as a stray mark rather than a status. */}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                            {job.department && <p className="text-xs font-medium" style={{ color: color.ink }}>{job.department}</p>}
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0" style={{ color: "var(--ink-2)" }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} />
+                              {badge.label}
+                            </span>
                           </div>
-                          {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
                         </div>
                       </div>
                     </button>
@@ -13336,8 +13342,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
                   </button>
 
-                  <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
-                    <div className="flex items-center gap-3 min-w-0">
+                  {/* Wraps rather than squashing: with the posted date spelled out
+                      the footer can outgrow a narrow card, and the counts losing a
+                      digit is worse than the date taking its own line. */}
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
+                    <div className="flex items-center gap-3 min-w-0 shrink-0">
                       <button ref={jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? applicantsRef : undefined} onClick={() => { setActiveJobId(job.id); navigate("pipeline", "/pipeline"); }} className={`group/app inline-flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors ${jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? "tour-pulse" : ""}`} title="View pipeline">
                         <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
                           <Icon name="funnel" className="w-4 h-4" />
@@ -13349,11 +13358,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span>
                       </span>
                     </div>
-                    {/* Bottom-right: posted-date calendar (label on hover) + copy link. */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    {/* Bottom-right: when it was posted, then copy link. The date
+                        used to be a calendar glyph whose only label was a hover
+                        tooltip, so on a phone it was an icon that did nothing and
+                        said nothing. It reads as text now. */}
+                    <div className="flex items-center gap-1 shrink-0 min-w-0">
                       {job.posted_at && (
-                        <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg" style={{ color: "var(--ink-3)" }} title={postedAgoLabel(job.posted_at)} aria-label={postedAgoLabel(job.posted_at)}>
-                          <Icon name="calendar" className="w-[18px] h-[18px]" />
+                        <span className="inline-flex items-center gap-1.5 px-1.5 h-9 text-xs whitespace-nowrap" style={{ color: "var(--ink-3)" }}>
+                          <Icon name="calendar" className="w-4 h-4 shrink-0" />
+                          {postedAgoLabel(job.posted_at)}
                         </span>
                       )}
                       {jobCopyLink(job, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
