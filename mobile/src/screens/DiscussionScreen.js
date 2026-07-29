@@ -836,7 +836,9 @@ function PollComposer({ visible, tz, onClose, onCreate, blocked = [] }) {
         onClose={() => setCalOpen(false)}
         title="Add a time range"
         confirmLabel="Add range"
-        blocked={blocked}
+        // Ranges already added to this poll are unavailable too, so the picker
+        // stops offering them instead of refusing them on confirm.
+        blocked={[...(blocked || []), ...slots.map((x) => ({ start: x.start, end: x.end || x.start }))]}
         onConfirm={({ startIso, endIso }) => {
           const ns = new Date(startIso).getTime(), ne = new Date(endIso).getTime();
           const clash = slots.some((x) => ns < new Date(x.end || x.start).getTime() && new Date(x.start).getTime() < ne);

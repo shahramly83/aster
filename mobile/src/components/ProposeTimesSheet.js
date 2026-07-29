@@ -75,6 +75,16 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
     return [...fromPoll, ...extra].sort((a, b) => a.start.localeCompare(b.start));
   }, [pollSlots, selected, extra]);
 
+  // What the picker must not offer: the panel's existing interviews, plus every
+  // time already on this proposal. The clash check in addExtra stays as the
+  // backstop, but being told "that overlaps one you've already picked" after
+  // choosing a date, a start and an end is a correction; not offering it in the
+  // first place is an answer.
+  const unavailable = useMemo(
+    () => [...(blocked || []), ...chosen.map((c) => ({ start: c.start, end: c.end || c.start }))],
+    [blocked, chosen],
+  );
+
   const send = async () => {
     setErr(null);
     if (chosen.length < 2) { setErr("Pick at least two times for the candidate to choose from."); return; }
@@ -168,7 +178,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
         title="Add a time"
         confirmLabel="Add time"
         onConfirm={addExtra}
-        blocked={blocked}
+        blocked={unavailable}
       />
     </Modal>
   );
