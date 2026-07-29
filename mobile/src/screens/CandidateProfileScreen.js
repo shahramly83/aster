@@ -197,6 +197,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile"); // interview page sub-tabs: profile | interview | feedback
   const [lockNote, setLockNote] = useState(null); // message shown when a locked tab is tapped
+  const lockAnim = useRef(new Animated.Value(0)).current;
+  const lockTimer = useRef(null);
   const [insightRun, setInsightRun] = useState(null);   // result of a run this session
   const [insightBusy, setInsightBusy] = useState(false);
   const [insightErr, setInsightErr] = useState(null);
@@ -279,8 +281,30 @@ export default function CandidateProfileScreen({ route, navigation }) {
     }
   }, [cards, manager, tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The note answers a tap, so it should not outlive the question. It fades out
+  // on its own after a few seconds, and tapping the same locked tab again
+  // restarts the countdown instead of leaving a stale timer to cut the new one
+  // short.
+  const showLockNote = (msg) => {
+    setLockNote(msg);
+    if (lockTimer.current) clearTimeout(lockTimer.current);
+    lockAnim.setValue(0);
+    Animated.timing(lockAnim, { toValue: 1, duration: 160, useNativeDriver: true }).start();
+    lockTimer.current = setTimeout(() => {
+      Animated.timing(lockAnim, { toValue: 0, duration: 220, useNativeDriver: true })
+        .start(({ finished }) => { if (finished) setLockNote(null); });
+    }, 4000);
+  };
+  const hideLockNote = () => {
+    if (lockTimer.current) { clearTimeout(lockTimer.current); lockTimer.current = null; }
+    setLockNote(null);
+  };
+  // A timer outliving the screen would call setState on an unmounted component.
+  useEffect(() => () => { if (lockTimer.current) clearTimeout(lockTimer.current); }, []);
+
   const switchTab = (t) => {
     if (t === tab) return;
+    hideLockNote();   // they got somewhere; the explanation is spent
     setTab(t);
     tabAnim.setValue(0);
     Animated.timing(tabAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
@@ -661,7 +685,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 return (
                   <Pressable
                     key={k}
-                    onPress={() => (locked ? setLockNote(lockReason) : switchTab(k))}
+                    onPress={() => (locked ? showLockNote(lockReason) : switchTab(k))}
                     style={[styles.segItem, on && styles.segItemOn, locked && { opacity: 0.45 }]}
                     hitSlop={4}
                     accessibilityRole="tab"
@@ -678,10 +702,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
               /* A tinted notice attached to the tabs it explains. As centred grey
                  text floating between the tab bar and the section heading it read
                  as an error message about the page, not an answer to the tap. */
-              <View style={styles.lockNote}>
+              <Animated.View style={[styles.lockNote, { opacity: lockAnim }]}>
                 <Feather name="lock" size={13} color="#B45309" style={{ marginTop: 1 }} />
                 <Text style={[type.small, { color: "#B45309", marginLeft: 8, flex: 1, lineHeight: 18 }]}>{lockNote}</Text>
-              </View>
+              </Animated.View>
             ) : null}
 
             <Animated.View style={{ opacity: tabAnim, transform: [{ translateX: tabAnim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
