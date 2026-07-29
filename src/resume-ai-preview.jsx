@@ -10411,21 +10411,6 @@ function LockBadge({ label = "Elite" }) {
   );
 }
 
-function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = false }) {
-  return (
-    <div className={`text-center px-4 ${compact ? "py-5" : "py-8"}`}>
-      <div className="w-11 h-11 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-        <Icon name="lock" className="w-5 h-5" />
-      </div>
-      <p className="text-sm font-semibold text-neutral-900">{title}</p>
-      {sub && <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">{sub}</p>}
-      <button onClick={() => navigate("billing")} className="mt-4 text-xs brand-gradient text-white font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity">
-        Upgrade
-      </button>
-    </div>
-  );
-}
-
 // Candidates Journey bar fills. Monochrome: every bar uses the same soft slate-grey
 // gradient (as requested), for a clean, restrained look.
 const JOURNEY_GREY = "linear-gradient(180deg,#CBD5E1,#94A3B8)";
@@ -15064,9 +15049,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Browse read `visibleCandidates`, which is Infinity on every plan, so the browse
   // cap never fired and Launch could page through the entire database. The field
   // that was meant to cap it, browseLimit, was never read by anything.
-  const viewLimit = matchScores ? limits.aiMatches : limits.browseLimit;
-  const shownList = list.slice(0, viewLimit);
-  const lockedList = list.slice(viewLimit);
+  // No result-depth gate on any plan. Plans differ by job-post quantity and by
+  // the AI/screening credits a run costs; what a workspace can SEE of its own
+  // candidates is not sold back to it, least of all after the credits for a
+  // ranking have already been spent. The blur-and-upgrade blocks that used to
+  // sit under these lists are gone with it, rather than left as a gate that
+  // never fires and reads like one that might.
+  const shownList = list;
 
   // Browse pagination (20 per page). Match tabs are already top-N gated.
   const pageCount = Math.max(1, Math.ceil(shownList.length / PER_PAGE));
@@ -15222,23 +15211,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           </div>
         );
       })}
-      {lockedList.length > 0 && (
-        <div className="relative pt-1">
-          <div className="space-y-2.5 blur-[3px] pointer-events-none select-none" aria-hidden="true">
-            {lockedList.slice(0, 2).map((c, i) => (
-              <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
-                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center px-4">
-            <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
-              <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more ${lockedList.length === 1 ? "match" : "matches"} hidden`} sub={`Your plan shows the top ${limits.aiMatches}. Upgrade for the full ranking.`} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -15264,23 +15236,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           </div>
         );
       })}
-      {lockedList.length > 0 && (
-        <div className="relative pt-1">
-          <div className="space-y-2.5 blur-[3px] pointer-events-none select-none" aria-hidden="true">
-            {lockedList.slice(0, 2).map((c, i) => (
-              <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
-                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center px-4">
-            <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
-              <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more ${lockedList.length === 1 ? "candidate" : "candidates"} hidden`} sub={`Your plan shows the top ${limits.aiMatches}. Upgrade to see everyone.`} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
   // Runs-left note shown under both AI panels.
@@ -15442,23 +15397,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.", null) : (<>
               <div className="grid sm:grid-cols-2 gap-3 mt-5">
                 {browseItems.map((c) => browseCard(c))}
-                {lockedList.length > 0 && (
-                  <div className="relative pt-1 sm:col-span-2">
-                    <div className="grid sm:grid-cols-2 gap-3 blur-[3px] pointer-events-none select-none" aria-hidden="true">
-                      {lockedList.slice(0, 3).map((c, i) => (
-                        <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
-                          <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
-                          <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center px-4">
-                      <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
-                        <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more candidate${lockedList.length === 1 ? "" : "s"} hidden`} sub={`Your plan shows the top ${limits.browseLimit}. Upgrade to browse everyone.`} />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
               {pageCount > 1 && (
                 <div className="flex items-center justify-center gap-1.5 mt-6">
@@ -15588,24 +15526,28 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <p className="text-xs" style={{ color: "#047857" }}>{inviteBanner}</p>
               </div>
             )}
+            {/* Two lines, not one run-on sentence with Clear stranded beside it.
+                "20 candidates · ranked for Senior Frontend Engineer (React) · 6
+                already applied, hidden" wrapped to three lines on a phone with the
+                button floating against the last one. The count and the role lead;
+                the caveat is a footnote under them. */}
             {matchScores && !matching && (
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-                  <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked for {matchJob?.title}
-                  {alreadyApplied.size > 0 ? ` · ${alreadyApplied.size} already applied, hidden` : ""}
-                </p>
-                <button onClick={() => setMatchScores(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                    <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} ranked for <span className="font-semibold" style={{ color: "var(--ink)" }}>{matchJob?.title}</span>
+                  </p>
+                  {alreadyApplied.size > 0 && (
+                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{alreadyApplied.size} already applied, hidden</p>
+                  )}
+                </div>
+                <button onClick={() => setMatchScores(null)} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
               </div>
             )}
             {matching ? matchSkeleton
               : !matchScores ? emptyState("Find your best fit candidates", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "Choose one of your open positions above and AI Rank scores every candidate against it.", "briefcase")
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
               : rankedList}
-            {matchScores && matchJob && list.length > 0 && (
-              <button onClick={() => onPreviewApply && onPreviewApply(matchJob)} className="text-sm font-medium mt-4 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                Preview the {matchJob.title} application page →
-              </button>
-            )}
           </>
         )}
 
