@@ -14873,14 +14873,43 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     if (email) seenEmails.add(email);
     return true;
   });
-  // Everyone you can actually act on: unique people, not already hired.
-  const available = parsed.filter((c) => !hiredIds.has(c.id));
+  const openJobs = (jobs || []).filter((j) => j.status === "open");
+  // Which open roles each person is already in the running for.
+  const openJobIds = openJobs.map((j) => j.id);
+  // A rejected application does not count as being in the running: that door is
+  // closed, and the person may well suit something else you have open. Every
+  // other stage does count, applied through hired, because they are already
+  // somewhere in your process for that role.
+  const OUT_OF_RUNNING = new Set(["rejected"]);
+  const appliedOpenJobs = (() => {
+    const byCandidate = new Map();
+    const open = new Set(openJobIds);
+    Object.entries(APPLICANTS_BY_JOB || {}).forEach(([jobId, arr]) => {
+      if (!open.has(jobId)) return;
+      (arr || []).forEach((a) => {
+        if (OUT_OF_RUNNING.has(a.baseStage)) return;
+        if (!byCandidate.has(a.candidateId)) byCandidate.set(a.candidateId, new Set());
+        byCandidate.get(a.candidateId).add(jobId);
+      });
+    });
+    return byCandidate;
+  })();
+  // Applied to every open role: there is nothing left to invite them to. Hiding
+  // them only from the role they applied to was not enough — someone already
+  // interviewing for one job still surfaced under another, and the whole point of
+  // this screen is to invite people to apply. Asking someone already inside your
+  // process to apply again reads as though you have lost track of them.
+  const appliedToEveryOpenRole = (id) =>
+    openJobIds.length > 0 && (appliedOpenJobs.get(id)?.size || 0) >= openJobIds.length;
+  // Everyone you can actually act on: unique people, not already hired, and not
+  // already in the running for everything that is open.
+  const available = parsed.filter((c) => !hiredIds.has(c.id) && !appliedToEveryOpenRole(c.id));
   const availableCount = available.length;
+  const fullyAppliedCount = parsed.filter((c) => !hiredIds.has(c.id) && appliedToEveryOpenRole(c.id)).length;
   // Skill suggestions come only from THIS workspace's own candidates, so the
   // type-ahead never surfaces a shared/global list. The field is free-type, so
   // you can still search any skill even if no one in the pool has it yet.
   const skillSuggestions = [...new Set(available.flatMap((c) => c.parsed?.skills || []))].sort((a, b) => a.localeCompare(b));
-  const openJobs = (jobs || []).filter((j) => j.status === "open");
   const matchJob = jobs?.find((j) => j.id === matchJobId);
   const alreadyApplied = matchJobId
     ? new Set((APPLICANTS_BY_JOB[matchJobId] || []).map((a) => a.candidateId))
