@@ -22194,8 +22194,12 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         </>)}
 
 
-        {/* Save / Cancel bar */}
-        <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
+        {/* A sticky bar costs a phone about an eighth of its screen, and it was
+            floating over the cards behind it even when it had nothing to say but
+            "Everything is up to date". It only floats now when there is a change
+            to save or a message to deliver; otherwise it sits at the end of the
+            page. Desktop keeps it pinned throughout, where the room is free. */}
+        <div className={`${dirty || saving || savedMsg || saveErr ? "sticky" : "sm:sticky"} bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow`} style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs sm:text-sm min-w-0 truncate" style={{ color: saveErr ? "#B42318" : savedMsg ? "#166534" : "var(--ink-2)" }}>
               {saving ? "Saving…" : saveErr ? saveErr : savedMsg ? savedMsg : dirty ? "You have unsaved changes." : "Everything is up to date."}
@@ -22832,7 +22836,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
 
         {/* Save / Cancel bar, sticky within the content column, so it never
             underlaps the sidebar or its Log out button on any screen size. */}
-        <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
+        <div className={`${dirty || saving || savedMsg ? "sticky" : "sm:sticky"} bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow`} style={{ borderColor: "var(--line)" }}>
           {/* The status line is squeezed to "Everythi..." on a phone, where it is
               the least important thing in the bar. It gets its own line above the
               buttons instead of competing with them for width. */}
@@ -23144,14 +23148,14 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
 
   return (
     <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Team scorecards</h2>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide whitespace-nowrap">Team scorecards</h2>
           <InfoHint dir="down" hint="Each interviewer rates the candidate from 1 to 4 after the interview, and Aster averages them into one team score." />
           {!isPaid && <LockBadge />}
         </div>
         {isPaid && canSeeAll && scorecards.length > 0 && (
-          <span className="text-xs text-neutral-500">Team avg <span className="font-semibold text-neutral-800 tnum">{teamAvg.toFixed(1)}</span>/4 · {scorecards.length} submitted</span>
+          <span className="text-xs text-neutral-500 whitespace-nowrap">Team avg <span className="font-semibold text-neutral-800 tnum">{teamAvg.toFixed(1)}</span>/4 · {scorecards.length} submitted</span>
         )}
       </div>
 
