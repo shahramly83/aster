@@ -23456,8 +23456,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {qIsMgr && <button onClick={() => setBuyQuestionsOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
       </div>
       {questionTip && (
-        <div className="absolute z-40 left-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
-          <span className="absolute -top-1.5 left-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+        <div className="absolute z-40 right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
           <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Question credits</p>
           {qIsMgr ? (
             <>
@@ -23500,8 +23500,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {insightIsMgr && <button onClick={() => setBuyInsightOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
       </div>
       {insightTip && (
-        <div className="absolute z-40 left-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
-          <span className="absolute -top-1.5 left-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+        <div className="absolute z-40 right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
           <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Insight credits</p>
           {insightIsMgr ? (
             <>
