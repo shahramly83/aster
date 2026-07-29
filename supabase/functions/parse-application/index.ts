@@ -273,6 +273,36 @@ Deno.serve(async (req) => {
       return json({ error: "no_email" }, 422);
     }
 
+    // One live application per person per company. Someone already in the process
+    // for another role cannot start a second one from the public page: the
+    // company decides when to consider them elsewhere, and the recruiter's own
+    // "invite to apply" path is unaffected. A rejected or declined application is
+    // over on both sides, so it frees them to apply again.
+    //
+    // This sits BEFORE the candidate upsert and before the credit is charged, so a
+    // blocked application writes nothing and costs the customer nothing. Re-applying
+    // to the SAME role is not blocked here — that is a re-submission, handled below
+    // by updating the existing row.
+    if (finalEmail) {
+      const { data: known } = await admin
+        .from("candidates").select("id")
+        .eq("company_id", companyId).eq("email", finalEmail).maybeSingle();
+      if (known?.id) {
+        const { data: live } = await admin
+          .from("applications")
+          .select("job_id, jobs(title)")
+          .eq("company_id", companyId)
+          .eq("candidate_id", known.id)
+          .not("stage", "in", "(rejected,declined)")
+          .neq("job_id", job_id)
+          .limit(1);
+        const other = (live || [])[0] as { jobs?: { title?: string } } | undefined;
+        if (other) {
+          return json({ error: "active_application", role: other.jobs?.title ?? null }, 409);
+        }
+      }
+    }
+
     const experience = Array.isArray(parsed.experience) ? parsed.experience : [];
     // Distinct industries across the roles. Split on "/" as a safety net so a
     // combined tag becomes separate atomic industries; drop blanks / "Unknown".

@@ -14876,11 +14876,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const openJobs = (jobs || []).filter((j) => j.status === "open");
   // Which open roles each person is already in the running for.
   const openJobIds = openJobs.map((j) => j.id);
-  // A rejected application does not count as being in the running: that door is
-  // closed, and the person may well suit something else you have open. Every
-  // other stage does count, applied through hired, because they are already
-  // somewhere in your process for that role.
-  const OUT_OF_RUNNING = new Set(["rejected"]);
+  // Neither a rejected nor a declined application counts as being in the running.
+  // Rejected: you closed that door. Declined: they did. Either way nobody is
+  // waiting on anybody, and the person may well suit something else you have
+  // open. Every other stage does count, applied through hired, because they are
+  // already somewhere in your process for that role.
+  const OUT_OF_RUNNING = new Set(["rejected", "declined"]);
   const appliedOpenJobs = (() => {
     const byCandidate = new Map();
     const open = new Set(openJobIds);
@@ -19950,11 +19951,21 @@ This is what a candidate sees if they open the link after the role has closed.
       // On a non-2xx status, invoke returns `error` and the JSON body (with our
       // reason code) sits on error.context, not in `data`. Read both.
       let code = data?.error || "";
+      let detail = data || null;
       if (!code && error?.context?.json) {
-        try { const body = await error.context.json(); code = body?.error || ""; } catch { /* ignore */ }
+        try { const body = await error.context.json(); code = body?.error || ""; detail = body || null; } catch { /* ignore */ }
       }
       if (error || code) {
         if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Upload your CV as a PDF and try again."); setStage("form"); return; }
+        // One live application per person per company. Naming the role they are
+        // already in the running for matters: without it this reads as a bug
+        // rather than a rule, and they cannot tell what to do about it.
+        if (code === "active_application") {
+          setSubmitErr(detail?.role
+            ? `You already have an application with ${company || "this company"} for ${detail.role}. The team will be in touch about that one first, and you can apply for another role once it is decided.`
+            : `You already have an application with ${company || "this company"}. The team will be in touch about that one first, and you can apply for another role once it is decided.`);
+          setStage("form"); return;
+        }
         if (code === "no_email") { setSubmitErr("We couldn't find an email on your resume. Add your email to the CV and upload again so the team can reach you."); setStage("form"); return; }
         if (/job expired/i.test(code)) { setSubmitErr("Applications for this role have closed. Take a look at our other open positions."); setStage("form"); return; }
         if (/job not open/i.test(code)) { setSubmitErr("This role isn't taking applications anymore."); setStage("form"); return; }
