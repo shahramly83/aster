@@ -336,6 +336,20 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   // Move the candidate to a stage, mirroring the web setCandidateStage side
   // effects (activity log on hire, hired/rejected candidate email). Optimistic.
+  // A stage arriving from elsewhere — the panel being set on the web, a teammate
+  // moving them — unlocks the Interview tab but used to leave the reader sitting
+  // on Profile, watching a tab quietly become available with nothing pointing at
+  // it. Only on the transition, and only from Profile, so it never yanks anyone
+  // off a tab they chose.
+  const prevStageRef = useRef(stage);
+  useEffect(() => {
+    const prev = prevStageRef.current;
+    prevStageRef.current = stage;
+    if (prev === stage || loading) return;
+    if (stage === "interviewing" && !INTERVIEW_UNLOCKED.includes(prev) && tab === "profile") switchTab("interview");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, loading]);
+
   const applyStage = async (to) => {
     const prev = stage;
     setStage(to);
