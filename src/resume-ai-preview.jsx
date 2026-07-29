@@ -18077,7 +18077,7 @@ const FREE_EMAIL_DOMAINS = new Set([
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice, onInterviewStarted }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -18249,7 +18249,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
       // Staged successfully: the card behind now shows them as an outstanding
       // invite, which is a better receipt than a modal the user has to dismiss.
       // If staging failed there is nothing behind to see, so stay put and say so.
-      if (!stageErr) setAddingPanel(false);
+      if (!stageErr) { setAddingPanel(false); onInterviewStarted?.(); }
       setInviteEmail("");
       await reloadTeam();   // so the pending chip shows without a reload
     } catch { setInviteNote({ type: "err", msg: "Couldn't send the invite." }); }
@@ -18270,6 +18270,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     setAssignBusy(null);
     if (error) { setErr(error); return; }
     setAddingPanel(false);
+    onInterviewStarted?.();
   };
   const removeFromPanel = async (iv) => {
     if (!jobId || !onUnassignInterviewer) return;
@@ -23569,6 +23570,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     ? pendingInvites.filter((inv) => inv.role === "interviewer" && (inv.jobIds || []).includes(contextJobId))
     : [];
   const candFirstName = (candidate?.parsed?.name || "").trim().split(" ")[0] || "this candidate";
+  // Putting someone on this candidate's panel is the act of starting their
+  // interview, so the pipeline should say so rather than leaving them at Applied
+  // with a "Move to interview" button still waiting to be pressed. A pending
+  // invite counts: the decision has been made, and whether the interviewer has
+  // got round to signing up is not the candidate's stage. Forward only, and only
+  // from the stages that precede it, so this can never drag anyone backwards.
+  const startInterviewStage = () => {
+    if (!onSetStage) return;
+    if (stage === "applied" || stage === "shortlisted") onSetStage("interviewing");
+  };
   // Ask how to run the interview whenever this step has nothing else to show: no
   // booking or invite out, no interviewer waiting on a request, nobody on the
   // panel, no poll. Deliberately keyed on what exists rather than on the answer
@@ -24245,6 +24256,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           pendingPanel={pendingPanel}
           reloadTeam={reloadTeam}
           onBackToChoice={() => { setIvMode(null); setForceAsk(true); }}
+          onInterviewStarted={startInterviewStage}
           autoOpenPanel={ivMode === "panel"}
           onCancelPanelSetup={() => setIvMode(null)}
           onAssignInterviewer={onAssignInterviewer}
