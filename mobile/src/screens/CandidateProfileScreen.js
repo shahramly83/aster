@@ -12,6 +12,7 @@ import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
+import SlideAction from "../components/SlideAction";
 import SuccessModal from "../components/SuccessModal";
 import AiInsight from "../components/AiInsight";
 import AiQuestions from "../components/AiQuestions";
@@ -1614,6 +1615,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </SectionHeader>
             {cards.length === 0 ? (
               canScore && !(manager && decisionReady) ? (
+                manager && requiredRaters.length ? (
+                  /* The manager's own card is optional, and a full-width primary
+                     button next to the panel's pending list read as the thing to
+                     do next. A slide keeps it reachable, asks for real intent,
+                     and stops competing with the scores the decision waits on. */
+                  <Card>
+                    <Text style={[type.small, { color: theme.ink3, marginBottom: space(3), lineHeight: 18 }]}>
+                      You can add your own read on {name.split(" ")[0]}. The decision does not wait on it.
+                    </Text>
+                    <SlideAction
+                      label="Slide to score"
+                      doneLabel="Opening scorecard…"
+                      onComplete={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })}
+                    />
+                  </Card>
+                ) : (
                 <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.scoreEmpty}>
                   <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 18, textAlign: "center" }]}>Add your scorecard</Text>
                   <View style={styles.scoreChips}>
@@ -1623,6 +1640,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   </View>
                   <Button title="Start scoring" icon="plus" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(4), alignSelf: "stretch" }} />
                 </LinearGradient>
+                )
               ) : (
                 <Card><Text style={[type.small, { color: theme.ink3 }]}>No scorecards yet. Each interviewer's rating collects here once they submit.</Text></Card>
               )
@@ -1636,7 +1654,16 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   />
                 ))}
                 {canScore && !myCard && !(manager && decisionReady) ? (
-                  <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
+                  manager && requiredRaters.length ? (
+                    <SlideAction
+                      label="Slide to add yours"
+                      doneLabel="Opening scorecard…"
+                      onComplete={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })}
+                      style={{ marginTop: space(3) }}
+                    />
+                  ) : (
+                    <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
+                  )
                 ) : null}
               </>
             )}
