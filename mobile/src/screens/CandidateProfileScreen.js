@@ -168,7 +168,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // "panel" = with interviewers. Mirrors the web. Only ever asked when the role
   // has nobody on its panel, because a panel that already exists has answered it.
   const [ivMode, setIvMode] = useState(null);
-  const [panelCount, setPanelCount] = useState(null); // null until loaded
+  const [rolePanel, setRolePanel] = useState(null); // the role's assigned interviewers; null until loaded
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
@@ -211,7 +211,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
       manager ? loadInterviewers(profile.companyId, jobId) : Promise.resolve(null),
     ]);
     if (title) setJobTitle(title);
-    if (team) setPanelCount(team.filter((m) => m.assigned).length);
+    if (team) setRolePanel(team.filter((m) => m.assigned));
     setCandidate(c); setCards(sc); setInterview(iv); setOffer(off); setQuestions(qs || []);
     setMlInput(iv?.meetingLink || "");
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
@@ -472,6 +472,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // than flashing the question over a panel that turns out to exist. Adding
   // someone to the role answers it on its own, which is what makes the mobile
   // screen follow the web without having to be told.
+  const panelCount = rolePanel === null ? null : rolePanel.length;
   const askIvMode = manager && !interview && panelCount === 0 && ivMode === null;
 
   return (
@@ -1113,6 +1114,24 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       ? "Get the panel's availability, then propose a few times for the candidate to choose from."
                       : "Mark the times you can make so the panel can find an overlap."}
                   </Text>
+                  {/* Who is actually on this panel. Without it the step said "get
+                      the panel's availability" with no way to tell whose, or even
+                      that anyone had been added. */}
+                  {rolePanel && rolePanel.length ? (
+                    <View style={styles.panelRow}>
+                      <Feather name="users" size={14} color={theme.ink3} />
+                      <View style={styles.panelAvatars}>
+                        {rolePanel.slice(0, 3).map((m, i) => (
+                          <View key={m.id} style={[styles.panelAvatar, i > 0 && { marginLeft: -8 }]}>
+                            <Avatar name={m.name} size={22} />
+                          </View>
+                        ))}
+                      </View>
+                      <Text style={[type.small, { color: theme.ink2, flex: 1 }]} numberOfLines={1}>
+                        {rolePanel.length === 1 ? rolePanel[0].name : `${rolePanel[0].name} +${rolePanel.length - 1}`}
+                      </Text>
+                    </View>
+                  ) : null}
                   {/* Same ordering fix as the reschedule branch above: the step you
                       do first is the one that looks primary. */}
                   <Button title={manager ? "1 · Panel availability" : "Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
@@ -1659,6 +1678,14 @@ const styles = StyleSheet.create({
   propSlotTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, letterSpacing: -0.3, color: theme.ink, marginTop: 3, fontVariant: ["tabular-nums"] },
   propSlotEnd: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: theme.ink4, marginTop: 1, fontVariant: ["tabular-nums"] },
   propMore: { ...type.small, color: theme.ink4, marginTop: space(2.5) },
+  panelRow: {
+    flexDirection: "row", alignItems: "center",
+    marginTop: space(3), paddingVertical: 9, paddingHorizontal: 11,
+    backgroundColor: theme.bg, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: theme.line,
+  },
+  panelAvatars: { flexDirection: "row", alignItems: "center", marginLeft: 9, marginRight: 9 },
+  panelAvatar: { borderRadius: 11, borderWidth: 1.5, borderColor: theme.white },
   ivPick: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: theme.white, borderRadius: radius.md,
