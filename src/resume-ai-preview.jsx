@@ -11978,13 +11978,17 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               return (
                 <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
                   {/* Headline, the parsed total (matches the "Parsed ✓" rows) */}
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{s.parsed}</span>
-                    <span className="text-sm" style={{ color: "var(--ink-2)" }}>of {rows.length} resume{rows.length === 1 ? "" : "s"} screened into new candidates</span>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{s.parsed}<span className="text-lg" style={{ color: "var(--ink-3)" }}>/{rows.length}</span></span>
+                    <span className="text-sm" style={{ color: "var(--ink-2)" }}>resume{rows.length === 1 ? "" : "s"} screened into new candidates</span>
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex gap-0.5 mt-4 -mb-px overflow-x-auto border-b" style={{ borderColor: "var(--line)" }}>
+                  {/* no-scrollbar: this strip genuinely needs to scroll on a phone
+                      (up to six outcome tabs), but a live scrollbar track sitting
+                      across the tabs made the row look broken rather than
+                      scrollable. */}
+                  <div className="flex gap-0.5 mt-4 -mb-px overflow-x-auto no-scrollbar border-b" style={{ borderColor: "var(--line)" }}>
                     {tabs.map((t) => {
                       const on = resultFilter === t.key;
                       return (
@@ -12042,8 +12046,12 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               }
               return (
               <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-3 border" style={{ borderColor: "var(--line)", borderLeft: `3px solid ${rowAccent(row)}` }}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-neutral-800 truncate flex-1">{row.fileName}</span>
+                {/* The file name takes its own line on phones. Sharing a row with
+                    View and the verdict left it eleven characters wide
+                    ("priya_nair_r..."), and the name is how you tell which of six
+                    uploads a result belongs to. */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                  <span className="text-sm text-neutral-800 break-all sm:truncate sm:flex-1">{row.fileName}</span>
                   <div className="flex items-center gap-3 text-xs shrink-0">
                     {row.parseStatus === "pending" && (
                       <span className="inline-flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
