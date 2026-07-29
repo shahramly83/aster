@@ -16420,8 +16420,8 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       hideBack={forInterviewer}
     >
       {!forInterviewer && (
-        <div className="flex justify-end mb-4">
-          <button onClick={() => navigate("interviewers")} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>
+        <div className="flex justify-stretch sm:justify-end mb-4">
+          <button onClick={() => navigate("interviewers")} className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2.5 sm:py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>
             <Icon name="users" className="w-4 h-4" /> Manage team
           </button>
         </div>
@@ -16442,13 +16442,16 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
         </div>
       ) : (
         <>
-          {/* Stage filters */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          {/* Stage filters. Seven counted chips wrapped into three ragged rows on
+              a phone, which read as three separate controls. One scrollable row,
+              same as the Team and Talent Pool strips, with a fade at the end so
+              the cut edge says "more this way". */}
+          <div className="flex flex-nowrap sm:flex-wrap gap-2 mb-4 overflow-x-auto no-scrollbar scroll-fade sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
             {[{ k: "all", label: "All", n: interviews.length }, ...presentStages.map((s) => ({ k: s, label: INTERVIEW_STAGE_META[s]?.label || s, n: stageCounts[s] }))].map((f) => {
               const on = ivFilter === f.k;
               return (
                 <button key={f.k} type="button" onClick={() => setIvFilter(f.k)}
-                  className="text-xs font-medium rounded-full px-3 py-1.5 border transition-colors inline-flex items-center gap-1.5"
+                  className="shrink-0 whitespace-nowrap text-xs font-medium rounded-full px-3 py-2 sm:py-1.5 border transition-colors inline-flex items-center gap-1.5"
                   style={on ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : { color: "var(--ink-2)", borderColor: "var(--line)", background: "#fff" }}>
                   {f.label} <span className="tnum" style={{ opacity: 0.7 }}>{f.n}</span>
                 </button>
@@ -16456,7 +16459,46 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
             })}
           </div>
           <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
-            <div className="overflow-x-auto">
+            {/* Phones get cards. A 680px four-column table in a sideways scroller
+                sliced the role into "QA Eng...", and pushed when and stage — the
+                two things you open this screen to check — off the right edge
+                behind a scrollbar most people never find. */}
+            <div className="md:hidden">
+              {shown.map((iv) => {
+                const job = jobForTitle(iv.jobTitle);
+                const st = INTERVIEW_STAGE_META[iv.stage] || INTERVIEW_STAGE_META.completed;
+                const whenText = iv.stage === "requested"
+                  ? (iv.requestedByMe ? "Requested by you · awaiting scheduling" : "Requested · awaiting scheduling")
+                  : iv.stage === "reschedule"
+                    ? "Reschedule · propose new times"
+                    : "Times sent · awaiting the candidate";
+                return (
+                  <button
+                    key={`m-${iv.candidateId}`}
+                    onClick={() => onViewCandidate(iv.candidateId, iv.jobId ?? job?.id ?? null, null, "interview")}
+                    className="w-full text-left px-4 py-3.5"
+                    style={{ borderBottom: "1px solid var(--line)" }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CandidateAvatar name={iv.candidateName} hasPhoto={false} size={38} showPhotoDot={false} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
+                        <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{iv.jobTitle}</p>
+                      </div>
+                      <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2 py-1 whitespace-nowrap" style={{ background: st.bg, color: st.color }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} /> {st.label}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: iv.dateLine ? "var(--ink-2)" : (iv.stage === "reschedule" ? "#B42318" : "var(--ink-3)") }}>
+                      {iv.dateLine
+                        ? <span className="inline-flex items-center gap-1.5"><Icon name="calendar" className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} /> {iv.dateLine} · {iv.time}</span>
+                        : whenText}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full" style={{ minWidth: 680, borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
