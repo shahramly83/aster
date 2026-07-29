@@ -18077,7 +18077,7 @@ const FREE_EMAIL_DOMAINS = new Set([
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice, onInterviewStarted, onContentChange }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice, onInterviewStarted, onInterviewUnset, onContentChange }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -18281,8 +18281,12 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     // Taking the last person off an unstarted panel leaves this card with
     // nothing to render, and the parent has no way to see that from the outside.
     // Say so, so the screen goes back to asking how the interview should run
-    // instead of going blank.
-    if (!poll && assignedInterviewers.length <= 1 && pendingPanel.length === 0) onCancelPanelSetup?.();
+    // instead of going blank — and put this candidate back where they were,
+    // since setting their panel is what moved them forward.
+    if (!poll && assignedInterviewers.length <= 1 && pendingPanel.length === 0) {
+      onCancelPanelSetup?.();
+      onInterviewUnset?.();
+    }
   };
 
   // Entering select mode: default to the two most-available times.
@@ -23594,6 +23598,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     if (!onSetStage) return;
     if (stage === "applied" || stage === "shortlisted") onSetStage("interviewing");
   };
+  // The mirror: the panel that moved them forward has just been emptied, and
+  // nothing else about the interview exists yet. Only ever this candidate, and
+  // only from Interview, so an offer or a hire is never walked back.
+  const unsetInterviewStage = () => {
+    if (!onSetStage || booking || hasPoll === true) return;
+    if (stage === "interviewing") onSetStage("applied");
+  };
   // Ask how to run the interview whenever this step has nothing else to show: no
   // booking or invite out, no interviewer waiting on a request, nobody on the
   // panel, no poll. Deliberately keyed on what exists rather than on the answer
@@ -24303,6 +24314,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           reloadTeam={reloadTeam}
           onBackToChoice={() => { setIvMode(null); setForceAsk(true); }}
           onInterviewStarted={startInterviewStage}
+          onInterviewUnset={unsetInterviewStage}
           autoOpenPanel={ivMode === "panel"}
           onCancelPanelSetup={() => setIvMode(null)}
           onAssignInterviewer={onAssignInterviewer}

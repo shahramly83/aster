@@ -329,6 +329,27 @@ export default function CandidateProfileScreen({ route, navigation }) {
     catch (e) { setStage(prev); dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
   };
 
+  // Setting this candidate's panel is the act of starting THEIR interview, and
+  // emptying it again is that act undone. Scoped to the candidate on screen: the
+  // panel belongs to the role, so acting on the role would sweep every applicant
+  // on it, which is never what was meant. Forward only from applied/shortlisted,
+  // back only from interviewing with nothing else arranged, so an offer or a hire
+  // is never walked back.
+  const moveStageForPanel = async (dir) => {
+    if (!manager) return null;
+    // notify:false — this is a pipeline move that follows from a panel edit, not
+    // a decision anyone should be emailed about. (Only hired/rejected mail out
+    // anyway, but saying so keeps it true if that ever widens.)
+    const to = async (next) => {
+      await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: next, notify: false, jobId });
+      setStage(next);
+      return next;
+    };
+    if (dir === "start" && (stage === "applied" || stage === "shortlisted")) return to("interviewing");
+    if (dir === "unset" && stage === "interviewing" && !interview && !polled) return to("applied");
+    return null;
+  };
+
   // Add or remove a teammate on this role's panel, from the candidate you are
   // looking at. Someone who has not accepted their invite has no profile to
   // assign, so the seat is staged on the invitation and applied when they sign
@@ -348,6 +369,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
       dialog.alert({ title: "Couldn't update the panel", message: err, icon: "alert-triangle", variant: "danger" });
       return;
     }
+    const others = (rolePanel || []).filter((x) => x.id !== m.id).length;
+    await moveStageForPanel(next ? "start" : (others === 0 ? "unset" : null));
     await load();
   };
 
@@ -384,6 +407,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     } catch { /* the invite still stands */ }
     setInviting(false);
     setInviteEmail("");
+    if (staged) await moveStageForPanel("start");
     setInviteNote({ ok: true, msg: staged
       ? `Invite sent to ${res.email}. They join this panel when they sign up.`
       : `Invite sent to ${res.email}. Add them to this panel once they sign up.` });
@@ -416,6 +440,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     }
     setRolePanel((prev) => (prev || []).filter((x) => x.id !== m.id));
     setRemovingId(null);
+    if (isLast) await moveStageForPanel("unset");
     // The stage may have changed underneath us, so re-read rather than guess.
     const newStage = await load();
     // Taking the last interviewer off sends the candidate back to Applied, which
