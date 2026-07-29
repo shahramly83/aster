@@ -1329,6 +1329,21 @@ export async function signedOfferUrl(candidateId) {
 
 // Latest poll for a candidate, with per-slot vote counts, voter names and
 // whether the current user voted. Returns null if there's no poll.
+// Has the panel ever been polled for this candidate on this role? loadCandidatePoll
+// deliberately only returns an OPEN poll, so it cannot tell "availability already
+// collected" from "never asked" — and those lead to different next steps.
+export async function hasPanelPoll(companyId, candidateId, jobId) {
+  if (!companyId || !candidateId || !jobId) return false;
+  const { data } = await supabase
+    .from("interview_polls")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("candidate_id", candidateId)
+    .eq("job_id", jobId)
+    .limit(1);
+  return !!(data && data.length);
+}
+
 export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
   if (!companyId || !candidateId) return null;
   // Only an OPEN poll is "active". A closed poll is history from a previous

@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -169,6 +169,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // has nobody on its panel, because a panel that already exists has answered it.
   const [ivMode, setIvMode] = useState(null);
   const [rolePanel, setRolePanel] = useState(null); // the role's assigned interviewers; null until loaded
+  const [polled, setPolled] = useState(false); // the panel has been asked for availability at least once
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
@@ -198,7 +199,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const segScrollRef = useRef(null); // so the active tab is scrolled into view (Result sits off the right edge)
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off, meta, qs, title, team] = await Promise.all([
+    const [c, sc, iv, off, meta, qs, title, team, wasPolled] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId, jobId),
       loadCandidateInterview(profile.companyId, candidateId),
@@ -209,9 +210,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
       // Who is on this role's panel, which is what decides whether the interview
       // step has to ask how it should be run or can get straight on with it.
       manager ? loadInterviewers(profile.companyId, jobId) : Promise.resolve(null),
+      manager ? hasPanelPoll(profile.companyId, candidateId, jobId) : Promise.resolve(false),
     ]);
     if (title) setJobTitle(title);
     if (team) setRolePanel(team.filter((m) => m.assigned));
+    setPolled(!!wasPolled);
     setCandidate(c); setCards(sc); setInterview(iv); setOffer(off); setQuestions(qs || []);
     setMlInput(iv?.meetingLink || "");
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
@@ -474,6 +477,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // screen follow the web without having to be told.
   const panelCount = rolePanel === null ? null : rolePanel.length;
   const askIvMode = manager && !interview && panelCount === 0 && ivMode === null;
+  // A panel exists but has never been asked for availability. Adding people to a
+  // role is the decision to interview with them, so the poll is the next step and
+  // the only one offered until it has run.
+  const awaitingPanelAvailability = manager && !!panelCount && !polled;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -1110,9 +1117,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       availability and proposes the times; the interviewer only
                       supplies their own. One instruction can't serve both. */}
                   <Text style={[type.small, { color: theme.ink3 }]}>
-                    {manager
-                      ? "Get the panel's availability, then propose a few times for the candidate to choose from."
-                      : "Mark the times you can make so the panel can find an overlap."}
+                    {!manager
+                      ? "Mark the times you can make so the panel can find an overlap."
+                      : awaitingPanelAvailability
+                        ? "Collect the panel's availability first, so the times you send are ones everyone can make."
+                        : "Get the panel's availability, then propose a few times for the candidate to choose from."}
                   </Text>
                   {/* Who is actually on this panel. Without it the step said "get
                       the panel's availability" with no way to tell whose, or even
@@ -1134,8 +1143,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   ) : null}
                   {/* Same ordering fix as the reschedule branch above: the step you
                       do first is the one that looks primary. */}
-                  <Button title={manager ? "1 · Panel availability" : "Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
-                  {manager ? (
+                  <Button title={!manager || awaitingPanelAvailability ? "Panel availability" : "1 · Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                  {/* Staffing a panel is the decision to interview with one, so
+                      offering "propose times" alongside it invites skipping the
+                      very people just added, and the poll then has nothing to
+                      change. It comes back once availability has been collected. */}
+                  {manager && !awaitingPanelAvailability ? (
                     <>
                       <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
                       <Text style={styles.stepHint}>Vote first, so the times you send are ones the panel can actually make.</Text>
