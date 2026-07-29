@@ -18887,7 +18887,7 @@ function InterviewSetupChoice({ firstName, onSolo, onPanel }) {
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute, startSolo = false }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], pendingPanel = [], onSubstitute, startSolo = false }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   // Meeting link: the HM pastes the video-call URL they made and shares it with
   // the candidate + panel (share-meeting-link sends each their own message, same
@@ -19272,6 +19272,17 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
                 <span key={iv.id} className="inline-flex items-center gap-1.5 text-sm rounded-full bg-white border border-neutral-200 px-3 py-1.5 text-neutral-700">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
                   {iv.name}
+                </span>
+              ))}
+              {/* Someone invited but not signed up yet. Shown here so scheduling
+                  alone doesn't need a second card next to this one repeating that
+                  an invite is out: they aren't on the panel for these times, but
+                  they are coming. */}
+              {pendingPanel.map((inv) => (
+                <span key={inv.id} title={`${inv.email} has not signed up yet`} className="inline-flex items-center gap-1.5 text-sm rounded-full border border-dashed px-3 py-1.5" style={{ borderColor: "var(--line-strong)", color: "var(--ink-3)", background: "var(--bg)" }}>
+                  <Icon name="clock" className="w-3.5 h-3.5" />
+                  <span className="max-w-[12rem] truncate">{inv.email}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full" style={{ background: "#FFFBEB", color: "#B45309", letterSpacing: "0.04em" }}>Invited</span>
                 </span>
               ))}
             </div>
@@ -24169,7 +24180,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <p className="text-sm" style={{ color: "var(--ink)" }}><span className="font-semibold">{requesterName === "you" ? "You" : requesterName}</span> requested an interview with this candidate. Set it up below.</p>
           </div>
         )}
-        {!askIvMode && (
+        {/* In solo the scheduler carries the panel, including any outstanding
+            invite, so this card would only repeat it back. A live poll still
+            wins: that is real state nobody should lose sight of. */}
+        {!askIvMode && (ivMode !== "solo" || hasPoll === true) && (
         <PanelPoll
           // Remount when the answer changes. autoOpenPanel only seeds the
           // picker's initial state, so without this "Add interviewers" left the
@@ -24235,6 +24249,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             allBookings={allBookings}
             openRequest={openRequest}
             assignedInterviewers={assignedInterviewers}
+            pendingPanel={pendingPanel}
             onSubstitute={onSubstitute}
             startSolo={ivMode === "solo"}
           />
