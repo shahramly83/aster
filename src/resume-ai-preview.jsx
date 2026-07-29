@@ -24854,28 +24854,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         })()}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
-                time, panel and role at a glance while they read the profile. */}
-            {/* Sticky reminder: the prep card above scrolls away with the main
-                column, so a compact "when" stays pinned while they read the
-                resume. Deliberately lean — it complements the hero, not repeats
-                it. */}
-            {!isManagerView && isBooked && !interviewPast && (
-              <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
-                <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Your interview</p>
-                  <p className="text-sm font-semibold tabular-nums truncate" style={{ color: "var(--ink)" }}>
-                    {booking?.confirmedSlot?.start ? formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end) : interviewWhen}
-                  </p>
-                </div>
-                {booking?.meetingLink && (
-                  <a href={booking.meetingLink} target="_blank" rel="noreferrer" title="Join video call" className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl brand-gradient text-white hover:opacity-90 transition-opacity">
-                    <Icon name="interview" className="w-4 h-4" />
-                  </a>
-                )}
-              </div>
-            )}
             {/* Interviewers see the meter now that they can spend the credit.
                 Hiding it made the balance invisible to the people drawing it
                 down, so their first sign of the cap was a run being refused.
