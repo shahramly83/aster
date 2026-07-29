@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { assignInterviewer, stageInviteJob, unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -171,6 +171,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [rolePanel, setRolePanel] = useState(null); // the role's assigned interviewers; null until loaded
   const [polled, setPolled] = useState(false); // the panel has been asked for availability at least once
   const [removingId, setRemovingId] = useState(null); // panel member being taken off the role
+  const [team, setTeam] = useState([]); // every interviewer in the workspace, assigned or not
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [savingId, setSavingId] = useState(null); // teammate being added/removed in the picker
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
@@ -200,7 +203,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const segScrollRef = useRef(null); // so the active tab is scrolled into view (Result sits off the right edge)
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off, meta, qs, title, team, wasPolled] = await Promise.all([
+    const [c, sc, iv, off, meta, qs, title, crew, wasPolled] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId, jobId),
       loadCandidateInterview(profile.companyId, candidateId),
@@ -214,7 +217,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
       manager ? hasPanelPoll(profile.companyId, candidateId, jobId) : Promise.resolve(false),
     ]);
     if (title) setJobTitle(title);
-    if (team) setRolePanel(team.filter((m) => m.assigned));
+    if (crew) { setTeam(crew); setRolePanel(crew.filter((m) => m.assigned)); }
     setPolled(!!wasPolled);
     setCandidate(c); setCards(sc); setInterview(iv); setOffer(off); setQuestions(qs || []);
     setMlInput(iv?.meetingLink || "");
@@ -296,6 +299,28 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setStage(to);
     try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to, jobId }); }
     catch (e) { setStage(prev); dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
+  };
+
+  // Add or remove a teammate on this role's panel, from the candidate you are
+  // looking at. Someone who has not accepted their invite has no profile to
+  // assign, so the seat is staged on the invitation and applied when they sign
+  // up (0138). Either way the stage may move underneath us (0139/0140), so the
+  // screen is re-read rather than patched.
+  const togglePanelMember = async (m) => {
+    if (savingId) return;
+    const next = !m.assigned;
+    setSavingId(m.id);
+    const err = m.inviteId
+      ? await stageInviteJob(m.inviteId, jobId, next)
+      : next
+        ? await assignInterviewer(jobId, m.id)
+        : await unassignInterviewer(jobId, m.id);
+    setSavingId(null);
+    if (err) {
+      dialog.alert({ title: "Couldn't update the panel", message: err, icon: "alert-triangle", variant: "danger" });
+      return;
+    }
+    await load();
   };
 
   // Take someone off this role's panel. Removing the LAST one is not just a panel
@@ -1147,17 +1172,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   {/* Two different jobs read this card. The manager collects the
                       availability and proposes the times; the interviewer only
                       supplies their own. One instruction can't serve both. */}
-                  <Text style={[type.small, { color: theme.ink3 }]}>
-                    {!manager
-                      ? "Mark the times you can make so the panel can find an overlap."
-                      : awaitingPanelAvailability
-                        ? "Collect the panel's availability first, so the times you send are ones everyone can make."
-                        : "Get the panel's availability, then propose a few times for the candidate to choose from."}
-                  </Text>
+                  {/* No blurb while the panel is being assembled: the chips below
+                      already say who is on it, and the only button says what to
+                      do next. */}
+                  {!manager || !awaitingPanelAvailability ? (
+                    <Text style={[type.small, { color: theme.ink3 }]}>
+                      {manager
+                        ? "Get the panel's availability, then propose a few times for the candidate to choose from."
+                        : "Mark the times you can make so the panel can find an overlap."}
+                    </Text>
+                  ) : null}
                   {/* Who is actually on this panel. Without it the step said "get
                       the panel's availability" with no way to tell whose, or even
                       that anyone had been added. */}
                   {rolePanel && rolePanel.length ? (
+                    <>
+                    <Text style={[type.label, { color: theme.ink3, marginTop: space(3) }]}>INTERVIEWERS</Text>
                     <View style={styles.panelChips}>
                       {rolePanel.map((m) => (
                         <View key={m.id} style={styles.panelChip}>
@@ -1179,7 +1209,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
                           ) : null}
                         </View>
                       ))}
+                      {manager ? (
+                        <Press haptic="light" onPress={() => setPickerOpen(true)} accessibilityLabel="Add an interviewer to this panel" style={styles.panelAdd}>
+                          <Feather name="user-plus" size={15} color={theme.brand} />
+                        </Press>
+                      ) : null}
                     </View>
+                    </>
                   ) : null}
                   {/* Same ordering fix as the reschedule branch above: the step you
                       do first is the one that looks primary. */}
@@ -1468,6 +1504,50 @@ export default function CandidateProfileScreen({ route, navigation }) {
         </View>
       </Modal>
 
+      {/* Add an interviewer without leaving the candidate. Same picker as the
+          role screen, because the panel is the role's either way. */}
+      <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
+        <View style={styles.pickBackdrop}>
+          <Pressable style={{ flex: 1 }} onPress={() => setPickerOpen(false)} />
+          <View style={[styles.pickSheet, { paddingBottom: Math.max(insets.bottom, space(4)) }]}>
+            <View style={styles.pickHandle} />
+            <View style={styles.pickHead}>
+              <Text style={[type.h3, { color: theme.ink }]}>Interviewers</Text>
+              <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+            </View>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
+            {team.length === 0 ? (
+              <Text style={[type.small, { color: theme.ink3, paddingVertical: space(6), textAlign: "center" }]}>
+                Nobody has the interviewer role yet. Invite one from the Team tab, then add them here.
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                {team.map((m) => (
+                  <Pressable key={m.id} onPress={() => togglePanelMember(m)} disabled={!!savingId} style={styles.pickRow}>
+                    <Avatar name={m.name} size={38} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{m.name}</Text>
+                        {m.pending ? <View style={styles.pickPending}><Text style={styles.pickPendingTxt}>INVITE SENT</Text></View> : null}
+                      </View>
+                      {m.email && m.email !== m.name ? <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>{m.email}</Text> : null}
+                      {m.pending && m.assigned ? <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>Joins this panel when they accept</Text> : null}
+                    </View>
+                    {savingId === m.id ? (
+                      <ActivityIndicator size="small" color={theme.brand} />
+                    ) : (
+                      <View style={[styles.pickCheck, m.assigned && styles.pickCheckOn]}>
+                        {m.assigned ? <Feather name="check" size={15} color={theme.white} /> : null}
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <ConfirmDialog
         visible={!!confirm}
         title={confirm?.title}
@@ -1731,7 +1811,21 @@ const styles = StyleSheet.create({
   propSlotTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, letterSpacing: -0.3, color: theme.ink, marginTop: 3, fontVariant: ["tabular-nums"] },
   propSlotEnd: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: theme.ink4, marginTop: 1, fontVariant: ["tabular-nums"] },
   propMore: { ...type.small, color: theme.ink4, marginTop: space(2.5) },
-  panelChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: space(3) },
+  panelAdd: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.line,
+  },
+  pickBackdrop: { flex: 1, backgroundColor: "rgba(15,18,40,0.45)", justifyContent: "flex-end" },
+  pickSheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
+  pickHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  pickHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
+  pickRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: theme.line2 },
+  pickCheck: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
+  pickCheckOn: { backgroundColor: theme.brand, borderColor: theme.brand },
+  pickPending: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
+  pickPendingTxt: { fontFamily: "Inter_700Bold", fontSize: 9.5, letterSpacing: 0.5, color: "#92400E" },
+  panelChips: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: space(2) },
   panelChip: {
     flexDirection: "row", alignItems: "center",
     paddingVertical: 6, paddingLeft: 6, paddingRight: 4,
