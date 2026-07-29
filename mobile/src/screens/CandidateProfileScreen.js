@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { unassignInterviewer, hasPanelPoll, loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -170,6 +170,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [ivMode, setIvMode] = useState(null);
   const [rolePanel, setRolePanel] = useState(null); // the role's assigned interviewers; null until loaded
   const [polled, setPolled] = useState(false); // the panel has been asked for availability at least once
+  const [removingId, setRemovingId] = useState(null); // panel member being taken off the role
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
@@ -295,6 +296,36 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setStage(to);
     try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to, jobId }); }
     catch (e) { setStage(prev); dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
+  };
+
+  // Take someone off this role's panel. Removing the LAST one is not just a panel
+  // edit: with nobody left to interview them, the role's untouched candidates go
+  // back to Applied (migration 0139), so that one is confirmed and the whole
+  // screen is reloaded afterwards rather than left showing a stale stage.
+  const removeFromPanel = async (m) => {
+    if (removingId) return;
+    const isLast = (rolePanel || []).length <= 1;
+    if (isLast) {
+      const ok = await dialog.confirm({
+        title: `Remove ${m.name}?`,
+        message: `Nobody would be left on this panel, so ${nameOf().split(" ")[0]} goes back to Applied until you add someone or interview them yourself.`,
+        icon: "user-minus",
+        variant: "danger",
+        confirmLabel: "Remove",
+      });
+      if (!ok) return;
+    }
+    setRemovingId(m.id);
+    const err = await unassignInterviewer(jobId, m.id);
+    if (err) {
+      setRemovingId(null);
+      dialog.alert({ title: "Couldn't remove them", message: err, icon: "alert-triangle", variant: "danger" });
+      return;
+    }
+    setRolePanel((prev) => (prev || []).filter((x) => x.id !== m.id));
+    setRemovingId(null);
+    // The stage may have changed underneath us, so re-read rather than guess.
+    await load();
   };
 
   const moveTo = (to) => {
@@ -1127,18 +1158,27 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       the panel's availability" with no way to tell whose, or even
                       that anyone had been added. */}
                   {rolePanel && rolePanel.length ? (
-                    <View style={styles.panelRow}>
-                      <Feather name="users" size={14} color={theme.ink3} />
-                      <View style={styles.panelAvatars}>
-                        {rolePanel.slice(0, 3).map((m, i) => (
-                          <View key={m.id} style={[styles.panelAvatar, i > 0 && { marginLeft: -8 }]}>
-                            <Avatar name={m.name} size={22} />
-                          </View>
-                        ))}
-                      </View>
-                      <Text style={[type.small, { color: theme.ink2, flex: 1 }]} numberOfLines={1}>
-                        {rolePanel.length === 1 ? rolePanel[0].name : `${rolePanel[0].name} +${rolePanel.length - 1}`}
-                      </Text>
+                    <View style={styles.panelChips}>
+                      {rolePanel.map((m) => (
+                        <View key={m.id} style={styles.panelChip}>
+                          <Avatar name={m.name} size={20} />
+                          <Text style={[type.small, { color: theme.ink2, marginLeft: 7, maxWidth: 150 }]} numberOfLines={1}>{m.name}</Text>
+                          {manager ? (
+                            <Press
+                              haptic="light"
+                              disabled={removingId === m.id}
+                              onPress={() => removeFromPanel(m)}
+                              hitSlop={10}
+                              accessibilityLabel={`Remove ${m.name} from this panel`}
+                              style={styles.panelChipX}
+                            >
+                              {removingId === m.id
+                                ? <ActivityIndicator size="small" color={theme.ink3} />
+                                : <Feather name="x" size={13} color={theme.ink3} />}
+                            </Press>
+                          ) : null}
+                        </View>
+                      ))}
                     </View>
                   ) : null}
                   {/* Same ordering fix as the reschedule branch above: the step you
@@ -1691,14 +1731,15 @@ const styles = StyleSheet.create({
   propSlotTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, letterSpacing: -0.3, color: theme.ink, marginTop: 3, fontVariant: ["tabular-nums"] },
   propSlotEnd: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: theme.ink4, marginTop: 1, fontVariant: ["tabular-nums"] },
   propMore: { ...type.small, color: theme.ink4, marginTop: space(2.5) },
-  panelRow: {
+  panelChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: space(3) },
+  panelChip: {
     flexDirection: "row", alignItems: "center",
-    marginTop: space(3), paddingVertical: 9, paddingHorizontal: 11,
-    backgroundColor: theme.bg, borderRadius: radius.sm,
+    paddingVertical: 6, paddingLeft: 6, paddingRight: 4,
+    backgroundColor: theme.bg, borderRadius: 999,
     borderWidth: 1, borderColor: theme.line,
   },
-  panelAvatars: { flexDirection: "row", alignItems: "center", marginLeft: 9, marginRight: 9 },
-  panelAvatar: { borderRadius: 11, borderWidth: 1.5, borderColor: theme.white },
+  // 28pt of tappable width inside a small chip, so the x is not a pixel hunt.
+  panelChipX: { width: 28, height: 28, alignItems: "center", justifyContent: "center", marginLeft: 2 },
   ivPick: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: theme.white, borderRadius: radius.md,

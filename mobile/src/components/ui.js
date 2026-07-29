@@ -24,7 +24,10 @@ export function Txt({ variant = "body", color, style, children, ...rest }) {
 // ---- Tactile press wrapper --------------------------------------------------
 // Scales to 0.97 on press with a spring back, plus a light haptic tap. This is
 // the "micro-interactions" feel applied to every card/button.
-export function Press({ onPress, haptic = "light", disabled, style, children, scaleTo = 0.97 }) {
+// Anything not named here (accessibilityLabel, hitSlop, testID, onLongPress) is
+// forwarded to the Pressable. It used to be swallowed, so a caller labelling an
+// icon-only button for screen readers got silence and no warning.
+export function Press({ onPress, haptic = "light", disabled, style, children, scaleTo = 0.97, ...rest }) {
   const scale = useRef(new Animated.Value(1)).current;
   const animate = (to) =>
     Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
@@ -42,7 +45,7 @@ export function Press({ onPress, haptic = "light", disabled, style, children, sc
     onPress?.();
   };
   return (
-    <Pressable onPressIn={onIn} onPressOut={onOut} onPress={handle} disabled={disabled}>
+    <Pressable onPressIn={onIn} onPressOut={onOut} onPress={handle} disabled={disabled} {...rest}>
       <Animated.View style={[{ transform: [{ scale }] }, disabled && { opacity: 0.5 }, style]}>
         {children}
       </Animated.View>
