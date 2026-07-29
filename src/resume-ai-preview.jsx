@@ -16991,23 +16991,33 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         )}
 
-        {/* Members / Invitations tabs + search */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {/* Members / Invitations tabs + search. One scrollable row rather than a
+            wrapping block: three counted tabs do not fit a phone, and wrapping
+            left a ragged two-line stack whose second row read as a separate
+            control. Scrolling keeps them one group and one rhythm. */}
+        <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
           {(() => {
             const memberCount = 1 + team.filter((iv) => iv.status !== "pending").length;
             const inviteCount = team.filter((iv) => iv.status === "pending").length + pendingInvites.length;
             return [["members", "Members", memberCount], ["invitations", "Invitations", inviteCount], ["approvers", "Approvers", approvers.length]].map(([k, label, n]) => (
-              <button key={k} onClick={() => setTeamTab(k)} className="text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors inline-flex items-center gap-2"
+              <button key={k} onClick={() => setTeamTab(k)} className="shrink-0 text-sm font-semibold px-3.5 py-2.5 sm:py-2 rounded-xl transition-colors inline-flex items-center gap-2 whitespace-nowrap"
                 style={teamTab === k ? { background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--ink-3)", border: "1px solid var(--line)" }}>
                 {label} <span className="text-[11px] tnum px-1.5 py-0.5 rounded-full" style={teamTab === k ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-3)" }}>{n}</span>
               </button>
             ));
           })()}
-          <label className="w-full sm:w-auto sm:ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+          <label className="hidden sm:inline-flex sm:ml-auto items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
             <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
             <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0 sm:min-w-[160px]" style={{ color: "var(--ink)" }} />
           </label>
         </div>
+
+        {/* Search: its own full-width row on phones, where it cannot share the
+            tab strip without one of them being unusable. */}
+        <label className="sm:hidden flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+          <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
+          <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0" style={{ color: "var(--ink)" }} />
+        </label>
 
         {/* Member table */}
         <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
@@ -17090,25 +17100,27 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                     const active = r.kind === "owner" || r.kind === "active";
                     const roleLabel = r.kind === "owner" ? "Tenant" : (ROLE_LABELS[r.role] || "Interviewer");
                     const upcoming = r.kind === "active" ? scheduledCountFor(r) : 0;
+                    // Avatar, identity and action are one centred row. The action
+                    // used to hang off the name line while the pills sat below it
+                    // on a 52px indent, so it read as belonging to the name rather
+                    // than to the person.
                     return (
-                      <div key={`m-${r.kind}-${r.id}`} className="px-4 py-3.5" style={{ borderBottom: "1px solid var(--line)" }}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          <CandidateAvatar name={r.name} hasPhoto={r.kind === "owner" && ownerIsYou && !!avatarUrl} src={r.kind === "owner" && ownerIsYou ? avatarUrl : null} size={40} showPhotoDot={false} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</p>
-                            <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email || "—"}</p>
+                      <div key={`m-${r.kind}-${r.id}`} className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: "1px solid var(--line)" }}>
+                        <CandidateAvatar name={r.name} hasPhoto={r.kind === "owner" && ownerIsYou && !!avatarUrl} src={r.kind === "owner" && ownerIsYou ? avatarUrl : null} size={40} showPhotoDot={false} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</p>
+                          <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email || "—"}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <span className="text-[11px] px-2 py-1 rounded-lg font-semibold" style={roleTagStyle(roleLabel)}>{roleLabel}</span>
+                            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={active ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? "#16A34A" : "#D97706" }} /> {active ? "Active" : "Invited"}</span>
+                            {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
                           </div>
-                          {r.kind === "invite" ? (
-                            <button onClick={() => revokeInvite(r)} disabled={revokeBusyId === r.id} className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>{revokeBusyId === r.id ? "Revoking…" : "Revoke"}</button>
-                          ) : r.kind === "owner" ? null : (
-                            <button onClick={() => setRemoving(r)} className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg" style={{ color: "#DC2626" }}>Remove</button>
-                          )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pl-[52px]">
-                          <span className="text-[11px] px-2 py-1 rounded-lg font-semibold" style={roleTagStyle(roleLabel)}>{roleLabel}</span>
-                          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={active ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? "#16A34A" : "#D97706" }} /> {active ? "Active" : "Invited"}</span>
-                          {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
-                        </div>
+                        {r.kind === "invite" ? (
+                          <button onClick={() => revokeInvite(r)} disabled={revokeBusyId === r.id} className="shrink-0 text-xs font-semibold px-3 py-2.5 rounded-lg border transition-colors disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>{revokeBusyId === r.id ? "Revoking…" : "Revoke"}</button>
+                        ) : r.kind === "owner" ? null : (
+                          <button onClick={() => setRemoving(r)} className="shrink-0 text-xs font-semibold px-3 py-2.5 rounded-lg" style={{ color: "#DC2626" }}>Remove</button>
+                        )}
                       </div>
                     );
                   })}
