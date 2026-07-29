@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { loadInterviewers, loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, loadJobTitle, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -164,6 +164,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // looking it up rather than leaving the header silent about the position.
   const [jobTitle, setJobTitle] = useState(route.params?.jobTitle || null);
   const [proposeOpen, setProposeOpen] = useState(false);
+  // Who is interviewing: null = not answered, "solo" = the hiring manager alone,
+  // "panel" = with interviewers. Mirrors the web. Only ever asked when the role
+  // has nobody on its panel, because a panel that already exists has answered it.
+  const [ivMode, setIvMode] = useState(null);
+  const [panelCount, setPanelCount] = useState(null); // null until loaded
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
@@ -193,7 +198,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const segScrollRef = useRef(null); // so the active tab is scrolled into view (Result sits off the right edge)
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off, meta, qs, title] = await Promise.all([
+    const [c, sc, iv, off, meta, qs, title, team] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId, jobId),
       loadCandidateInterview(profile.companyId, candidateId),
@@ -201,8 +206,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
       loadApplicationMeta(profile.companyId, candidateId),
       loadInterviewQuestions(candidateId, jobId),
       route.params?.jobTitle ? Promise.resolve(route.params.jobTitle) : loadJobTitle(jobId),
+      // Who is on this role's panel, which is what decides whether the interview
+      // step has to ask how it should be run or can get straight on with it.
+      manager ? loadInterviewers(profile.companyId, jobId) : Promise.resolve(null),
     ]);
     if (title) setJobTitle(title);
+    if (team) setPanelCount(team.filter((m) => m.assigned).length);
     setCandidate(c); setCards(sc); setInterview(iv); setOffer(off); setQuestions(qs || []);
     setMlInput(iv?.meetingLink || "");
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
@@ -210,7 +219,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setMatchScore(meta?.score ?? null);
     setApprovals(off?.id && off.approval_status ? await loadOfferApprovals(off.id) : []);
     setLoading(false);
-  }, [candidateId, jobId, profile.companyId]);
+  }, [candidateId, jobId, profile.companyId, manager]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
   // Realtime: reflect interview changes (booked, rescheduled, meeting link shared)
@@ -457,6 +466,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const decisionReady = (interviewDone && allRated) || !!offer || stage === "hired" || stage === "rejected";
   const decisionTabVisible = (!manager && myCard) || (manager && (canScore || !!offer));
   const decisionLocked = manager && !decisionReady; // waiting on the panel
+  // Ask how the interview should be run only when nothing has answered it: the
+  // hiring manager's view, nothing scheduled, and nobody on the role's panel.
+  // panelCount starts null until loaded, so this stays false for a beat rather
+  // than flashing the question over a panel that turns out to exist. Adding
+  // someone to the role answers it on its own, which is what makes the mobile
+  // screen follow the web without having to be told.
+  const askIvMode = manager && !interview && panelCount === 0 && ivMode === null;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -1048,6 +1064,45 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
                   {manager ? <Button title="Resend invite" icon="mail" variant="ghost" onPress={resendInvite} style={{ marginTop: space(3) }} /> : null}
                 </>
+              ) : askIvMode ? (
+                /* Same question the web asks, for the same reason: moving someone
+                   to Interview says nothing about who is actually interviewing
+                   them, and the two answers lead to completely different steps.
+                   Only asked when the role has nobody on its panel, because a
+                   panel that already exists has answered it. */
+                <>
+                  <Text style={[type.small, { color: theme.ink3 }]}>This decides how the times get picked. You can change the panel later.</Text>
+                  <Press haptic="light" onPress={() => setIvMode("solo")} style={{ marginTop: space(3) }}>
+                    <View style={styles.ivPick}>
+                      <View style={styles.ivPickIcon}><Feather name="user" size={17} color={theme.brand} /></View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink }]}>Just me</Text>
+                        <Text style={[type.small, { color: theme.ink2, marginTop: 2, lineHeight: 18 }]}>Pick a few times and send them straight to {nameOf().split(" ")[0]}.</Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color={theme.ink4} />
+                    </View>
+                  </Press>
+                  <Press haptic="light" onPress={() => { setIvMode("panel"); navigation.navigate("JobDetail", { jobId, jobTitle }); }} style={{ marginTop: space(2.5) }}>
+                    <View style={styles.ivPick}>
+                      <View style={styles.ivPickIcon}><Feather name="users" size={17} color={theme.brand} /></View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink }]}>Me and a panel</Text>
+                        <Text style={[type.small, { color: theme.ink2, marginTop: 2, lineHeight: 18 }]}>Add the interviewers on the role first, then collect everyone's availability.</Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color={theme.ink4} />
+                    </View>
+                  </Press>
+                </>
+              ) : ivMode === "solo" && !panelCount ? (
+                /* Interviewing alone: there is no panel to poll, so the
+                   availability step would be a round trip to nobody. */
+                <>
+                  <Text style={[type.small, { color: theme.ink3 }]}>Pick a few times and send them to {nameOf().split(" ")[0]} to choose from.</Text>
+                  <Button title="Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(3) }} />
+                  <Press haptic="light" onPress={() => setIvMode(null)} style={{ marginTop: space(2.5), alignSelf: "center", padding: 6 }}>
+                    <Text style={[type.smallStrong, { color: theme.brand }]}>Change</Text>
+                  </Press>
+                </>
               ) : (
                 <>
                   {/* Two different jobs read this card. The manager collects the
@@ -1604,6 +1659,15 @@ const styles = StyleSheet.create({
   propSlotTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, letterSpacing: -0.3, color: theme.ink, marginTop: 3, fontVariant: ["tabular-nums"] },
   propSlotEnd: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: theme.ink4, marginTop: 1, fontVariant: ["tabular-nums"] },
   propMore: { ...type.small, color: theme.ink4, marginTop: space(2.5) },
+  ivPick: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: theme.white, borderRadius: radius.md,
+    borderWidth: 1, borderColor: theme.line, padding: 14,
+  },
+  ivPickIcon: {
+    width: 38, height: 38, borderRadius: radius.sm,
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.brandSoft,
+  },
   stepHint: { ...type.small, color: theme.ink4, marginTop: space(2), textAlign: "center", paddingHorizontal: space(2) },
   // Handoff tracker
   track: { flexDirection: "row", alignItems: "flex-start" },
