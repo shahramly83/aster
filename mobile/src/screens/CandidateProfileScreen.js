@@ -1537,6 +1537,69 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </>) : null}
 
           {tab === "feedback" ? (<>
+          {/* Who the decision is waiting on, matching web. Only when there are
+              interviewers on the panel: a solo interview has nobody to wait for,
+              so the ring would read 0/0 and the list would be empty. The section
+              header alone ("Panel feedback · 0/1") did not say whose card was
+              missing, which is the manager's actual question here. */}
+          {manager && interviewDone && requiredRaters.length > 0 ? (
+            allRated ? (
+              <View style={styles.waitDone}>
+                <Feather name="check-circle" size={16} color={theme.success} />
+                <Text style={[type.small, { color: "#166534", marginLeft: 8, flex: 1 }]}>
+                  All {requiredRaters.length} interviewer{requiredRaters.length === 1 ? "" : "s"} have scored. You can move to the decision now.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.waitCard}>
+                <LinearGradient colors={["#FFFBEB", theme.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.waitHead}>
+                  <View style={{ position: "relative", width: 56, height: 56 }}>
+                    <Svg viewBox="0 0 36 36" width={56} height={56} style={{ transform: [{ rotate: "-90deg" }] }}>
+                      <Circle cx="18" cy="18" r="15.5" fill="none" stroke={theme.line} strokeWidth="3.5" />
+                      {/* Skipped at zero: a round cap on a zero-length dash still
+                          paints a dot, which read as "someone has started". */}
+                      {ratedRequired > 0 ? (
+                        <Circle
+                          cx="18" cy="18" r="15.5" fill="none" stroke={theme.warn} strokeWidth="3.5" strokeLinecap="round"
+                          strokeDasharray={`${(ratedRequired / requiredRaters.length) * 97.39} 97.39`}
+                        />
+                      ) : null}
+                    </Svg>
+                    <View style={StyleSheet.absoluteFill}>
+                      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                        <Text style={[type.smallStrong, { color: theme.ink, fontSize: 13 }]}>{ratedRequired}/{requiredRaters.length}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <View style={styles.waitChip}><Text style={styles.waitChipTxt}>AWAITING SCORECARDS</Text></View>
+                    <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 6, fontSize: 15, letterSpacing: -0.2 }]}>
+                      Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} to score
+                    </Text>
+                    <Text style={[type.small, { color: theme.ink3, marginTop: 3, fontSize: 12, lineHeight: 17 }]}>
+                      Every interviewer submits their scorecard before you decide. Your own is optional.
+                    </Text>
+                  </View>
+                </LinearGradient>
+                <View style={styles.waitList}>
+                  {requiredRaters.map((r) => {
+                    const done = ratedIds.has(r.id);
+                    return (
+                      <View key={r.id} style={[styles.waitRow, done && { borderColor: "#A7F3D0", backgroundColor: "#F0FDF4" }]}>
+                        <Avatar name={r.name || r.email} size={30} />
+                        <Text style={[type.small, { color: theme.ink, flex: 1, marginLeft: 10 }]} numberOfLines={1}>{r.name || r.email}</Text>
+                        <View style={[styles.waitPill, done ? { backgroundColor: theme.success } : { backgroundColor: "#FEF3C7" }]}>
+                          <Feather name={done ? "check" : "clock"} size={11} color={done ? "#fff" : "#92400E"} />
+                          <Text style={[styles.waitPillTxt, { color: done ? "#fff" : "#92400E" }]}>{done ? "Scored" : "Pending"}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )
+          ) : null}
+
           {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
           {(canScore || cards.length > 0) ? (
           <View style={{ marginTop: space(5) }}>
@@ -2081,6 +2144,15 @@ const styles = StyleSheet.create({
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
   slotTileTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, letterSpacing: -0.2, color: theme.ink, marginTop: 2, fontVariant: ["tabular-nums"] },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
+  waitCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, overflow: "hidden" },
+  waitHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingVertical: space(4) },
+  waitChip: { alignSelf: "flex-start", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
+  waitChipTxt: { fontSize: 9.5, fontWeight: "800", letterSpacing: 0.6, color: "#92400E" },
+  waitList: { paddingHorizontal: space(3), paddingBottom: space(3), gap: 8 },
+  waitRow: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: 10, paddingVertical: 8 },
+  waitPill: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 4 },
+  waitPillTxt: { fontSize: 10.5, fontWeight: "700", marginLeft: 4 },
+  waitDone: { marginTop: space(5), flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: "#A7F3D0", backgroundColor: "#F0FDF4", paddingHorizontal: space(3), paddingVertical: space(3) },
   ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, overflow: "hidden" },
   // Tinted head so the card reads as the tab's one open question, the way the
   // web card's gradient hero does, instead of another white box in the stack.
