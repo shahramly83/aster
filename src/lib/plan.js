@@ -29,7 +29,11 @@ export const PLAN_LIMITS = {
     maxJobs: 5, seats: Infinity,
     parseApplicant: 500, resumeUploads: 50,
     aiRunsPerMonth: 30, aiInsightsPerMonth: 100, interviewQuestionsPerMonth: 30,
-    aiMatches: 10,
+    // Infinity like every other tier. Scale was the one plan left holding a
+    // result-depth cap after those gates were dropped, so a Scale workspace still
+    // met "10 more matches hidden — upgrade for the full ranking" on a ranking it
+    // had already paid the credits to run.
+    aiMatches: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
     twoFactor: true, whatsapp: false, meetingCalendar: true, dataExport: true,
