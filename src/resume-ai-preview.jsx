@@ -18152,6 +18152,14 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const addablePanel = interviewers.filter((iv) => iv.id && isInterviewer(iv.role) && !assignedIds.has(iv.id) && iv.id !== hmId);
   const canEditPanel = isManager && !!jobId && !!onAssignInterviewer;
 
+  // Every way out of the picker goes through here. With nobody added and no poll
+  // started this card renders nothing, so simply shutting the modal left the step
+  // blank; hand the screen back to the parent's question instead. addToPanel is
+  // the exception: someone was added, so there is a panel to show.
+  const closePanelPicker = () => {
+    setAddingPanel(false);
+    if (!poll && assignedInterviewers.length === 0) onCancelPanelSetup?.();
+  };
   const addToPanel = async (iv) => {
     setAssignBusy(iv.id);
     const error = await onAssignInterviewer(jobId, iv.id);
@@ -18302,16 +18310,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           {canEditPanel && !round2 && (
             <button
               type="button"
-              onClick={() => {
-                setErr(null);
-                setAddingPanel((v) => {
-                  // Closing the picker with nobody added and no poll started
-                  // leaves this card with nothing to render, so hand the screen
-                  // back to the question rather than to blank space.
-                  if (v && !poll && assignedInterviewers.length === 0) onCancelPanelSetup?.();
-                  return !v;
-                });
-              }}
+              onClick={() => { setErr(null); if (addingPanel) closePanelPicker(); else setAddingPanel(true); }}
               title="Add an interviewer to this role"
               aria-label="Add an interviewer to this role"
               aria-expanded={addingPanel}
@@ -18348,14 +18347,14 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
       {/* Add-interviewer modal (matches the Pipeline "add interviewer" flow). */}
       {addingPanel && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Add an interviewer">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={() => setAddingPanel(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={closePanelPicker} />
           <div className="relative z-10 w-full max-w-md rounded-2xl bg-white act-shadow act-panel-in p-5 sm:p-6" style={{ border: "1px solid var(--line)" }}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Add an interviewer</h3>
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Add a teammate to this role's interview panel.</p>
               </div>
-              <button onClick={() => setAddingPanel(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+              <button onClick={closePanelPicker} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
             </div>
             {addablePanel.length === 0 ? (
               <p className="text-sm rounded-xl border p-3.5" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -23994,6 +23993,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
         <PanelPoll
+          // Remount when the answer changes. autoOpenPanel only seeds the
+          // picker's initial state, so without this "Add interviewers" left the
+          // card mounted with the picker still shut, and a card with no poll and
+          // no panel renders nothing: the choice went away and nothing replaced it.
+          key={`panel-poll-${ivMode || "ask"}`}
           candidate={candidate}
           jobId={contextJobId}
           jobTitle={jobs.find((j) => j.id === contextJobId)?.title}
