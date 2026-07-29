@@ -363,74 +363,100 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               )}
             </Field>
 
-            <Field label="Approvers">
-              <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 12, lineHeight: 17 }]}>Optional. Route the offer for sign-off first. Approvers confirm by email, no account needed.</Text>
-
-              {/* Selected — ordered, with a connector rail showing the sequence. */}
-              {approvers.map((a, i) => (
-                <View key={a.id || i} style={styles.apSelRow}>
-                  <View style={{ alignItems: "center", width: 26 }}>
-                    <View style={styles.apOrder}><Text style={styles.apOrderTxt}>{i + 1}</Text></View>
-                    {i < approvers.length - 1 ? <View style={styles.apRail} /> : null}
-                  </View>
-                  <View style={styles.apCard}>
-                    <View style={[styles.apAvatar, { backgroundColor: theme.brandSoft }]}><Text style={[styles.apAvatarTxt, { color: theme.brand }]}>{initialsOf(a.name || a.email)}</Text></View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name}</Text>
-                      <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{a.email}</Text>
+            <Field label="Where this offer goes">
+              {/* A checkbox list never answered "add to what?", because the thing
+                  being added to was never on screen. An offer travels: you sign
+                  it, each approver signs off in turn, then it reaches the
+                  candidate. So draw the journey. Picking someone visibly drops a
+                  stop into the line, and the line always ends at the candidate,
+                  which is the answer to the question. */}
+              <View style={{ marginTop: -2 }}>
+                <View style={styles.rtRow}>
+                  <View style={styles.rtGutter}>
+                    <View style={[styles.rtNode, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
+                      <Feather name="edit-3" size={11} color={theme.white} />
                     </View>
-                    <Pressable onPress={() => removeApprover(i)} hitSlop={8} style={styles.apRemove}><Feather name="x" size={15} color={theme.ink3} /></Pressable>
+                    <View style={styles.rtLine} />
+                  </View>
+                  <View style={{ flex: 1, paddingBottom: space(4) }}>
+                    <Text style={[type.smallStrong, { color: theme.ink }]}>You sign it</Text>
+                    <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Signed above</Text>
                   </View>
                 </View>
-              ))}
 
-              {/* Confirmed approvers available to add. */}
-              {availableApprovers.length > 0 ? (
-                <>
-                  <Text style={styles.apGroupLabel}>{approvers.length > 0 ? "Add more" : "Tap to add to this offer"}</Text>
-                  {availableApprovers.map((m) => (
-                    <Pressable key={m.id} onPress={() => pickApprover(m)} style={({ pressed }) => [styles.apAddRow, pressed && { backgroundColor: theme.bg }]}>
-                      <View style={[styles.apAvatar, { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line }]}><Text style={[styles.apAvatarTxt, { color: theme.ink2 }]}>{initialsOf(m.name || m.email)}</Text></View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink, flexShrink: 1 }]}>{m.name}</Text>
-                          <View style={styles.apConfirmedPill}><Feather name="check" size={9} color="#166534" /><Text style={styles.apConfirmedTxt}>Confirmed</Text></View>
+                {approvers.map((a, i) => {
+                  const pool = approverPool.find((m) => (m.email || "").toLowerCase() === (a.email || "").toLowerCase());
+                  const unconfirmed = pool && pool.status && pool.status !== "confirmed";
+                  return (
+                    <View key={a.id || i} style={styles.rtRow}>
+                      <View style={styles.rtGutter}>
+                        <View style={[styles.rtNode, { backgroundColor: theme.card, borderColor: unconfirmed ? theme.warn : theme.brand }]}>
+                          <Text style={[styles.rtNodeTxt, unconfirmed && { color: theme.warn }]}>{i + 1}</Text>
                         </View>
-                        <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{m.email}</Text>
+                        <View style={styles.rtLine} />
                       </View>
-                      <View style={styles.apAddBtn}><Feather name="plus" size={14} color={theme.brand} /><Text style={styles.apAddBtnTxt}>Add</Text></View>
-                    </Pressable>
-                  ))}
-                </>
-              ) : null}
-
-              {/* Pending — awaiting email confirmation, but addable now. The offer
-                  holds at their step until they confirm their email. */}
-              {pendingApprovers.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).length > 0 ? (
-                <>
-                  <Text style={styles.apGroupLabel}>Awaiting confirmation · tap to add (held until they confirm)</Text>
-                  {pendingApprovers.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).map((m) => (
-                    <Pressable key={m.id} onPress={() => pickApprover(m)} style={({ pressed }) => [styles.apAddRow, pressed && { backgroundColor: theme.bg }]}>
-                      <View style={[styles.apAvatar, { backgroundColor: "#FEF3C7" }]}><Text style={[styles.apAvatarTxt, { color: "#92400E" }]}>{initialsOf(m.name || m.email)}</Text></View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink, flexShrink: 1 }]}>{m.name}</Text>
-                          <View style={styles.apPendingPill}><Feather name="clock" size={9} color="#92400E" /><Text style={[styles.apPendingTxt, { marginLeft: 3 }]}>Pending</Text></View>
+                      <View style={[styles.rtStop, unconfirmed && { borderColor: theme.warn, backgroundColor: "#FFFBEB" }]}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name || a.email}</Text>
+                          <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{a.email}</Text>
+                          {unconfirmed ? (
+                            <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginTop: 3, lineHeight: 15 }]}>
+                              We email them to confirm their address first, then send the letter for approval. It waits here until they confirm.
+                            </Text>
+                          ) : null}
                         </View>
-                        <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{m.email}</Text>
+                        <Pressable onPress={() => removeApprover(i)} hitSlop={10} accessibilityLabel={`Remove ${a.name || a.email} from the route`} style={styles.rtRemove}>
+                          <Feather name="x" size={15} color={theme.ink3} />
+                        </Pressable>
                       </View>
-                      <View style={styles.apAddBtn}><Feather name="plus" size={14} color={theme.brand} /><Text style={styles.apAddBtnTxt}>Add</Text></View>
-                    </Pressable>
-                  ))}
-                </>
-              ) : null}
+                    </View>
+                  );
+                })}
 
-              {/* Empty state. */}
-              {approverPool.length === 0 && approvers.length === 0 && !addOpen ? (
-                <View style={styles.apEmpty}>
-                  <View style={styles.apEmptyIcon}><Feather name="user-check" size={20} color={theme.brand} /></View>
-                  <Text style={[type.smallStrong, { color: theme.ink, marginTop: 8 }]}>No approvers yet</Text>
-                  <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: 2 }]}>Invite someone to approve offers by email.</Text>
+                {approvers.length === 0 ? (
+                  <View style={styles.rtRow}>
+                    <View style={styles.rtGutter}><View style={styles.rtLineDashed} /></View>
+                    <View style={{ flex: 1, paddingBottom: space(4), justifyContent: "center" }}>
+                      <Text style={[type.small, { color: theme.ink4, fontSize: 12 }]}>Goes straight there. No sign-off.</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={styles.rtRow}>
+                  <View style={styles.rtGutter}>
+                    <View style={[styles.rtNode, { backgroundColor: theme.ink, borderColor: theme.ink }]}>
+                      <Feather name="mail" size={11} color={theme.white} />
+                    </View>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type.smallStrong, { color: theme.ink }]}>{candidateName ? `${candidateName.split(" ")[0]} gets it` : "The candidate gets it"}</Text>
+                    <Text style={[type.small, { color: theme.ink3, fontSize: 12 }]}>Emailed a link to review and sign</Text>
+                  </View>
+                </View>
+              </View>
+
+              {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).length > 0 ? (
+                <View style={{ marginTop: space(4) }}>
+                  <Text style={[type.small, { color: theme.ink3, fontSize: 12, marginBottom: 8 }]}>
+                    {approvers.length ? "Add another stop" : "Add a stop before it reaches them"}
+                  </Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    {approverPool.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).map((m) => {
+                      const unconfirmed = m.status && m.status !== "confirmed";
+                      return (
+                        <Pressable
+                          key={m.id || m.email}
+                          onPress={() => pickApprover(m)}
+                          accessibilityLabel={`Add ${m.name || m.email} to the route`}
+                          style={({ pressed }) => [styles.rtChip, unconfirmed && { borderColor: theme.warn, backgroundColor: "#FFFBEB" }, pressed && { opacity: 0.7 }]}
+                        >
+                          <Feather name="plus" size={13} color={unconfirmed ? theme.warn : theme.brand} />
+                          <Text numberOfLines={1} style={[styles.rtChipTxt, unconfirmed && { color: "#92400E" }]}>{m.name || m.email}</Text>
+                          {unconfirmed ? <Feather name="clock" size={11} color={theme.warn} style={{ marginLeft: 5 }} /> : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
               ) : null}
 
@@ -559,6 +585,20 @@ const styles = StyleSheet.create({
   apAddBtnTxt: { color: theme.brand, fontFamily: "Inter_700Bold", fontSize: 12.5 },
   apConfirmedPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 7 },
   apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
+  rtRow: { flexDirection: "row", alignItems: "stretch" },
+  rtGutter: { width: 26, alignItems: "center" },
+  rtNode: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  rtNodeTxt: { fontSize: 11.5, fontFamily: "Inter_700Bold", color: theme.brand },
+  rtLine: { width: 2, flex: 1, minHeight: 16, backgroundColor: theme.line2, marginVertical: 3 },
+  rtLineDashed: { width: 2, flex: 1, minHeight: 26, marginVertical: 3, borderLeftWidth: 2, borderLeftColor: theme.line2, borderStyle: "dashed" },
+  rtStop: { flex: 1, flexDirection: "row", alignItems: "flex-start", marginLeft: 10, marginBottom: space(3), borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(2.5) },
+  rtRemove: { padding: 4, marginLeft: 6, marginTop: -2 },
+  rtChip: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: 11, paddingVertical: 8, maxWidth: "100%" },
+  rtChipTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: theme.ink, marginLeft: 5, flexShrink: 1 },
+  apPickRow: { flexDirection: "row", alignItems: "flex-start", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3), marginBottom: 8 },
+  apPickRowOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
+  apPickMark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: theme.line2, backgroundColor: theme.card, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  apPickMarkTxt: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 12 },
   apPendingPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
   apPendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 12 },
   sigPad: { borderRadius: radius.md, borderWidth: 1, borderColor: "transparent" },
