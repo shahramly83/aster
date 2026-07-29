@@ -66,6 +66,11 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
   // progress counts as gone: proposing 2:00 at 2:20 is not a real option.
   const isToday = day ? sameDay(day, new Date()) : false;
   const isPast = (t) => isToday && mins(t) <= nowM;
+  // Hidden, not struck through. A time that has passed is not a choice that was
+  // taken away from you, it is simply not a choice, and a row of dead chips to
+  // scroll past on today is noise. Conflicts stay visible and struck through,
+  // because those DO say something: someone on the panel is busy then.
+  const slots = TIME_SLOTS.filter((t) => !isPast(t));
   const fromBlocked = (t) => blockedMins.has(mins(t)) || isPast(t);
   const rangeBlocked = (endT) => { for (let m = mins(from); m < mins(endT); m += 30) if (blockedMins.has(m)) return true; return false; };
 
@@ -189,7 +194,7 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
             <>
               <Text style={styles.timeHead}>FROM</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
-                {TIME_SLOTS.map((t, i) => {
+                {slots.map((t, i) => {
                   const on = from && mins(from) === mins(t);
                   const disabled = fromBlocked(t);
                   return (
@@ -202,8 +207,8 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
 
               <Text style={styles.timeHead}>TO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
-                {TIME_SLOTS.map((t, i) => {
-                  const disabled = mins(t) <= mins(from) || rangeBlocked(t) || isPast(t);
+                {slots.map((t, i) => {
+                  const disabled = mins(t) <= mins(from) || rangeBlocked(t);
                   const on = to && mins(to) === mins(t);
                   return (
                     <Pressable key={i} onPress={() => !disabled && setTo(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.35 }]}>
