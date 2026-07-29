@@ -18077,7 +18077,7 @@ const FREE_EMAIL_DOMAINS = new Set([
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice, onInterviewStarted }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange, onPollLoaded, autoOpenPanel = false, onCancelPanelSetup, pendingPanel = [], reloadTeam = async () => {}, onBackToChoice, onInterviewStarted, onContentChange }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -18294,17 +18294,27 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSelect, poll?.id]);
 
-  // Once an invite is out (or booked), the poll's job is done — hide it.
-  if (booking?.status === "scheduled" || booking?.status === "sent") return null;
-  if (loading && !poll) return null;
-  if (!poll && !isManager) return null;
-  // A panel poll with nobody on the panel is nothing to run. It used to render
-  // anyway, as a card headed "Panel availability" whose only message was "No
-  // interviewers on this role yet" — an availability grid with no one to fill it,
-  // sitting above a second card that also said nothing was happening. The parent
-  // asks how the interview should be run instead, and remounts this with the
-  // picker already open if the answer is a panel.
-  if (!poll && assignedInterviewers.length === 0 && pendingPanel.length === 0 && !addingPanel) return null;
+  // Whether this card has anything to show, in one place.
+  //   * an invite is out or the interview is booked: the poll's job is done
+  //   * still loading, or an interviewer with no poll to vote in: nothing yet
+  //   * no poll and nobody on the panel: an availability grid with no one to
+  //     fill it, which is what the setup question exists to replace
+  const nothingToShow =
+    booking?.status === "scheduled" || booking?.status === "sent"
+    || (loading && !poll)
+    || (!poll && !isManager)
+    || (!poll && assignedInterviewers.length === 0 && pendingPanel.length === 0 && !addingPanel);
+  // Reported upward rather than re-derived there. The parent was working this out
+  // from its own copy of the inputs and got it wrong three times: it cannot see
+  // the picker being open, and it cannot see a panel emptied from another device.
+  // This is the only thing that actually knows.
+  useEffect(() => {
+    onContentChange?.(!nothingToShow);
+    // On unmount the card is showing nothing by definition; without this the
+    // parent keeps the last value and believes a card that is gone is still up.
+    return () => onContentChange?.(false);
+  }, [nothingToShow, onContentChange]);
+  if (nothingToShow) return null;
 
   const addDraft = (range) => {
     if (!range?.start || !range?.end) return;
@@ -23031,6 +23041,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // is given, so it never sticks around and re-asks later.
   const [forceAsk, setForceAsk] = useState(false);
   const [hasPoll, setHasPoll] = useState(null); // null until PanelPoll reports in
+  // Whether the poll card is currently rendering anything, as reported by the
+  // card itself. Everything about this step keys off it, so the two can no longer
+  // disagree about whether the screen is empty.
+  const [pollShowing, setPollShowing] = useState(false);
   // The caller may not hand us a stage (e.g. an interviewer opening a profile
   // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
   // from the loaded pipeline so the header/pill never wrongly reads "Applied"
@@ -23589,9 +23603,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // itself, so it is the only one that suppresses the question. hasPoll starts
   // null until PanelPoll reports, so this stays false for a beat rather than
   // flashing the question over a poll that turns out to exist.
+  // Ask whenever this step would otherwise be blank: the poll card is showing
+  // nothing and we are not already scheduling alone. Keyed on what is actually on
+  // screen rather than on the answer given, so it is self-correcting. Empty the
+  // panel from anywhere, including another device, and the question comes back on
+  // its own. forceAsk covers the one case that is not blank: reconsidering while
+  // an invite is outstanding.
   const askIvMode = isManagerView && !interviewPast && !booking && !openRequest
-    && assignedInterviewers.length === 0 && hasPoll === false
-    && (forceAsk || (pendingPanel.length === 0 && ivMode === null));
+    && assignedInterviewers.length === 0
+    && (forceAsk || (!pollShowing && ivMode !== "solo"));
   // The panel exists on paper but cannot do anything yet: nobody real is on it,
   // and we are either mid-setup or waiting on an invite to be accepted. There is
   // nothing to schedule and no request to wait for, so the scheduler card below
@@ -23606,8 +23626,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // interviewer's own request is the exception, since that fills the scheduler
   // with something real to act on rather than the empty state.
   const panelNotReady = isManagerView && !booking && !openRequest && ivMode !== "solo"
-    && hasPoll !== true
-    && (ivMode === "panel" || pendingPanel.length > 0 || assignedInterviewers.length > 0);
+    && hasPoll !== true && (pollShowing || askIvMode);
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -24257,7 +24276,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* In solo the scheduler carries the panel, including any outstanding
             invite, so this card would only repeat it back. A live poll still
             wins: that is real state nobody should lose sight of. */}
-        {!askIvMode && (ivMode !== "solo" || hasPoll === true) && (
+        {/* Always mounted, even when it renders nothing: it is what tells us
+            whether it renders anything, and unmounting it would leave that
+            question permanently unanswerable. */}
+        {(ivMode !== "solo" || hasPoll === true) && (
         <PanelPoll
           // Remount when the answer changes. autoOpenPanel only seeds the
           // picker's initial state, so without this "Add interviewers" left the
@@ -24276,6 +24298,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onInviteSent={onInviteSent}
           onActiveChange={setPollActive}
           onPollLoaded={setHasPoll}
+          onContentChange={setPollShowing}
           pendingPanel={pendingPanel}
           reloadTeam={reloadTeam}
           onBackToChoice={() => { setIvMode(null); setForceAsk(true); }}
