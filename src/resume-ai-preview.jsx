@@ -10790,7 +10790,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
-                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Every candidate counted in the status they're in right now, across all roles: the forward stages (Applied, Interview, Offer), Hired, and the two exits, Declined (they said no) and Rejected (you said no).")}
+                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "One person, one status, across all roles. Declined: they said no. Rejected: you did.")}
                       {/* Drawn as a journey, not a bar chart. Bars compared seven
                           stages by height, which is unreadable at small counts
                           (one candidate makes six stubs and one spike) and put
@@ -10944,7 +10944,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="How much of this cycle's AI plan you have used across screening, ranking, insights and interview questions. Limits reset on your 30-day cycle, counted from the day your plan starts." />
+                          <InfoHint dir="up" hint="AI used this cycle. Resets every 30 days from your plan start." />
                         </div>
                         {isOwner(profile?.role) && (
                           <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
@@ -15369,7 +15369,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const POPULAR_INDUSTRIES = workspaceIndustries;
   const SEARCH_HELP = [
     { icon: "users", title: "Browse by name", body: "Search your talent pool by name. As you type, matching people show up in a dropdown you can open straight away." },
-    { icon: "matching", title: "Match by skills or industry", body: "Filter by the skills and industries Aster read from your candidates' resumes, plus experience level. Matches appear instantly. Run AI Rank when you want each fit scored and explained (one credit)." },
+    { icon: "matching", title: "Match by skills or industry", body: "Filter by skills, industry and experience from their resumes. AI Rank scores each fit (one credit)." },
     { icon: "briefcase", title: "Match to a position", body: "Pick an open position and AI Rank scores every candidate against it, so you can invite the strongest to apply." },
     { icon: "link", title: "Invite to apply", body: "Found someone good? Send them the job's application page. Even an older profile might still be keen." },
   ];
@@ -15568,7 +15568,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
                     Match to an open position
-                    <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the position you pick, so you can invite the best fits to apply." />
+                    <InfoHint dir="down" hint="AI ranks your whole database against the role you pick. Invite the best fits to apply." />
                   </p>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
@@ -19476,7 +19476,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             )}
           </div>
           <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-            Paste a Google Meet, Zoom or Teams link, or have Aster create a room. It goes to the candidate and each interviewer, with a note written for each.
+            Paste a Meet, Zoom or Teams link, or let Aster create a room. Sent to the candidate and every interviewer.
           </p>
           {/* One-click room: generates a ready-to-use video link (no account or
               install needed at either end), matching the mobile app. */}
@@ -20242,7 +20242,7 @@ This is what a candidate sees. A public page, no login, reached only through the
 
                   {stage === "processing" && (
                     <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-                      This isn't stuck. We're reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
+                      Reading your resume and looking up your employers. Up to a minute. Keep this page open.
                     </p>
                   )}
 
@@ -24017,7 +24017,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 mb-3.5">
           <div className="min-w-0">
-            <h2 className="text-sm font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>AI Insights <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." /></h2>
+            <h2 className="text-sm font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>AI Insights <InfoHint dir="down" hint="AI read of the resume: experience, time per employer, gaps. One credit per run." /></h2>
             <p className="text-[11px] font-medium mt-0.5" style={{ color: "var(--brand)" }}>A deeper read of this resume</p>
           </div>
           {insights && <span className="text-[11px] shrink-0 mt-1" style={{ color: "var(--ink-3)" }}>Generated {new Date(insights.generated_at).toLocaleDateString()}</span>}
@@ -24606,7 +24606,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                   {isHired
                     ? "This person is already on the team, so there's nothing to invite them to."
-                    : "They're in your database from an earlier point, not yet in a pipeline. Email them about an open role. If they're still keen, they apply with their latest resume and move into your hiring workflow."}
+                    : "In your database, not in a pipeline. Email them a role; if keen, they apply and join it."}
                 </p>
                 {!isHired && (openJobsForInvite.length === 0 ? (
                   <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>No open roles yet. Create one under Job Postings.</p>
