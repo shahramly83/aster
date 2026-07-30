@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sendOffer, loadApprovers, addApprover, getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
+import { sendOffer, loadApprovers, addApprover, getMyOfferSignatory, saveMyOfferSignatory } from "../lib/data";
 import { Button, Feather } from "./ui";
 import SignaturePad from "./SignaturePad";
 import CalendarSheet from "./CalendarSheet";
@@ -66,6 +66,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [redraw, setRedraw] = useState(false);           // "Change" tapped
   const [hasInk, setHasInk] = useState(false);
   const [sigErr, setSigErr] = useState(false);
+  const [sigTitle, setSigTitle] = useState(null);   // job title printed under it
   const toPngRef = useRef(null);
   const [body, setBody] = useState("");            // the offer letter (sent as the message)
   const [bodyEdited, setBodyEdited] = useState(false); // stop auto-syncing once hand-edited
@@ -170,8 +171,10 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (!visible) return;
     let alive = true;
     setRedraw(false); setHasInk(false); setSigErr(false); toPngRef.current = null;
-    getMyOfferSignature().then((sig) => {
-      if (alive) setSavedSig(sig && !String(sig).startsWith("typed:") ? sig : null);
+    getMyOfferSignatory().then(({ signature, title }) => {
+      if (!alive) return;
+      setSavedSig(signature && !String(signature).startsWith("typed:") ? signature : null);
+      setSigTitle(title || null);
     });
     return () => { alive = false; };
   }, [visible]);
@@ -190,7 +193,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (needsSig && toPngRef.current) {
       let png = null;
       try { png = toPngRef.current(); } catch (e2) { setSending(false); setErr("Couldn't save that signature. Try drawing it again."); return; }
-      const se = await saveMyOfferSignature(png);
+      const se = await saveMyOfferSignatory(png, sigTitle);
       if (se) { setSending(false); setErr(se); return; }
       setSavedSig(png); setRedraw(false);
     }
@@ -201,6 +204,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       employmentType: empType,
       startDate,
       expiresAt: expiresAt || null,
+      signatoryTitle: sigTitle || null,
     };
     const res = await sendOffer({
       companyId, candidateId, candidateName, jobId,

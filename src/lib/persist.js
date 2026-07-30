@@ -814,6 +814,50 @@ export async function dbGetMyOfferSignature() {
   return data?.offer_signature || null;
 }
 
+// Signature + the title printed under it (0145). Falls back to the signature
+// alone on a pre-0145 database, where the title column does not exist yet
+// (42703), so the setting keeps working before the migration is applied.
+export async function dbGetMyOfferSignatory() {
+  if (!hasSupabase) return { signature: null, title: null };
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) return { signature: null, title: null };
+  let { data, error } = await supabase.from("profiles").select("offer_signature, offer_signature_title").eq("id", uid).maybeSingle();
+  if (error && error.code === "42703") {
+    const only = await supabase.from("profiles").select("offer_signature").eq("id", uid).maybeSingle();
+    return { signature: only.data?.offer_signature || null, title: null };
+  }
+  if (error) { console.error("dbGetMyOfferSignatory", error.message); return { signature: null, title: null }; }
+  return { signature: data?.offer_signature || null, title: data?.offer_signature_title || null };
+}
+
+// Save signature and title together. Degrades to the 0135 one-argument RPC when
+// 0145 has not been applied, so the signature still saves and only the title is
+// dropped, with a message saying why.
+export async function dbSaveMyOfferSignatory(sig, title) {
+  if (!hasSupabase) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_title: title ?? null });
+  if (!error) return null;
+  if (error.code === "42883") {
+    const fb = await dbSaveMyOfferSignature(sig);
+    return fb || "Signature saved. Run migration 0145 to store the job title too.";
+  }
+  console.error("dbSaveMyOfferSignatory", error.message);
+  return error.message || "Couldn't save your signature.";
+}
+
+// Everyone in the workspace who has drawn a signature, so the offer screen can
+// offer a choice of who signs off the letter. Empty on a pre-0145 database.
+export async function dbListOfferSignatories() {
+  if (!hasSupabase) return [];
+  const { data, error } = await supabase.rpc("list_offer_signatories");
+  if (error) {
+    if (error.code !== "42883") console.error("dbListOfferSignatories", error.message);
+    return [];
+  }
+  return (data || []).map((r) => ({ id: r.id, name: r.name, title: r.title || null, signature: r.signature }));
+}
+
 // Save (or clear, with null) the current user's offer-letter signature.
 export async function dbSaveMyOfferSignature(sig) {
   if (!hasSupabase) return "Not connected to a live workspace.";

@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -22658,13 +22658,14 @@ function BillingCurrencyCard({ value, onChange }) {
 // Controlled editor: the draft is reported up via onDraftChange, and the page's
 // global "Save changes" bar owns persistence (no per-card Save button). savedSig
 // is the persisted baseline; resetSignal bumps to re-seed the editor on Cancel.
-function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, note = "Saved with the Save button at the bottom of the page." }) {
+function OfferSignatureCard({ savedSig, savedTitle, resetSignal = 0, onDraftChange, onTitleChange, intro, note = "Saved with the Save button at the bottom of the page." }) {
   // Drawn only. Typing your name was never a signature, just your name set in a
   // script face, and it is the same keystrokes anyone with the link could type.
   // Signatures already saved as "typed:<name>" still render on the letters and
   // certificates that carry them (see offer-letter.ts / aster-sign); they simply
   // cannot be created any more, and drawing replaces one.
   const [drawn, setDrawn] = useState(null);            // PNG data URI
+  const [title, setTitle] = useState("");
 
   // Seed the editor from the persisted baseline on load, re-seed on Cancel
   // (resetSignal) or after a save updates the baseline.
@@ -22672,8 +22673,9 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, n
     const s = savedSig;
     if (s === undefined) return;                       // still loading
     setDrawn(s && !s.startsWith("typed:") ? s : null);
+    setTitle(savedTitle || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedSig, resetSignal]);
+  }, [savedSig, savedTitle, resetSignal]);
 
   const current = drawn;
 
@@ -22696,6 +22698,20 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, n
         )}
         <SignaturePad onChange={(d) => setDrawn(d)} />
       </div>
+      {/* The designation printed under the signature. Without it a letter ends
+          with a name and a company and nothing saying on what authority it was
+          signed, which is what made the sign-off block look unfinished. */}
+      <label className="block mt-3">
+        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Your job title</span>
+        <input
+          value={title}
+          onChange={(e) => { setTitle(e.target.value); onTitleChange?.(e.target.value); }}
+          placeholder="e.g. Talent Acquisition Lead"
+          className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]"
+          style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+        <span className="block text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Printed under your signature on letters you sign off.</span>
+      </label>
       {note ? <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p> : null}
     </div>
   );
@@ -22722,13 +22738,19 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   // Save button). sigBase = persisted baseline; dSig = live editor draft.
   const [sigBase, setSigBase] = useState(undefined);   // undefined = loading
   const [dSig, setDSig] = useState(null);
+  const [sigTitleBase, setSigTitleBase] = useState(null);
+  const [dSigTitle, setDSigTitle] = useState("");
   const [sigReset, setSigReset] = useState(0);         // bump to re-seed the editor on Cancel
   useEffect(() => {
     let alive = true;
-    dbGetMyOfferSignature().then((s) => { if (alive) { setSigBase(s || null); setDSig(s || null); } });
+    dbGetMyOfferSignatory().then(({ signature, title }) => {
+      if (!alive) return;
+      setSigBase(signature || null); setDSig(signature || null);
+      setSigTitleBase(title || null); setDSigTitle(title || "");
+    });
     return () => { alive = false; };
   }, []);
-  const sigDirty = sigBase !== undefined && dSig !== sigBase;
+  const sigDirty = sigBase !== undefined && (dSig !== sigBase || (dSigTitle.trim() || null) !== sigTitleBase);
 
   const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty;
 
@@ -22742,13 +22764,14 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         if (!res?.ok) { setSaving(false); setConnectErr(res?.error || "Couldn't save the billing currency."); return; }
       }
       if (sigDirty) {
-        const sErr = await dbSaveMyOfferSignature(dSig);
+        const sErr = await dbSaveMyOfferSignatory(dSig, dSigTitle.trim() || null);
         if (sErr) { setSaving(false); setConnectErr(sErr); return; }
       }
     }
     if (dCurrency !== preferredCurrency) setPreferredCurrency(dCurrency);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
     setSigBase(dSig);
+    setSigTitleBase(dSigTitle.trim() || null);
     setSaving(false);
     setSavedMsg("All changes saved.");
   };
@@ -22757,6 +22780,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
     setDNotif(notifBase);
     setDCurrency(preferredCurrency);
     setDSig(sigBase);
+    setDSigTitle(sigTitleBase || "");
     setSigReset((n) => n + 1);
     setSavedMsg(null);
   };
@@ -22780,7 +22804,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           </SettingsSection>
 
           <SettingsSection icon="offer" title="Offer signature" desc="Your sign-off, stamped on offer letters you compose">
-            <OfferSignatureCard savedSig={sigBase} resetSignal={sigReset} onDraftChange={setDSig} />
+            <OfferSignatureCard savedSig={sigBase} savedTitle={sigTitleBase} resetSignal={sigReset} onDraftChange={setDSig} onTitleChange={setDSigTitle} />
           </SettingsSection>
 
           <SettingsSection
@@ -25724,11 +25748,25 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [savedSig, setSavedSig] = useState(undefined);
   const [sigDraft, setSigDraft] = useState(null);      // 'typed:Name' | PNG data URI
   const [sigErr, setSigErr] = useState(false);
+  const [myTitle, setMyTitle] = useState(null);
+  // Everyone in the workspace who has drawn their own signature. The letter used
+  // to be signed by whoever composed it, full stop; a hiring manager could not
+  // send an offer signed off by the person who actually holds the authority.
+  // Empty until 0145 is applied, in which case the picker stays hidden and the
+  // sender signs, exactly as before.
+  const [signatories, setSignatories] = useState([]);
+  const [signBy, setSignBy] = useState(null);          // chosen signatory id, null = me
   useEffect(() => {
     let alive = true;
-    dbGetMyOfferSignature().then((s) => { if (alive) { setSavedSig(s || null); setSigDraft(s || null); } });
+    dbGetMyOfferSignatory().then(({ signature, title }) => {
+      if (!alive) return;
+      setSavedSig(signature || null); setSigDraft(signature || null); setMyTitle(title || null);
+    });
+    dbListOfferSignatories().then((rows) => { if (alive) setSignatories(rows); });
     return () => { alive = false; };
   }, []);
+  // The signatory actually applied to this letter: the picked teammate, or me.
+  const chosenSignatory = signBy ? signatories.find((r) => r.id === signBy) || null : null;
   const pickPdf = (e) => {
     const f = e.target.files?.[0];
     if (e.target) e.target.value = "";  // allow re-picking the same file
@@ -25780,11 +25818,12 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     employmentType: empType,
     startDate: startDate || null,
     expiresAt: expiresAt || null,
-    signatoryName: (defaultSignatory || "").trim() || null,
-    signatorySignature: sigDraft || null,
+    signatoryName: (chosenSignatory ? chosenSignatory.name : defaultSignatory || "").trim() || null,
+    signatoryTitle: (chosenSignatory ? chosenSignatory.title : myTitle) || null,
+    signatorySignature: (chosenSignatory ? chosenSignatory.signature : sigDraft) || null,
   };
   // Compose offers must carry the sender's signature before they go out.
-  const composeNeedsSig = mode !== "upload" && !sigDraft;
+  const composeNeedsSig = mode !== "upload" && !(chosenSignatory ? chosenSignatory.signature : sigDraft);
 
   // Core terms are required before an offer can go out (draft-save aside): an
   // offer with no salary or start date should never reach an approver or candidate.
@@ -25807,7 +25846,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     // Force a company signature before the letter can go out.
     if (composeNeedsSig) { setSigErr(true); return; }
     // Reuse this signature on future offers.
-    if (sigDraft && sigDraft !== savedSig) dbSaveMyOfferSignature(sigDraft).catch(() => {});
+    if (!chosenSignatory && sigDraft && sigDraft !== savedSig) dbSaveMyOfferSignatory(sigDraft, myTitle).catch(() => {});
     setSending(true);
     setTimeout(() => onSend(emailSent, terms, body, appr), emailSent ? 900 : 0);
   };
@@ -25968,6 +26007,39 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             before they reach the candidate. If a signature is already saved in
             Settings we use it silently; only when there's none do we force a
             capture here. Upload offers carry the signature on HR's own PDF. */}
+        {/* Who signs the letter. Only shown when there is a real choice, i.e.
+            someone other than you has saved a signature: one option is not a
+            decision worth a control. Anyone who needs the letter on their own
+            letterhead uses upload mode instead of this. */}
+        {mode !== "upload" && signatories.length > 1 && (
+          <div className="mb-5">
+            <label className={labelClass}>Signed by</label>
+            <div className="grid gap-2">
+              {signatories.map((r) => {
+                const on = signBy ? signBy === r.id : r.signature === savedSig;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => { setSignBy(r.id); setSigErr(false); }}
+                    className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left min-w-0 transition-colors"
+                    style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}
+                  >
+                    <span className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: on ? "var(--brand)" : "var(--line-strong)" }}>
+                      {on && <span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{r.name}</span>
+                      <span className="block text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{r.title || "No title set"}</span>
+                    </span>
+                    <img src={r.signature} alt="" className="shrink-0" style={{ height: 26, maxWidth: 88, objectFit: "contain" }} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {mode !== "upload" && savedSig === null && (
           <div className="mb-5">
             <label className={labelClass}>Your signature <span className="font-normal" style={{ color: composeNeedsSig ? "#B45309" : "var(--ink-4)" }}>· required</span></label>

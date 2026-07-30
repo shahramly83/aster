@@ -1201,6 +1201,7 @@ async function createOffer(companyId, { candidateId, jobId = null, terms = null 
     if (terms.jobTitle) row.offer_job_title = terms.jobTitle;
     // Company sign-off (0135): the sender's name + saved signature, snapshotted.
     if (terms.signatoryName) row.signatory_name = terms.signatoryName;
+    if (terms.signatoryTitle) row.signatory_title = terms.signatoryTitle;
     if (terms.signatorySignature) row.signatory_signature = terms.signatorySignature;
   }
   const { data, error } = await supabase.from("offers").insert(row).select("token, id").single();
@@ -1234,6 +1235,27 @@ export async function getMyOfferSignature() {
   const { data, error } = await supabase.from("profiles").select("offer_signature").eq("id", uid).maybeSingle();
   if (error) { if (error.code !== "42703") console.warn("getMyOfferSignature", error.message); return null; }
   return data?.offer_signature || null;
+}
+// Signature + the job title printed under it (0145). Falls back to the
+// signature alone on a pre-0145 database so the sheet keeps working.
+export async function getMyOfferSignatory() {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) return { signature: null, title: null };
+  const { data, error } = await supabase.from("profiles").select("offer_signature, offer_signature_title").eq("id", uid).maybeSingle();
+  if (error && error.code === "42703") return { signature: await getMyOfferSignature(), title: null };
+  if (error) { console.warn("getMyOfferSignatory", error.message); return { signature: null, title: null }; }
+  return { signature: data?.offer_signature || null, title: data?.offer_signature_title || null };
+}
+export async function saveMyOfferSignatory(sig, title) {
+  const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_title: title ?? null });
+  if (!error) return null;
+  if (error.code === "42883") {
+    const fb = await saveMyOfferSignature(sig);
+    return fb || "Signature saved. Run migration 0145 to store the job title too.";
+  }
+  console.warn("saveMyOfferSignatory", error.message);
+  return error.message || "Couldn't save your signature.";
 }
 export async function saveMyOfferSignature(sig) {
   const { error } = await supabase.rpc("set_my_offer_signature", { p_sig: sig ?? null });
