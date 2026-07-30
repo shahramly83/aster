@@ -928,7 +928,7 @@ export async function inviteTeammate({ email, role }) {
   });
   if (error) return { ok: false, error: error.message || "Couldn't send the invite." };
   if (data?.error) {
-    const map = { seat_limit: "You've reached your seat limit. Upgrade on the web app to add more.", not_allowed: "Only workspace admins can invite teammates." };
+    const map = { seat_limit: "Seat limit reached. Upgrade on the web app to add more.", not_allowed: "Only workspace admins can invite teammates." };
     return { ok: false, error: map[data.error] || data.error };
   }
   return { ok: true, reactivated: !!data?.reactivated, email: clean };

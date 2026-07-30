@@ -66,7 +66,7 @@ export default function OpenPositionsScreen({ navigation }) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
         >
           <EmptyState tone="brand" icon="briefcase" title="No open positions"
-            subtitle={manager ? "Open a position on the Aster web app and it'll appear here, ready to review and interview." : "You're not on any interview panel yet. Once a hiring manager adds you to a position, it'll show up here."}
+            subtitle={manager ? "Open a position on the web app and it appears here." : "No panels yet. Positions appear here once a hiring manager adds you."}
             hint="Pull down to refresh" />
         </ScrollView>
       ) : (

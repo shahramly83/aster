@@ -41,7 +41,7 @@ export default function ScorecardScreen({ route, navigation }) {
       title: editing ? "Update scorecard?" : "Submit scorecard?",
       message: editing
         ? "This replaces your existing ratings for the whole panel."
-        : "The hiring manager will see your ratings, and you won't be able to change them after this.",
+        : "The hiring manager sees your ratings. You can't change them after this.",
       icon: "check",
       confirmLabel: editing ? "Update" : "Submit",
     });

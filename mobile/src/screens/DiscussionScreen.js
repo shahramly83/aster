@@ -441,7 +441,7 @@ export default function DiscussionScreen({ route, navigation }) {
                   icon={canCreate ? "calendar" : "message-circle"}
                   title={canCreate ? "Collect the panel's availability" : "No messages yet"}
                   subtitle={canCreate
-                    ? "Send a few times and the panel votes on which they can make. You can also just talk it through below."
+                    ? "Send times and the panel votes. Or talk it through below."
                     : "Start the conversation with your interview panel."}
                 />
                 {canCreate ? (
@@ -762,11 +762,11 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
             <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
               {isCandidate
                 ? (manager
-                    ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
-                    : "Pick the one time you can make. Tapping another moves your choice.")
+                    ? "The candidate offered these. Mark what you can make, then confirm one."
+                    : "Pick the time you can make. Tapping another moves your choice.")
                 : progress && progress.pendingNames?.length
                   ? `Your vote is optional. Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""} to vote, then you'll pick times to offer.`
-                  : "Your vote is optional. Once the panel votes, you'll pick times to offer."}
+                  : "Voting is optional. You'll pick times once the panel has voted."}
             </Text>
           )}
           {canOverride ? (

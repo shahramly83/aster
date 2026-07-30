@@ -235,7 +235,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     setSending(false);
     if (!res.ok) { setErr(res.error || "Couldn't send the offer."); return; }
     const msg = res.needsApproval
-      ? "Sent to your approvers. The candidate is emailed to sign once everyone approves."
+      ? "Sent for approval. The candidate is emailed once everyone approves."
       : res.emailed
         ? `${candidateName || "The candidate"} has been emailed a link to review and sign.`
         : "Offer recorded.";
@@ -278,7 +278,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                 <View style={styles.uploadIcon}><Feather name="monitor" size={22} color={theme.brand} /></View>
                 <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 12, textAlign: "center" }]}>Uploading is on the web app</Text>
                 <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: 6, lineHeight: 19 }]}>
-                  Uploading your own signed PDF and placing the candidate's signature box needs a larger screen, so it lives on the Aster web app at hireaster.com. You can compose the letter right here on mobile.
+                  Uploading your own letter needs a larger screen. Compose here, or upload on the web app.
                 </Text>
                 <Pressable onPress={() => setMode("compose")} style={styles.uploadSwitch}>
                   <Feather name="edit-3" size={15} color={theme.brand} />
@@ -436,7 +436,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               ) : needsSig ? (
                 <>
                   <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 10, lineHeight: 17 }]}>
-                    Sign once. Aster keeps it for your future offers and places it above your name on the letter.
+                    Sign once. Aster reuses it on every offer.
                   </Text>
                   <View style={[styles.sigPad, sigErr && !hasInk && { borderColor: theme.warn }]}>
                     <SignaturePad onChange={(fn) => { toPngRef.current = fn; setHasInk(!!fn); if (fn) setSigErr(false); }} />
@@ -485,7 +485,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                     style={styles.input}
                   />
                   <Text style={[type.small, { color: theme.ink3, marginTop: 6, fontSize: 11.5 }]}>
-                    Used on offer letters only, so they can differ from your account name.
+                    Used on offer letters, so it can differ from your account name.
                   </Text>
                 </>
               ) : null}
@@ -498,7 +498,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               summary={approvers.length ? `${approvers.length} in order` : "None, goes straight to them"}
             >
               <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 12, lineHeight: 17 }]}>
-                Optional. Anyone here signs off in order before {candidateName ? candidateName.split(" ")[0] : "the candidate"} is emailed the offer. You can send without one.
+                Optional. They sign off in order before {candidateName ? candidateName.split(" ")[0] : "the candidate"} is emailed.
               </Text>
 
               {/* Picked approvers, in the order they act. */}
@@ -523,7 +523,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                       <View style={styles.rtWarn}>
                         <Feather name="clock" size={11} color="#92400E" />
                         <Text style={[type.small, { color: "#92400E", fontSize: 11.5, marginLeft: 6, flex: 1, lineHeight: 16 }]}>
-                          We email them to confirm their address, then send the letter to approve. It waits here until they do.
+                          We email them to confirm first. The offer waits here until they do.
                         </Text>
                       </View>
                     ) : null}
@@ -575,7 +575,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               {addMsg ? <Text style={[type.small, { marginTop: 8, color: addMsg.type === "err" ? "#B42318" : "#166534" }]}>{addMsg.text}</Text> : null}
 
               {validApprovers.length ? (
-                <Text style={[type.small, { color: theme.ink4, marginTop: 12, lineHeight: 17 }]}>Sent in order, each approves from their email (no login). The candidate is emailed to sign only after the last approval.</Text>
+                <Text style={[type.small, { color: theme.ink4, marginTop: 12, lineHeight: 17 }]}>Each approves by email, in order. The candidate is emailed after the last one.</Text>
               ) : null}
             </FoldField>
 

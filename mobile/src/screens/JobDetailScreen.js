@@ -187,7 +187,7 @@ export default function JobDetailScreen({ route, navigation }) {
       } else if (res.reason === "min") {
         setRankNotice({ type: "err", text: "AI Rank needs at least 2 candidates to rank." });
       } else if (res.reason === "limit") {
-        setRankNotice({ type: "err", text: "You're out of AI Rank credits this month. Top up on the web app to run again." });
+        setRankNotice({ type: "err", text: "Out of AI Rank credits. Top up on the web app." });
       } else {
         setRankNotice({ type: "err", text: res.error ? `Couldn't rank: ${res.error}` : "Couldn't rank these applicants. No credit was used." });
       }
@@ -201,8 +201,8 @@ export default function JobDetailScreen({ route, navigation }) {
   const onRankPress = () => {
     if (ranking) return;
     // Clickable even when it can't run, so a tap explains WHY.
-    if (!canRank) { setRankNotice({ type: "err", text: "AI Rank needs at least 2 candidates to rank. Once two or more applicants are ready, you can score them against this role." }); return; }
-    if (rankLocked) { setRankNotice({ type: "err", text: "These applicants are already ranked. AI Rank unlocks again the moment a new candidate applies, so you're not charged to re-rank an unchanged list." }); return; }
+    if (!canRank) { setRankNotice({ type: "err", text: "AI Rank needs at least 2 candidates." }); return; }
+    if (rankLocked) { setRankNotice({ type: "err", text: "Already ranked. AI Rank unlocks again when a new candidate applies." }); return; }
     dialog.confirm({
       title: hasScores ? "Re-run AI Rank?" : "Run AI Rank?",
       message: `Scores your ${Math.min(activeRows.length, 40)} candidate${activeRows.length === 1 ? "" : "s"} against this role.`,
@@ -407,7 +407,7 @@ export default function JobDetailScreen({ route, navigation }) {
               <Text style={[type.h3, { color: theme.ink }]}>Share apply link</Text>
               <Pressable onPress={() => setLinkOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
             </View>
-            <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>Post this anywhere. Add a source to see which channel your applicants come from.</Text>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>Post anywhere. Add a source to see where applicants come from.</Text>
 
             <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Tag a source (optional)</Text>
             <View style={styles.tagRow}>
@@ -455,7 +455,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
             {(interviewers || []).length === 0 ? (
               <View style={{ paddingVertical: space(8) }}>
-                <EmptyState icon="user-plus" title="No interviewers yet" subtitle="Invite interviewers to your workspace on the web app, then assign them here." />
+                <EmptyState icon="user-plus" title="No interviewers yet" subtitle="Invite interviewers on the web app, then assign them here." />
               </View>
             ) : (
               <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>

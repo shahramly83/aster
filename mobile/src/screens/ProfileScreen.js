@@ -239,7 +239,7 @@ function OfferLetterSheet({ visible, onClose, onSaved }) {
           <View style={styles.sheetHandle} />
           <Text style={[type.h3, { color: theme.ink }]}>Offer letter</Text>
           <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 18 }]}>
-            Every offer your team composes starts from this. Aster fills the role, salary and dates for each candidate.
+            Every offer starts from this. Aster fills the role, salary and dates.
           </Text>
 
           <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: space(4) }}>

@@ -764,7 +764,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   : k === "feedback" ? !canScore
                   : k === "decision" ? decisionLocked : false;
                 const lockReason = k === "feedback"
-                  ? (manager ? `Tap "Proceed to scorecards" on the Interview tab to open this.` : `The scorecard opens once the hiring manager confirms the interview happened.`)
+                  ? (manager ? `Tap "Proceed to scorecards" on the Interview tab to open this.` : `The scorecard opens once the hiring manager confirms the interview.`)
                   : k === "decision" ? `The decision opens once the panel has finished scoring.`
                   : `Move ${nameOf().split(" ")[0]} to interview to open this tab.`;
                 return (
@@ -1064,7 +1064,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
                     </View>
                     <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>{myCard ? `You've scored ${name.split(" ")[0]}` : `You've interviewed ${name.split(" ")[0]}`}</Text>
-                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{myCard ? "Your scorecard is in. You can still edit it until the hiring manager decides." : (manager && decisionReady) ? "The panel has finished scoring." : "Add your scorecard so the hiring manager can make the call."}</Text>
+                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{myCard ? "Your scorecard is in. Editable until the hiring manager decides." : (manager && decisionReady) ? "The panel has finished scoring." : "Add your scorecard so the hiring manager can make the call."}</Text>
                   </View>
                 </View>
               </LinearGradient>
@@ -1088,7 +1088,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
                   </View>
                   <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>You've interviewed {name.split(" ")[0]}</Text>
-                  <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>The hiring manager is confirming the interview. Your scorecard opens as soon as they do.</Text>
+                  <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>The hiring manager is confirming. Your scorecard opens then.</Text>
                 </View>
               </View>
             </View>
@@ -1139,7 +1139,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       </>
                     ) : (
                       <Text style={[type.small, { color: theme.ink4, marginBottom: 8 }]}>
-                        {manager ? "Generate a room or paste your own. Nothing is sent until you tap Share." : "The hiring manager will add the meeting link before the interview."}
+                        {manager ? "Generate a room or paste your own. Nothing sends until you tap Share." : "The hiring manager will add the meeting link before the interview."}
                       </Text>
                     )}
                     {/* Edit controls: only for the HM, and (once a link is shared) only
@@ -1237,7 +1237,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
                           {manager
                             ? `${interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}Run a fresh panel availability poll, then propose new times.`
-                            : "The hiring manager is arranging new times. You'll be notified once it's booked."}
+                            : "New times are being arranged. You'll be notified once booked."}
                         </Text>
                       </View>
                     </View>
@@ -1250,7 +1250,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     {manager ? (
                       <>
                         <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
-                        <Text style={styles.stepHint}>Vote first, so the times you send are ones the panel can actually make.</Text>
+                        <Text style={styles.stepHint}>Vote first, so you only send times the panel can make.</Text>
                       </>
                     ) : null}
                   </>
@@ -1362,7 +1362,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   {!manager || !panelLedScheduling ? (
                     <Text style={[type.small, { color: theme.ink3 }]}>
                       {manager
-                        ? "Get the panel's availability, then offer the times that work to the candidate."
+                        ? "Collect the panel's availability, then offer times to the candidate."
                         : "Mark the times you can make so the panel can find an overlap."}
                     </Text>
                   ) : null}
@@ -1410,7 +1410,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   {manager && !panelLedScheduling ? (
                     <>
                       <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
-                      <Text style={styles.stepHint}>Vote first, so the times you send are ones the panel can actually make.</Text>
+                      <Text style={styles.stepHint}>Vote first, so you only send times the panel can make.</Text>
                     </>
                   ) : null}
                 </>
@@ -1439,7 +1439,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     onPress={async () => {
                       const ok = await dialog.confirm({
                         title: "Generate a new set?",
-                        message: "This replaces the current questions for the whole panel and uses one credit.",
+                        message: "Replaces the panel's current questions. Uses one credit.",
                         icon: "refresh-cw",
                         confirmLabel: "Regenerate",
                       });
@@ -1470,7 +1470,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
           {/* Interview tab empty: candidate isn't at the interview stage yet. */}
           {!showInterview && !(interviewDone && manager && !noShowDismissed) ? (
-            <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Move the candidate to the interview stage to get the panel's availability and propose times.</Text></Card>
+            <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Move to Interview to collect availability and propose times.</Text></Card>
           ) : null}
           </>) : null}
 
@@ -1515,7 +1515,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         <Text style={styles.dlChipTxt}>DECISION LOCKED</Text>
                       </View>
                       <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 5, fontSize: 16 }]}>Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} to score</Text>
-                      <Text style={[type.small, { color: theme.ink3, marginTop: 3, lineHeight: 18 }]}>Every interviewer submits their scorecard before you decide. Your own is optional.</Text>
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 3, lineHeight: 18 }]}>Every interviewer scores before you decide. Yours is optional.</Text>
                     </View>
                   </View>
                 </LinearGradient>
@@ -1580,7 +1580,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} to score
                     </Text>
                     <Text style={[type.small, { color: theme.ink3, marginTop: 3, fontSize: 12, lineHeight: 17 }]}>
-                      Every interviewer submits their scorecard before you decide. Your own is optional.
+                      Every interviewer scores before you decide. Yours is optional.
                     </Text>
                   </View>
                 </LinearGradient>
@@ -1662,7 +1662,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 </LinearGradient>
                 )
               ) : (
-                <Card><Text style={[type.small, { color: theme.ink3 }]}>No scorecards yet. Each interviewer's rating collects here once they submit.</Text></Card>
+                <Card><Text style={[type.small, { color: theme.ink3 }]}>No scorecards yet. Each interviewer's rating collects here.</Text></Card>
               )
             ) : (
               <>
@@ -1705,7 +1705,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
           {/* Feedback tab empty: nothing to score or decide yet. */}
           {!offer && !showDecision && !(manager && stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated) && !(canScore || cards.length > 0) ? (
-            <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Scorecards and the hiring decision appear here once the interview has happened.</Text></Card>
+            <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Scorecards and the decision appear here after the interview.</Text></Card>
           ) : null}
 
           </>) : null}
@@ -1718,7 +1718,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             const offerSigned = offer && (offer.status === "accepted" || offer.esign_status === "completed");
             const offerDeclined = offer && offer.status === "declined";
             const hero = stage === "hired"
-              ? { icon: "award", label: "Hired", title: `${first} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for your part in it.", tone: "green" }
+              ? { icon: "award", label: "Hired", title: `${first} was hired`, sub: "The decision is made. Thanks for your part in it.", tone: "green" }
               : stage === "rejected"
                 ? { icon: "x-circle", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${first}. Thanks for scoring.`, tone: "red" }
                 : offerSigned
@@ -1727,7 +1727,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     ? { icon: "x-circle", label: "Declined", title: "Offer declined", sub: `${first} declined the offer. The hiring manager will decide the next step.`, tone: "red" }
                     : offered
                       ? { icon: "send", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${first} an offer, and is now awaiting their response.`, tone: "brand" }
-                      : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
+                      : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager reviews the scorecards and decides. You'll be notified.", tone: "brand" };
             const tone = { green: { solid: theme.success, soft: "#ECFDF5", bd: "#A7F3D0" }, red: { solid: theme.danger, soft: "#FEF2F2", bd: "#FECACA" }, brand: { solid: theme.brand, soft: theme.brandSoft, bd: "#CBD8F5" } }[hero.tone];
             const hired = stage === "hired";
             const steps = [
@@ -1828,7 +1828,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
             {team.length === 0 ? (
               <Text style={[type.small, { color: theme.ink3, paddingVertical: space(5), textAlign: "center" }]}>
-                Nobody has the interviewer role yet. Invite one below and they land on this panel.
+                No interviewers yet. Invite one below and they join this panel.
               </Text>
             ) : (
               <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
@@ -1996,7 +1996,7 @@ function OfferCard({ offer, approvals, onViewSigned, canHire, onHire, onResend, 
       ) : null}
       {canReoffer ? (
         <View style={{ marginTop: space(3) }}>
-          {expired ? <Text style={[type.small, { color: theme.ink3, marginBottom: space(2.5), lineHeight: 18 }]}>The offer lapsed without a signature. Send a fresh one, or close this candidate out.</Text> : null}
+          {expired ? <Text style={[type.small, { color: theme.ink3, marginBottom: space(2.5), lineHeight: 18 }]}>The offer lapsed unsigned. Send a fresh one, or close them out.</Text> : null}
           {onResend ? <Button title="Re-send offer" icon="send" variant="secondary" onPress={onResend} /> : null}
           {onReject ? <Button title="Close as rejected" icon="x-circle" variant="ghost" onPress={onReject} style={{ marginTop: space(2.5) }} /> : null}
         </View>

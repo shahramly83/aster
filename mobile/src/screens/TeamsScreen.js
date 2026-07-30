@@ -250,7 +250,7 @@ export default function TeamsScreen({ navigation }) {
             <EmptyState
               icon="users"
               title="No teammates yet"
-              subtitle={canInvite ? "Build your interview panel. Invite a teammate and they'll get an email to join your workspace." : "Your panel is empty for now. Owners and admins can invite teammates from the Aster web app, and they'll appear here."}
+              subtitle={canInvite ? "Invite a teammate and they'll get an email to join." : "No teammates yet. Owners and admins can invite them on the web app."}
               actionLabel={canInvite ? "Invite a teammate" : undefined}
               onAction={canInvite ? openInvite : undefined}
             />

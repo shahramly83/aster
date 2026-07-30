@@ -584,9 +584,9 @@ export default function TodayScreen({ navigation }) {
                 : past.length;
               if (n) return null;
               const copy = {
-                next: { icon: "calendar", title: "Nothing coming up", sub: "Confirmed interviews appear here with a countdown and a join link." },
+                next: { icon: "calendar", title: "Nothing coming up", sub: "Confirmed interviews, with a countdown and join link." },
                 poll: { icon: "check-circle", title: "No open polls", sub: "Availability polls you run, or that need your vote, show up here." },
-                action: { icon: "clock", title: "Nothing needs you", sub: "Interviews waiting on a candidate reply, or needing new times, land here." },
+                action: { icon: "clock", title: "Nothing needs you", sub: "Interviews waiting on a reply, or needing new times." },
                 past: { icon: "archive", title: "No past interviews", sub: "Interviews that already happened are kept here for reference." },
               }[tab];
               // An empty tab should point at where the work actually is, not just
@@ -640,7 +640,7 @@ export default function TodayScreen({ navigation }) {
               <EmptyState
                 icon="calendar"
                 title="You're all set"
-                subtitle="No interviews scheduled yet. When you're added to a panel, it shows up here with a reminder."
+                subtitle="No interviews yet. They appear here once you're on a panel."
                 hint="Pull down to refresh"
               />
             </View>
