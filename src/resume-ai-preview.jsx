@@ -25988,7 +25988,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             <div>
               <label className={labelClass}>Start date <span className="text-red-500">*</span></label>
               <div className={err.startDate ? "rounded-lg ring-1 ring-red-300" : ""}>
-                <DatePicker value={startDate} onChange={(v) => { setStartDate(v); if (err.startDate) setErr((p) => ({ ...p, startDate: null })); }} placeholder="Select a date" align="right" />
+                <DatePicker value={startDate} min={dpYmd(new Date())} onChange={(v) => { setStartDate(v); if (err.startDate) setErr((p) => ({ ...p, startDate: null })); }} placeholder="Select a date" align="right" />
               </div>
               {err.startDate && <p className="text-xs text-red-500 mt-1">{err.startDate}</p>}
             </div>
