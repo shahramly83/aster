@@ -24132,8 +24132,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               ragged. They wrap as a group instead. */}
           <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center [&_button]:whitespace-nowrap">
             {planLimits(plan).storeOriginal ? (
-              <button onClick={() => setShowPdf(true)} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
-                <Icon name="doc" className="w-4 h-4" /> View resume
+              <button onClick={() => setShowPdf(true)} aria-label="View resume" title="View resume" className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-2.5 sm:py-1.5 min-w-[44px] sm:min-w-0 justify-center transition-colors inline-flex items-center gap-1.5">
+                <Icon name="doc" className="w-4 h-4" /> <span className="hidden sm:inline">View resume</span>
               </button>
             ) : (
               <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Launch, the original file isn't stored">
@@ -24146,13 +24146,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 and unlike the Decision step it is reachable at any stage: most
                 candidates are rejected on the CV, long before an interview. */}
             {onSetStage && !isInterviewer(profile?.role) && !["rejected", "hired"].includes(stage) && (
-              <button onClick={() => setShowReject(true)} className="rounded-xl text-sm px-3 py-1.5 transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#B42318", borderColor: "var(--line-strong)" }} title={`Reject ${firstName}`}>
-                <Icon name="close" className="w-4 h-4" /> Reject
+              <button onClick={() => setShowReject(true)} aria-label="Reject candidate" title="Reject" className="rounded-xl text-sm px-3 py-2.5 sm:py-1.5 min-w-[44px] sm:min-w-0 justify-center transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#B42318", borderColor: "var(--line-strong)" }} title={`Reject ${firstName}`}>
+                <Icon name="close" className="w-4 h-4" /> <span className="hidden sm:inline">Reject</span>
               </button>
             )}
             {onDelete && !isInterviewer(profile?.role) && (
-              <button onClick={() => setConfirmDelete(true)} className="rounded-xl text-sm px-3 py-1.5 transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#DC2626", borderColor: "#F3C7C7" }} title="Delete this candidate">
-                <Icon name="trash" className="w-4 h-4" /> Delete
+              <button onClick={() => setConfirmDelete(true)} aria-label="Delete candidate" title="Delete" className="rounded-xl text-sm px-3 py-2.5 sm:py-1.5 min-w-[44px] sm:min-w-0 justify-center transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#DC2626", borderColor: "#F3C7C7" }} title="Delete this candidate">
+                <Icon name="trash" className="w-4 h-4" /> <span className="hidden sm:inline">Delete</span>
               </button>
             )}
           </div>
@@ -25194,7 +25194,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 button here would lead nowhere. Interviewers see the count but
                 not Upgrade, since billing is not their call. */}
             {/* AI Question credit moved inline next to the Generate button. */}
-            {quickFacts}
+            {/* At a glance summarises the resume, so on a phone (where the
+                sidebar stacks under the tab you are reading) it only belongs on
+                the Profile tab. From lg it is a real sidebar beside the content,
+                and stays put. */}
+            <div className={profileTab === "profile" ? undefined : "hidden lg:block"}>{quickFacts}</div>
           </aside>
           {/* Mounted at the screen, not inside the AI Insights card. The card
               only renders on the Profile tab, but the meter's Buy credits button
