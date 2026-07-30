@@ -24595,10 +24595,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                         onSetAttendance && onSetAttendance([...next]);
                       };
                       return (
-                        <button key={a.id} type="button" onClick={proceeded ? undefined : toggle} disabled={proceeded} aria-pressed={attended} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all ${proceeded ? "cursor-default" : "active:scale-[0.99]"}`} style={attended ? { borderColor: "#A7F3D0", background: "#F0FDF4" } : { borderColor: "var(--line)", background: "var(--bg)" }}>
+                        <button key={a.id} type="button" onClick={proceeded ? undefined : toggle} disabled={proceeded} aria-pressed={attended} className={`flex items-center gap-2.5 min-w-0 rounded-xl border px-3 py-2.5 text-left transition-all ${proceeded ? "cursor-default" : "active:scale-[0.99]"}`} style={attended ? { borderColor: "#A7F3D0", background: "#F0FDF4" } : { borderColor: "var(--line)", background: "var(--bg)" }}>
                           <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
                           <span className="text-sm min-w-0 flex-1 truncate font-medium" style={{ color: "var(--ink)" }}>{a.name}</span>
-                          {scoredIds.has(a.id) && <span className="text-[11px] inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Scored</span>}
+                          {scoredIds.has(a.id) && <span className="text-[11px] hidden sm:inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Scored</span>}
                           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-2.5 py-1 shrink-0" style={attended ? { background: "#16A34A", color: "#fff" } : { background: "#fff", color: "var(--ink-3)", border: "1px solid var(--line-strong)" }}>
                             {attended ? <><Icon name="check" className="w-3 h-3" /> Attended</> : "Missed"}
                           </span>
