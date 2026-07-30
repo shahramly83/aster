@@ -24610,8 +24610,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               )}
 
               {proceeded ? (
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl px-3.5 py-3" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}>
-                  <p className="text-xs inline-flex items-center gap-1.5 min-w-0" style={{ color: "#065F46" }}><Icon name="check" className="w-4 h-4 shrink-0" /> <span className="truncate">You confirmed the interview. Scorecards are open.</span></p>
+                <div className="mt-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 rounded-xl px-3.5 py-3" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}>
+                  <p className="text-xs inline-flex items-start sm:items-center gap-1.5 min-w-0" style={{ color: "#065F46" }}><Icon name="check" className="w-4 h-4 shrink-0 mt-px sm:mt-0" /> <span className="sm:truncate">You confirmed the interview. Scorecards are open.</span></p>
                   <button type="button" onClick={() => setIvStep(2)} className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
                     Go to scorecards <Icon name="chevronRight" className="w-3.5 h-3.5" />
                   </button>
