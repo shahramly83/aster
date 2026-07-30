@@ -151,10 +151,10 @@ function RoleCard({ job, onPress }) {
 
         <View style={{ flex: 1 }} />
 
-        {/* hires + pipeline context */}
-        <Text style={[styles.bigNum, { color: theme.white }]}>{hired}</Text>
+        {/* pipeline size, then hires */}
+        <Text style={[styles.bigNum, { color: theme.white }]}>{total}</Text>
         <Text style={[type.small, { color: fgMuted, marginTop: -2 }]}>
-          hired · {total} in pipeline{shortlisted ? ` · ${shortlisted} shortlisted` : ""}
+          in pipeline · {hired} hired{shortlisted ? ` · ${shortlisted} shortlisted` : ""}
         </Text>
 
         {/* pipeline bar — keeps its stage colours */}
