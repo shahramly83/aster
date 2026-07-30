@@ -444,7 +444,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             ) : null}
 
             <FoldField
-              label="Your signature"
+              label="Signature"
               open={sigOpen}
               onToggle={() => setSigOpen((v) => !v)}
               summary={chosenSignatory ? `Signed by ${chosenSignatory.name}` : savedSig ? (sigName || "Saved signature") : "Not set"}

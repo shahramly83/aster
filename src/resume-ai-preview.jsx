@@ -26147,7 +26147,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
         {mode !== "upload" && savedSig === null && (
           <div className="mb-5">
-            <label className={labelClass}>Your signature <span className="font-normal" style={{ color: composeNeedsSig ? "#B45309" : "var(--ink-4)" }}>· required</span></label>
+            <label className={labelClass}>Signature <span className="font-normal" style={{ color: composeNeedsSig ? "#B45309" : "var(--ink-4)" }}>· required</span></label>
             <div className="rounded-xl border p-3.5" style={{ borderColor: sigErr && composeNeedsSig ? "#F59E0B" : "var(--line-strong)", background: "#fff" }}>
               <OfferSignatureCard
                 savedSig={savedSig}
