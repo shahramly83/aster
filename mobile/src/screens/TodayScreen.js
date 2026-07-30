@@ -181,6 +181,18 @@ export default function TodayScreen({ navigation }) {
   const firstName = profile?.name?.split(" ")[0] || "there";
   const { width } = useWindowDimensions();
 
+  // Opening on an empty Action tab would be worse than opening on Up next, so
+  // slide over once, and only until the reader picks a tab themselves. Declared
+  // above the loading return: a hook after it runs on some renders and not
+  // others, which is "Rendered more hooks than during the previous render".
+  useEffect(() => {
+    if (tabPicked || tab !== "action" || items === null) return;
+    const owed = items.filter((i) => i.status === "sent" || i.status === "reschedule" || !i.scheduledAt).length
+      + items.filter((i) => i.status === "scheduled" && i.scheduledAt && new Date(i.scheduledAt) <= new Date() && !["hired", "rejected", "declined"].includes(i.stage)).length;
+    const ahead = items.filter((i) => i.status === "scheduled" && i.scheduledAt && new Date(i.scheduledAt) > new Date()).length;
+    if (owed === 0 && ahead > 0) setTab("next");
+  }, [tabPicked, tab, items]);
+
   if (items === null) return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <View style={{ backgroundColor: theme.brand }}>
@@ -219,13 +231,6 @@ export default function TodayScreen({ navigation }) {
   const doneTimed = sorted.filter((i) => !isUpcoming(i));
   const past = doneTimed.filter(isClosed).reverse();            // closed → Past
   const needsAction = doneTimed.filter((i) => !isClosed(i)).reverse(); // in progress → Action
-
-  // Opening on an empty Action tab would be worse than opening on Up next, so
-  // slide over once, and only until the reader picks a tab themselves.
-  useEffect(() => {
-    if (tabPicked || tab !== "action") return;
-    if (pending.length + needsAction.length === 0 && upcoming.length > 0) setTab("next");
-  }, [tabPicked, tab, pending.length, needsAction.length, upcoming.length]);
 
   const weekCount = timelined.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
 
