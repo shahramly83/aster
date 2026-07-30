@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard, TextInput } from "react-native";
+import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard, TextInput, Platform, useWindowDimensions } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -184,11 +184,27 @@ function Row({ icon, tint, title, subtitle, right, last, onPress }) {
   return <View style={[styles.row, !last && styles.rowDivider]}>{body}</View>;
 }
 
+// Same hook the offer sheet uses: iOS does not resize the window for the
+// keyboard, so a bottom sheet has to be lifted by hand.
+function useKeyboardHeight() {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const sh = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
+    const hd = Keyboard.addListener(hideEvt, () => setH(0));
+    return () => { sh.remove(); hd.remove(); };
+  }, []);
+  return h;
+}
+
 // The company's offer letter, written once and reused by every offer. Tokens
 // stay literal here: this is the wording for future offers, and there is no one
 // candidate to fill them from. Owner/admin only, enforced by the RPC.
 function OfferLetterSheet({ visible, onClose, onSaved }) {
   const insets = useSafeAreaInsets();
+  const kb = useKeyboardHeight();
+  const { height: winH } = useWindowDimensions();
   const [text, setText] = useState("");
   const [base, setBase] = useState(undefined);
   const [sel, setSel] = useState({ start: 0, end: 0 });
@@ -235,7 +251,15 @@ function OfferLetterSheet({ visible, onClose, onSaved }) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.sheetBackdrop}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
+        {/* The editor is the only part that gives way to the keyboard. Left to
+            grow, it pushed the title, the token buttons and Save off the top of
+            the screen, so there was no way to save without dismissing the
+            keyboard first. */}
+        <View style={[styles.sheet, {
+          paddingBottom: insets.bottom + space(3),
+          maxHeight: winH * 0.9,
+          marginBottom: Platform.OS === "ios" && kb > 0 ? kb : 0,
+        }]}>
           <View style={styles.sheetHandle} />
           <Text style={[type.h3, { color: theme.ink }]}>Offer letter</Text>
           <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 18 }]}>
@@ -260,7 +284,12 @@ function OfferLetterSheet({ visible, onClose, onSaved }) {
             onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
             multiline
             editable={base !== undefined && !busy}
-            style={[styles.sigInput, { marginTop: space(3), minHeight: 240, textAlignVertical: "top", lineHeight: 20 }]}
+            style={[styles.sigInput, {
+              marginTop: space(3),
+              height: kb > 0 ? Math.max(120, winH * 0.28) : Math.max(200, winH * 0.42),
+              textAlignVertical: "top",
+              lineHeight: 20,
+            }]}
           />
           <Text style={[type.small, { color: theme.ink3, marginTop: 6, fontSize: 11.5 }]}>
             Wrap text in **double asterisks** to bold it in the sent letter.
