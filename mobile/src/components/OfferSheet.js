@@ -88,6 +88,9 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [bodySel, setBodySel] = useState({ start: 0, end: 0 });
   // Folded by default once there is nothing to do in them: a saved signature and
   // no approvers are the common case, and both were pushing Send offer far down.
+  // All three start shut. The terms are what you came for; letter, signature and
+  // approvers are usually already right, and each says so in its summary line.
+  const [letterOpen, setLetterOpen] = useState(false);
   const [sigOpen, setSigOpen] = useState(false);
   const [apprOpen, setApprOpen] = useState(false);
   const bodyRef = useRef(null);
@@ -200,6 +203,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (!visible) return;
     let alive = true;
     setRedraw(false); setHasInk(false); setSigErr(false); toPngRef.current = null;
+    setLetterOpen(false); setSigOpen(false); setApprOpen(false);
     setSignBy(null);
     getMyOfferSignatory().then(({ signature, name, title }) => {
       if (!alive) return;
@@ -207,11 +211,6 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       setSigName(name || ""); setSigTitle(title || null);
     });
     listOfferSignatories().then((rows) => { if (alive) setSignatories(rows); });
-    // Nothing saved means a signature is required before this can send, so the
-    // section opens itself rather than hiding the one blocking step.
-    getMyOfferSignatory().then(({ signature }) => {
-      if (alive && !(signature && !String(signature).startsWith("typed:"))) setSigOpen(true);
-    });
     return () => { alive = false; };
   }, [visible]);
 
@@ -352,16 +351,32 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
             <View style={{ marginTop: space(4) }}>
               <View style={styles.letterHead}>
-                <Text style={[type.smallStrong, { color: theme.ink2 }]}>Offer letter</Text>
-                <View style={styles.letterToggle}>
+                <Pressable
+                  onPress={() => setLetterOpen((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: letterOpen }}
+                  accessibilityLabel={`Offer letter. ${letterOpen ? "Collapse" : "Expand"}`}
+                  style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingVertical: 4 }}
+                >
+                  <Text style={[type.smallStrong, { color: theme.ink2 }]}>Offer letter</Text>
+                  {!letterOpen ? (
+                    <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12, flex: 1, marginLeft: 8 }]}>
+                      {bodyEdited ? "Edited" : "Aster's standard terms"}
+                    </Text>
+                  ) : null}
+                  <Feather name={letterOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.ink3} style={{ marginLeft: 6 }} />
+                </Pressable>
+                {letterOpen ? (
+                <View style={[styles.letterToggle, { marginLeft: 8 }]}>
                   {[["write", "Write"], ["preview", "Preview"]].map(([k, l]) => (
                     <Pressable key={k} onPress={() => setLetterView(k)} style={[styles.letterTab, letterView === k && styles.letterTabOn]}>
                       <Text style={[type.small, { fontFamily: "Inter_600SemiBold", color: letterView === k ? theme.brand : theme.ink3 }]}>{l}</Text>
                     </Pressable>
                   ))}
                 </View>
+                ) : null}
               </View>
-              {letterView === "write" ? (
+              {!letterOpen ? null : letterView === "write" ? (
                 <>
                   <View style={styles.lvBar}>
                     <Pressable
