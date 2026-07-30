@@ -11720,7 +11720,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 items-start">
           {/* Main workspace, dropzone while idle, results while parsing */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 min-w-0">
         {/* Import / Recent imports tabs: always visible so the user can jump back
             to past runs even mid-import or on the results screen. */}
         <div className="flex items-center gap-1 rounded-xl p-1 border" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
@@ -12168,7 +12168,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
           {/* Sidebar, usage monitor + how parsing works. Sticks while the main
               column scrolls; self-start lets it shrink below the grid-row height. */}
-          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start min-w-0">
             <UsageMeter
               plan={plan}
               title="Resume screening"
@@ -15588,7 +15588,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           </div>{/* main workspace */}
 
           {/* Sidebar, AI-run usage monitor + how search works (matches Bulk Upload) */}
-          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start min-w-0">
             {/* AI Rank credit moved inline next to the AI Rank buttons. */}
             <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)", boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
@@ -24160,7 +24160,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         {/* Two columns: resume + workflow in main, insights + summary in the sidebar */}
         <div className="grid lg:grid-cols-3 gap-5 mt-5 items-start">
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 min-w-0">
             {/* Profile / Interview tabs (segmented, like the search filters).
                 Only shown in a job pipeline, where the interview flow exists. */}
             {contextJobId && (
@@ -25176,7 +25176,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           );
         })()}
           </div>{/* main column */}
-          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start min-w-0">
             {/* Interviewers see the meter now that they can spend the credit.
                 Hiding it made the balance invisible to the people drawing it
                 down, so their first sign of the cap was a run being refused.
