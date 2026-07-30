@@ -22749,7 +22749,7 @@ function OfferSignatureCard({ savedSig, savedName, savedTitle, resetSignal = 0, 
           with is not always the name on your login, and you should not have to
           rename your account to correct a letter. */}
       <label className="block mt-3">
-        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Full name</span>
+        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Full name<span className="text-red-500"> *</span></span>
         <input
           value={sigName}
           onChange={(e) => { setSigName(e.target.value); onNameChange?.(e.target.value); }}
@@ -22759,7 +22759,7 @@ function OfferSignatureCard({ savedSig, savedName, savedTitle, resetSignal = 0, 
         />
       </label>
       <label className="block mt-3">
-        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Job title</span>
+        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Job title<span className="text-red-500"> *</span></span>
         <input
           value={title}
           onChange={(e) => { setTitle(e.target.value); onTitleChange?.(e.target.value); }}
@@ -26052,7 +26052,18 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     signatorySignature: (chosenSignatory ? chosenSignatory.signature : sigDraft) || null,
   };
   // Compose offers must carry the sender's signature before they go out.
-  const composeNeedsSig = mode !== "upload" && !(chosenSignatory ? chosenSignatory.signature : sigDraft);
+  const sigOf = chosenSignatory ? chosenSignatory.signature : sigDraft;
+  const nameOf = (chosenSignatory ? chosenSignatory.name : myName) || "";
+  const titleOf = (chosenSignatory ? chosenSignatory.title : myTitle) || "";
+  const composeNeedsSig = mode !== "upload" && (savedSig === undefined || !sigOf || !nameOf.trim() || !titleOf.trim());
+  // Which of the three is missing, so the message names it instead of saying
+  // "signature" at someone whose signature is fine and whose title is blank.
+  const sigGap = mode === "upload" ? null
+    : savedSig === undefined ? "Loading your sign-off…"
+    : !sigOf ? "Add your signature before sending this offer."
+    : !nameOf.trim() ? "Add the full name that goes under the signature."
+    : !titleOf.trim() ? "Add the job title that goes under the signature."
+    : null;
 
   // Core terms are required before an offer can go out (draft-save aside): an
   // offer with no salary or start date should never reach an approver or candidate.
@@ -26296,7 +26307,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Signature<span className="text-red-500"> *</span></span>
               {!sigOpen && (
                 <span className="flex-1 min-w-0 text-xs truncate text-right" style={{ color: composeNeedsSig ? "#92400E" : "var(--ink-3)", fontWeight: composeNeedsSig ? 600 : 400 }}>
-                  {chosenSignatory ? `Signed by ${chosenSignatory.name}` : sigDraft ? (myName || "Saved signature") : "Required, click to sign"}
+                  {composeNeedsSig ? (sigGap || "Required") : `Signed by ${nameOf}${titleOf ? `, ${titleOf}` : ""}`}
                 </span>
               )}
               <Icon name="chevronRight" className={`w-4 h-4 shrink-0 transition-transform ${sigOpen ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
@@ -26310,7 +26321,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 note=""
               />
             </div>
-            {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>Add your signature before sending this offer.</p>}
+            {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>{sigGap}</p>}
             </>)}
           </div>
         )}

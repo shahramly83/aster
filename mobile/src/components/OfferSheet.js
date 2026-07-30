@@ -191,6 +191,16 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
   const chosenSignatory = signBy ? signatories.find((r) => r.id === signBy) || null : null;
   const needsSig = !chosenSignatory && (savedSig === null || redraw);
+  // The sign-off is only complete with all three. Name and title were never
+  // checked, so an offer could go out over a blank name with no designation.
+  const sigNameOf = (chosenSignatory ? chosenSignatory.name : sigName) || "";
+  const sigTitleOf = (chosenSignatory ? chosenSignatory.title : sigTitle) || "";
+  const sigReady = !!chosenSignatory || (savedSig !== undefined && (!!savedSig || !!toPngRef.current) && !(redraw && !toPngRef.current));
+  const sigGap = savedSig === undefined ? "Loading your sign-off…"
+    : !sigReady ? "Add your signature before sending this offer."
+    : !sigNameOf.trim() ? "Add the full name that goes under the signature."
+    : !sigTitleOf.trim() ? "Add the job title that goes under the signature."
+    : null;
 
   const boldSelection = () => {
     const r = toggleBoldRange(body, bodySel.start, bodySel.end);
@@ -206,7 +216,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (!salary.trim()) { setErr("Add the base salary."); return; }
     if (!startDate) { setErr("Pick the joining date."); return; }
     if (!expiresAt) { setErr("Pick when this offer expires."); return; }
-    if (needsSig && !toPngRef.current) { setSigErr(true); setSigOpen(true); setErr("Add your signature before sending this offer."); return; }
+    if (sigGap) { setSigErr(true); setSigOpen(true); setErr(sigGap); return; }
     setSending(true);
     // A new drawing is saved to the profile before sending. That is what makes
     // this a one-time step: the letter is signed from the stored signature.
@@ -424,8 +434,8 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               required
               open={sigOpen}
               onToggle={() => setSigOpen((v) => !v)}
-              tone={!chosenSignatory && !savedSig ? "warn" : null}
-              summary={chosenSignatory ? `Signed by ${chosenSignatory.name}` : savedSig ? (sigName || "Saved signature") : "Required, tap to sign"}
+              tone={sigGap ? "warn" : null}
+              summary={sigGap ? sigGap.replace("…", "") : `Signed by ${sigNameOf}${sigTitleOf ? `, ${sigTitleOf}` : ""}`}
             >
               {chosenSignatory ? (
                 <Text style={[type.small, { color: theme.ink3, marginTop: -3, lineHeight: 17 }]}>
@@ -468,7 +478,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                   here without them would print a mark over a bare account name. */}
               {!chosenSignatory && savedSig !== undefined ? (
                 <>
-                  <Text style={styles.sigFieldLabel}>Full name</Text>
+                  <Text style={styles.sigFieldLabel}>Full name<Text style={{ color: theme.danger }}> *</Text></Text>
                   <TextInput
                     value={sigName}
                     onChangeText={setSigName}
@@ -476,7 +486,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                     placeholderTextColor={theme.ink4}
                     style={styles.input}
                   />
-                  <Text style={styles.sigFieldLabel}>Job title</Text>
+                  <Text style={styles.sigFieldLabel}>Job title<Text style={{ color: theme.danger }}> *</Text></Text>
                   <TextInput
                     value={sigTitle || ""}
                     onChangeText={setSigTitle}
