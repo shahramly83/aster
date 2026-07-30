@@ -8191,13 +8191,13 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-5" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
           <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <h2 className="text-lg font-bold font-display mb-1" style={{ color: "#9F1239" }}>Decline this offer?</h2>
-            <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>If you'd like, let {company} know why. Optional, and shared only with the hiring team.</p>
+            <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>Tell {company} why. Only the hiring team sees this.</p>
             <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={3} maxLength={1000}
-              placeholder="Your reason (optional), e.g. accepted another role, timing, compensation…"
+              placeholder="e.g. accepted another role, timing, compensation"
               className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
             <div className="flex gap-2 mt-4">
               <button onClick={() => { setDeclining(false); setErr(null); }} disabled={!!busy} className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Back</button>
-              <button onClick={decline} disabled={!!busy} className="flex-1 rounded-xl text-white text-sm font-bold py-3 transition-opacity disabled:opacity-40" style={{ background: "#DC2626" }}>
+              <button onClick={decline} disabled={!!busy || !declineReason.trim()} className="flex-1 rounded-xl text-white text-sm font-bold py-3 transition-opacity disabled:opacity-40" style={{ background: "#DC2626" }}>
                 {busy === "declined" ? "Declining…" : "Confirm decline"}
               </button>
             </div>
