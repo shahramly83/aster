@@ -9994,7 +9994,7 @@ function mapActivityRow(row, seenAt = null) {
   const seen = seenAt ? new Date(seenAt).getTime() : null;
   return {
     id: row.id, title: row.title, desc: row.description || "", ts: row.created_at,
-    time: relTime(row.created_at), candidateId: row.candidate_id || null,
+    time: relTime(row.created_at), candidateId: row.candidate_id || null, jobId: row.job_id || null,
     read: seen == null ? false : new Date(row.created_at).getTime() <= seen,
     ...m,
   };
@@ -10523,11 +10523,27 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
     navigate("jobs");
   };
 
-  // Route a clicked activity to the right screen based on its target.
+  // Route a clicked activity to the thing it is about.
+  //
+  // Every row names one person: "Offer sent to Mohamad Shah Nusi bin Ramly",
+  // "Scorecard submitted for ...". This used to drop you on the Candidates list
+  // of 28 people instead, because it only read target.screen and every
+  // offer/scorecard type declares {screen:"candidates"} with nobody attached.
+  // The candidate is on the row already, so prefer it.
+  //
+  // It also silently did nothing for the "interviews" and "interviewers"
+  // screens, which the meta table declares but this never handled: clicking an
+  // interview request, a poll vote or a teammate joining was a dead tap.
   const handleActivityClick = (a) => {
     const t = a.target || {};
+    if (a.candidateId) {
+      const tab = t.screen === "interviews" ? "interview" : null;
+      onViewCandidate(a.candidateId, a.jobId ?? null, null, tab);
+      return;
+    }
     if (t.screen === "candidates") goToCandidates(t.filter ?? null);
     else if (t.screen === "jobs") goToJobs(t.jobStatus ?? null);
+    else if (t.screen) navigate(t.screen);
   };
 
   // Greeting derives the first name from the profile and the time of day.
