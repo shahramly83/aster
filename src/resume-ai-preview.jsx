@@ -8015,9 +8015,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       {signed ? (
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
-            {mode === "type"
-              ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 30, color: "var(--ink)" }}>{typedName.trim()}</span>
-              : <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />}
+            <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />
             <div className="mt-1 pt-1 border-t text-[11px]" style={{ borderColor: "#BBF7D0", color: "var(--ink-3)" }}>
               {(typedName.trim() || letter?.candidateName || "You")} · {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
             </div>
