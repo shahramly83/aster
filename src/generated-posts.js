@@ -3,6 +3,117 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-measure-quality-of-hire-without-a-data-team",
+    "title": "How to measure quality of hire without a data team",
+    "category": "recruiting-ops",
+    "excerpt": "Most teams track time-to-hire because it's easy. Here's how to measure whether your hires actually work out, with signals a small team can collect.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-30",
+    "readMins": 5,
+    "tags": [
+      "quality of hire",
+      "hiring metrics",
+      "recruiting ops",
+      "hiring process"
+    ],
+    "body": [
+      {
+        "p": "Time-to-hire is easy to measure, so it's the number most teams stare at. Days from open to offer. It tells you how fast your process moves. It tells you nothing about whether the person you hired was the right one."
+      },
+      {
+        "p": "Quality of hire is the harder question, and the one that actually matters. Did this person do the job well? Did they stay? Would the hiring manager make the same call again? You don't need a data team or a fancy dashboard to answer it. You need a few honest signals, collected on a schedule, and the discipline to look back at your own decisions."
+      },
+      {
+        "h": "Why quality of hire gets skipped"
+      },
+      {
+        "p": "The problem is timing. You feel a bad hire months after you made it, long after the req is closed and everyone has moved on. The feedback loop is so slow that most teams never close it. They optimize the parts they can see (speed, cost, number of interviews) and leave the outcome to chance."
+      },
+      {
+        "p": "There's also a fear of vagueness. Quality feels subjective, so people assume it can't be measured. It can. You just have to accept that a rough, honest signal beats a precise number that measures the wrong thing."
+      },
+      {
+        "quote": "A slow measure of the right thing beats a fast measure of the wrong thing."
+      },
+      {
+        "h": "Four signals worth collecting"
+      },
+      {
+        "p": "You don't need all of these. Pick two or three you can actually gather without nagging people, and be consistent."
+      },
+      {
+        "ul": [
+          "**Hiring manager satisfaction at 90 days.** One short survey to the manager: on a 1 to 5 scale, is this hire meeting the bar you set? Would you hire them again? Add one open text field for why. This is the single most useful signal, and it takes the manager two minutes.",
+          "**Ramp to productivity.** Roughly how long until the person was doing the job without heavy hand-holding? You won't get a clean date. A rough bucket (faster than expected, about right, slower than expected) is enough to spot patterns.",
+          "**Early attrition.** Did the person leave, or were they managed out, within the first 6 to 12 months? Regretted early departures are the clearest sign something went wrong upstream, in the role definition, the screen, or the interview.",
+          "**Performance at first review.** If you run formal reviews, the first rating is a lagging but real signal. Don't over-read a single data point, but track it alongside the rest."
+        ]
+      },
+      {
+        "note": "You are not trying to grade individual employees. You are trying to grade your own hiring process. Keep the framing on the process, not the person, or people will game the answers.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Tie the signal back to the decision"
+      },
+      {
+        "p": "Collecting outcomes is only half the work. The value comes from connecting them to what you knew at hiring time. For each hire, keep a short record of the things you can compare against later:"
+      },
+      {
+        "ul": [
+          "The match score or ranking the candidate got during screening.",
+          "Interview scorecard results, by competency.",
+          "Who made the final call, and how confident they were.",
+          "Any reservation someone raised that got overruled."
+        ]
+      },
+      {
+        "p": "Six months on, line the outcomes up against these notes. You're looking for patterns, not verdicts on one person. Do the hires your team ranked highest actually perform better? Do certain interviewers consistently pass people who don't work out? Does a specific reservation (\"seemed junior for the scope\") keep turning out to be right? **This is where the learning lives.**"
+      },
+      {
+        "h": "What AI can and can't tell you here"
+      },
+      {
+        "p": "An AI screener like Aster can make one part of this loop much cleaner. Because it ranks every applicant against the role and records the reasons, you get a consistent, written signal of what the system thought at intake. That's far easier to compare against outcomes than a stack of gut calls scattered across inboxes."
+      },
+      {
+        "p": "Be honest about the limits, though. A match score predicts fit against the role as written. It cannot see whether the manager was a nightmare to work for, whether the team reorged three weeks in, or whether the role changed after the person started. Plenty of good hires fail for reasons that have nothing to do with the screen. If you find your best-ranked hires underperforming, the first thing to question is the job description and the interview, not the candidate."
+      },
+      {
+        "p": "AI is good at consistency and recall. It is not a substitute for the manager's 90-day judgment. Use the score to sharpen the human signal, not replace it."
+      },
+      {
+        "h": "A simple cadence to run"
+      },
+      {
+        "p": "You can operate this whole thing on a calendar reminder and a spreadsheet:"
+      },
+      {
+        "ul": [
+          "**At offer:** save the match score, scorecard, and any noted reservations against the hire's name.",
+          "**At 90 days:** send the manager the two-question satisfaction survey.",
+          "**At 6 months:** log ramp and whether the person is still in the role.",
+          "**Once a quarter:** sit down for 30 minutes and read the last batch back. What's the pattern?"
+        ]
+      },
+      {
+        "p": "The quarterly read is the point of the whole exercise. Numbers you never look at change nothing. Thirty minutes of looking at real outcomes, next to what you believed at the time, will teach you more about your hiring than any benchmark report."
+      },
+      {
+        "h": "What to do with what you learn"
+      },
+      {
+        "p": "The patterns usually point at a fixable step. If early attrition clusters around one role, the job description probably oversold or under-described it. If one interviewer's picks keep missing, their scorecard needs calibration or their stage needs restructuring. If highly ranked candidates keep working out, you have evidence to lean harder on the screen and spend your interview time on the things a resume can't show."
+      },
+      {
+        "p": "None of this requires new tooling. It requires deciding that the outcome of a hire is worth measuring, and then actually going back to look. Most teams never do. The ones that do stop repeating the same expensive mistakes, and they get to say something better than \"we filled the role fast.\" They get to say the person is still here, doing great work, and they'd hire them again."
+      }
+    ]
+  },
+  {
     "slug": "should-you-tell-candidates-ai-screened-their-application",
     "title": "Should you tell candidates AI screened their application?",
     "category": "ai-hiring",
