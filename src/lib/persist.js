@@ -844,9 +844,12 @@ export async function dbSaveMyOfferSignatory(sig, name, title) {
   if (!hasSupabase) return "Not connected to a live workspace.";
   const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_name: name ?? null, p_title: title ?? null });
   if (!error) return null;
-  if (error.code === "42883") {
+  const missingFn = error.code === "42883" || error.code === "PGRST202" || /Could not find the function|does not exist/i.test(error.message || "");
+  if (missingFn) {
     const fb = await dbSaveMyOfferSignature(sig);
-    return fb || "Signature saved. Run migration 0146 to store the name and job title too.";
+    if (fb) return fb;                       // the signature itself failed: a real error
+    console.warn("dbSaveMyOfferSignatory: run migration 0146 to store the name and job title too.");
+    return null;                             // signature saved; the extras were dropped
   }
   console.error("dbSaveMyOfferSignatory", error.message);
   return error.message || "Couldn't save your signature.";
@@ -858,7 +861,9 @@ export async function dbListOfferSignatories() {
   if (!hasSupabase) return [];
   const { data, error } = await supabase.rpc("list_offer_signatories");
   if (error) {
-    if (error.code !== "42883") console.error("dbListOfferSignatories", error.message);
+    // Absent until 0145/0146: not an error, just no choice of signatory yet.
+    const missingFn = error.code === "42883" || error.code === "PGRST202";
+    if (!missingFn) console.error("dbListOfferSignatories", error.message);
     return [];
   }
   return (data || []).map((r) => ({ id: r.id, name: r.name, title: r.title || null, signature: r.signature }));

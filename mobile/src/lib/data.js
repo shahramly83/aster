@@ -1254,9 +1254,11 @@ export async function getMyOfferSignatory() {
 export async function saveMyOfferSignatory(sig, name, title) {
   const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_name: name ?? null, p_title: title ?? null });
   if (!error) return null;
-  if (error.code === "42883") {
+  if (error.code === "42883" || error.code === "PGRST202") {
     const fb = await saveMyOfferSignature(sig);
-    return fb || "Signature saved. Run migration 0145 to store the job title too.";
+    if (fb) return fb;
+    console.warn("saveMyOfferSignatory: run migration 0146 for the name and job title.");
+    return null;
   }
   console.warn("saveMyOfferSignatory", error.message);
   return error.message || "Couldn't save your signature.";

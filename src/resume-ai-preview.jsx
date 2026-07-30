@@ -7827,13 +7827,20 @@ function SignaturePad({ onChange }) {
   const last = useRef({ x: 0, y: 0 });
   const ratioRef = useRef(1);
   const bounds = useRef(null); // { minX, minY, maxX, maxY } in CSS px
+  const pts = useRef([]);      // recent samples of the current stroke, for smoothing
 
   useEffect(() => {
     const c = canvasRef.current; if (!c) return;
-    const ratio = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    // Supersample. A desktop at devicePixelRatio 1 was exporting a PNG with only
+    // as many pixels as the ink covered on screen, maybe 250px across, and the
+    // offer letter and the signing certificate then render it larger than that,
+    // which is what made a perfectly good signature look soft. Never below 3x,
+    // whatever the display, so the exported mark has resolution to spare.
+    const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    const ratio = Math.max(3, dpr);
     ratioRef.current = ratio;
     const rect = c.getBoundingClientRect();
-    c.width = Math.max(1, rect.width * ratio); c.height = Math.max(1, rect.height * ratio);
+    c.width = Math.max(1, Math.round(rect.width * ratio)); c.height = Math.max(1, Math.round(rect.height * ratio));
     const ctx = c.getContext("2d");
     ctx.scale(ratio, ratio);
     ctx.lineWidth = 2.6; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#0F172A";
@@ -7849,12 +7856,32 @@ function SignaturePad({ onChange }) {
     if (!b) bounds.current = { minX: p.x, minY: p.y, maxX: p.x, maxY: p.y };
     else { b.minX = Math.min(b.minX, p.x); b.minY = Math.min(b.minY, p.y); b.maxX = Math.max(b.maxX, p.x); b.maxY = Math.max(b.maxY, p.y); }
   };
-  const start = (e) => { e.preventDefault(); drawing.current = true; last.current = at(e); track(last.current); };
+  const start = (e) => {
+    e.preventDefault(); drawing.current = true;
+    const p = at(e);
+    last.current = p; pts.current = [p]; track(p);
+  };
+  // Quadratic smoothing through the midpoints. Joining raw pointer samples with
+  // straight lines meant a fast curve came out as a visible polyline, all flats
+  // and corners: the jaggedness that read as a low-resolution signature. Curving
+  // through each sample instead of at it also keeps the line continuous when the
+  // pointer jumps, which is exactly when the corners were worst.
   const move = (e) => {
     if (!drawing.current) return; e.preventDefault();
-    const ctx = canvasRef.current.getContext("2d"); const p = at(e);
-    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-    last.current = p; dirty.current = true; track(p);
+    const ctx = canvasRef.current.getContext("2d");
+    const p = at(e);
+    const q = pts.current;
+    q.push(p); track(p);
+    const n = q.length;
+    if (n === 2) {
+      ctx.beginPath(); ctx.moveTo(q[0].x, q[0].y); ctx.lineTo(q[1].x, q[1].y); ctx.stroke();
+    } else if (n >= 3) {
+      const p0 = q[n - 3], p1 = q[n - 2], p2 = q[n - 1];
+      const m0 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+      const m1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+      ctx.beginPath(); ctx.moveTo(m0.x, m0.y); ctx.quadraticCurveTo(p1.x, p1.y, m1.x, m1.y); ctx.stroke();
+    }
+    last.current = p; dirty.current = true;
   };
   // Export just the inked region (plus a small margin), scaled to device pixels.
   const exportTrimmed = () => {
@@ -7869,8 +7896,22 @@ function SignaturePad({ onChange }) {
     out.getContext("2d").drawImage(c, sx, sy, sw, sh, 0, 0, sw, sh);
     return out.toDataURL("image/png");
   };
-  const end = () => { if (!drawing.current) return; drawing.current = false; if (dirty.current) onChange(exportTrimmed()); };
-  const clear = () => { const c = canvasRef.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); dirty.current = false; bounds.current = null; onChange(null); };
+  const end = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    // Midpoint smoothing stops half a sample short, so close the stroke onto the
+    // last real point or every stroke ends slightly clipped.
+    const q = pts.current;
+    if (q.length >= 2) {
+      const ctx = canvasRef.current.getContext("2d");
+      const p1 = q[q.length - 2], p2 = q[q.length - 1];
+      const m = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+      ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+    pts.current = [];
+    if (dirty.current) onChange(exportTrimmed());
+  };
+  const clear = () => { const c = canvasRef.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); dirty.current = false; bounds.current = null; pts.current = []; onChange(null); };
 
   return (
     <div>
