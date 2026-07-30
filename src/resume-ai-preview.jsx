@@ -25773,6 +25773,31 @@ function renderOfferBold(text) {
   });
 }
 
+// A section of the offer modal you can fold away, with a one-line summary of
+// what is inside so it still answers its own question while shut. Mirrors the
+// mobile sheet's FoldField, so the two screens fold the same things the same way.
+function FoldSection({ label, summary, required = false, tone = null, open, onToggle, children }) {
+  return (
+    <div className="mb-5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 py-1 text-left"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>
+          {label}{required && <span className="text-red-500"> *</span>}
+        </span>
+        <span className="flex-1 min-w-0 text-xs truncate text-right" style={{ color: tone === "warn" ? "#92400E" : "var(--ink-3)", fontWeight: tone === "warn" ? 600 : 400 }}>
+          {open ? "" : summary}
+        </span>
+        <Icon name="chevronRight" className={`w-4 h-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
+      </button>
+      {open && <div className="mt-2">{children}</div>}
+    </div>
+  );
+}
+
 function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", team = [], onManageTeam, onReloadApprovers, resubmit = null, onClose, onSend }) {
   // Resubmit after a decline: pre-fill the letter, terms and approvers from the
   // declined offer so the hiring manager can revise before sending it round again.
@@ -25790,6 +25815,11 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [bodyEdited, setBodyEdited] = useState(!!r.body);  // resubmit keeps the saved letter as-is until re-edited
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
   const bodyRef = useRef(null);
+  // All shut to start, same as mobile. The terms are what you came for; the rest
+  // is usually already right and each section says so without being opened.
+  const [letterOpen, setLetterOpen] = useState(false);
+  const [sigOpen, setSigOpen] = useState(false);
+  const [apprOpen, setApprOpen] = useState(false);
   // Bold the selection. The markers stay in the stored text, which is what the
   // server renderer and every offer already written expect; the writer just
   // never has to type them.
@@ -25933,11 +25963,12 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     const e = {};
     if (!title.trim()) e.title = "Add the job title.";
     if (salary.trim() === "") e.salary = "Add the base salary.";
-    if (!startDate) e.startDate = "Add the start date.";
+    if (!startDate) e.startDate = "Add their first day.";
+    if (!expiresAt) e.expiresAt = "Add the date this offer expires.";
     setErr(e);
     if (Object.keys(e).length) { setLetterView("write"); return; }
     // Force a company signature before the letter can go out.
-    if (composeNeedsSig) { setSigErr(true); return; }
+    if (composeNeedsSig) { setSigErr(true); setSigOpen(true); return; }
     // Reuse this signature on future offers.
     if (!chosenSignatory && sigDraft && sigDraft !== savedSig) dbSaveMyOfferSignatory(sigDraft, myName, myTitle).catch(() => {});
     setSending(true);
@@ -26009,13 +26040,13 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
           <div className="grid grid-cols-2 gap-2 mb-1">
             <div>
-              <label className={labelClass}>Employment type</label>
+              <label className={labelClass}>Employment type <span className="text-red-500">*</span></label>
               <select value={empType} onChange={(e) => setEmpType(e.target.value)} className={inputClass}>
                 {EMPLOYMENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Start date <span className="text-red-500">*</span></label>
+              <label className={labelClass}>First day <span className="text-red-500">*</span></label>
               <div className={err.startDate ? "rounded-lg ring-1 ring-red-300" : ""}>
                 <DatePicker value={startDate} min={dpYmd(new Date())} onChange={(v) => { setStartDate(v); if (err.startDate) setErr((p) => ({ ...p, startDate: null })); }} placeholder="Select a date" align="right" />
               </div>
@@ -26024,19 +26055,28 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           </div>
           <div className="mb-3" />
 
-          <label className={labelClass}>Offer expires <span className="text-neutral-400">(optional)</span></label>
-          <DatePicker value={expiresAt} onChange={setExpiresAt} placeholder="No expiry" min={dpYmd(new Date())} allowClear />
+          <label className={labelClass}>Offer expires <span className="text-red-500">*</span></label>
+          <DatePicker value={expiresAt} onChange={(v) => { setExpiresAt(v); if (err.expiresAt) setErr((p) => ({ ...p, expiresAt: null })); }} placeholder="Select a date" min={dpYmd(new Date())} />
+          {err.expiresAt && <p className="text-xs mt-1" style={{ color: "#B42318" }}>{err.expiresAt}</p>}
         </div>
 
-        <div className="flex items-center justify-between mb-1.5">
-          <label className={labelClass} style={{ marginBottom: 0 }}>Offer letter</label>
+        <div className="flex items-center gap-2 py-1 mb-1.5">
+          <button type="button" onClick={() => setLetterOpen((v) => !v)} aria-expanded={letterOpen} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Offer letter</span>
+            {!letterOpen && (
+              <span className="flex-1 min-w-0 text-xs truncate" style={{ color: "var(--ink-3)" }}>{bodyEdited ? "Edited" : "Aster's standard terms"}</span>
+            )}
+            <Icon name="chevronRight" className={`w-4 h-4 shrink-0 transition-transform ${letterOpen ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
+          </button>
+          {letterOpen && (
           <div className="inline-flex rounded-lg p-0.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
             {[["write", "Write"], ["preview", "Preview"]].map(([k, l]) => (
               <button key={k} type="button" onClick={() => setLetterView(k)} className="text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors" style={letterView === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>{l}</button>
             ))}
           </div>
+          )}
         </div>
-        {letterView === "write" ? (
+        {!letterOpen ? null : letterView === "write" ? (
           <>
             <div className="flex items-center gap-1 mb-1.5">
               <button
@@ -26147,7 +26187,16 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
         {mode !== "upload" && savedSig === null && (
           <div className="mb-5">
-            <label className={labelClass}>Signature <span className="font-normal" style={{ color: composeNeedsSig ? "#B45309" : "var(--ink-4)" }}>· required</span></label>
+            <button type="button" onClick={() => setSigOpen((v) => !v)} aria-expanded={sigOpen} className="w-full flex items-center gap-2 py-1 mb-1.5 text-left">
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Signature<span className="text-red-500"> *</span></span>
+              {!sigOpen && (
+                <span className="flex-1 min-w-0 text-xs truncate text-right" style={{ color: composeNeedsSig ? "#92400E" : "var(--ink-3)", fontWeight: composeNeedsSig ? 600 : 400 }}>
+                  {chosenSignatory ? `Signed by ${chosenSignatory.name}` : sigDraft ? (myName || "Saved signature") : "Required, click to sign"}
+                </span>
+              )}
+              <Icon name="chevronRight" className={`w-4 h-4 shrink-0 transition-transform ${sigOpen ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
+            </button>
+            {sigOpen && (<>
             <div className="rounded-xl border p-3.5" style={{ borderColor: sigErr && composeNeedsSig ? "#F59E0B" : "var(--line-strong)", background: "#fff" }}>
               <OfferSignatureCard
                 savedSig={savedSig}
@@ -26157,13 +26206,23 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               />
             </div>
             {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>Add your signature to sign off the offer before sending.</p>}
+            </>)}
           </div>
         )}
 
         {/* Approvals: ordered internal sign-off before the offer reaches the candidate. */}
         {hasEmail && (
           <div className="mb-5">
-            <label className={labelClass}>Approvals <span className="font-normal" style={{ color: "var(--ink-4)" }}>· optional, in order</span></label>
+            <button type="button" onClick={() => setApprOpen((v) => !v)} aria-expanded={apprOpen} className="w-full flex items-center gap-2 py-1 mb-1.5 text-left">
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Approvals</span>
+              {!apprOpen && (
+                <span className="flex-1 min-w-0 text-xs truncate text-right" style={{ color: "var(--ink-3)" }}>
+                  {approvers.length ? `${approvers.length} in order` : "None, goes straight to them"}
+                </span>
+              )}
+              <Icon name="chevronRight" className={`w-4 h-4 shrink-0 transition-transform ${apprOpen ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
+            </button>
+            {apprOpen && (<>
             {approvers.length > 0 && (
               <div className="space-y-2 mb-2.5">
                 {approvers.map((a, i) => (
@@ -26230,6 +26289,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             )}
             {addMsg && <p className="text-xs mt-2 leading-relaxed" style={{ color: addMsg.type === "err" ? "#B42318" : "#166534" }}>{addMsg.text}</p>}
             {hasApprovers && <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Approvers sign off in order by email; the candidate is emailed only after the last approval. A pending approver holds the offer at their step until they confirm.</p>}
+            </>)}
           </div>
         )}
 

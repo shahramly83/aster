@@ -229,7 +229,8 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     setErr(null);
     if (!jobTitle.trim()) { setErr("Add the job title for this offer."); return; }
     if (!salary.trim()) { setErr("Add the base salary."); return; }
-    if (!startDate) { setErr("Pick a start date."); return; }
+    if (!startDate) { setErr("Pick their first day."); return; }
+    if (!expiresAt) { setErr("Pick the date this offer expires."); return; }
     if (needsSig && !toPngRef.current) { setSigErr(true); setSigOpen(true); setErr("Add your signature to sign off this offer."); return; }
     setSending(true);
     // A new drawing is saved to the profile before sending. That is what makes
@@ -310,11 +311,11 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                 </Pressable>
               </View>
             ) : (<>
-            <Field label="Job title">
+            <Field required label="Job title">
               <TextInput value={jobTitle} onChangeText={setJobTitle} placeholder="e.g. Digital Marketing Specialist" placeholderTextColor={theme.ink4} style={styles.input} />
             </Field>
 
-            <Field label="Base salary">
+            <Field required label="Base salary">
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <Pressable onPress={() => setCurOpen(true)} style={styles.curBtn}>
                   <Text style={[type.smallStrong, { color: theme.ink }]}>{CURRENCIES.find((c) => c.k === currency)?.label || "RM"}</Text>
@@ -324,7 +325,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               </View>
             </Field>
 
-            <Field label="Employment type">
+            <Field required label="Employment type">
               <View style={styles.chips}>
                 {EMP_TYPES.map((e) => (
                   <Pressable key={e.k} onPress={() => setEmpType(e.k)} style={[styles.chip, empType === e.k && styles.chipOn]}>
@@ -335,13 +336,13 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             </Field>
 
             <View style={{ flexDirection: "row", gap: 12 }}>
-              <Field label="Start date" style={{ flex: 1 }}>
+              <Field required label="First day" style={{ flex: 1 }}>
                 <Pressable onPress={() => setPicker("start")} style={styles.dateBtn}>
                   <Feather name="calendar" size={15} color={theme.ink3} />
                   <Text style={[type.small, { color: startDate ? theme.ink : theme.ink4, marginLeft: 8 }]}>{prettyDate(startDate)}</Text>
                 </Pressable>
               </Field>
-              <Field label="Expires (optional)" style={{ flex: 1 }}>
+              <Field required label="Offer expires" style={{ flex: 1 }}>
                 <Pressable onPress={() => setPicker("expires")} style={styles.dateBtn}>
                   <Feather name="clock" size={15} color={theme.ink3} />
                   <Text style={[type.small, { color: expiresAt ? theme.ink : theme.ink4, marginLeft: 8 }]}>{prettyDate(expiresAt)}</Text>
@@ -445,9 +446,11 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
             <FoldField
               label="Signature"
+              required
               open={sigOpen}
               onToggle={() => setSigOpen((v) => !v)}
-              summary={chosenSignatory ? `Signed by ${chosenSignatory.name}` : savedSig ? (sigName || "Saved signature") : "Not set"}
+              tone={!chosenSignatory && !savedSig ? "warn" : null}
+              summary={chosenSignatory ? `Signed by ${chosenSignatory.name}` : savedSig ? (sigName || "Saved signature") : "Required, tap to sign"}
             >
               {chosenSignatory ? (
                 <Text style={[type.small, { color: theme.ink3, marginTop: -3, lineHeight: 17 }]}>
@@ -638,8 +641,8 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       <CalendarSheet
         visible={!!picker}
         mode="date"
-        title={picker === "expires" ? "Offer expiry date" : "Start date"}
-        confirmLabel={picker === "expires" ? "Set expiry" : "Set start date"}
+        title={picker === "expires" ? "Offer expires" : "First day"}
+        confirmLabel={picker === "expires" ? "Set expiry" : "Set first day"}
         minDate={new Date()}
         initial={picker === "start" ? startDate : picker === "expires" ? expiresAt : null}
         onConfirm={onPickDate}
@@ -649,10 +652,12 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   );
 }
 
-function Field({ label, children, style }) {
+function Field({ label, children, style, required = false }) {
   return (
     <View style={[{ marginTop: space(4) }, style]}>
-      <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>{label}</Text>
+      <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>
+        {label}{required ? <Text style={{ color: theme.danger }}> *</Text> : null}
+      </Text>
       {children}
     </View>
   );
@@ -663,7 +668,7 @@ function Field({ label, children, style }) {
 // the two longest blocks on this sheet and are usually already settled, so
 // collapsing them is what makes the terms and the letter reachable without a
 // long scroll.
-function FoldField({ label, summary, open, onToggle, children, style }) {
+function FoldField({ label, summary, open, onToggle, children, style, required = false, tone = null }) {
   return (
     <View style={[{ marginTop: space(4) }, style]}>
       <Pressable
@@ -674,7 +679,8 @@ function FoldField({ label, summary, open, onToggle, children, style }) {
         style={{ flexDirection: "row", alignItems: "center", paddingVertical: 4 }}
       >
         <Text style={[type.smallStrong, { color: theme.ink2 }]}>{label}</Text>
-        <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12, flex: 1, marginLeft: 8, textAlign: "right" }]}>
+        {required ? <Text style={[type.small, { color: theme.danger, marginLeft: 3 }]}>*</Text> : null}
+        <Text numberOfLines={1} style={[type.small, { fontSize: 12, flex: 1, marginLeft: 8, textAlign: "right", color: tone === "warn" ? "#92400E" : theme.ink3, fontFamily: tone === "warn" ? "Inter_600SemiBold" : undefined }]}>
           {open ? "" : summary}
         </Text>
         <Feather name={open ? "chevron-up" : "chevron-down"} size={16} color={theme.ink3} style={{ marginLeft: 6 }} />
