@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard } from "react-native";
+import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard, TextInput } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -8,7 +8,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../AuthContext";
 import { registerForPush, unregisterPush, PUSH_PREF_KEY } from "../lib/push";
-import { getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
+import { getMyOfferSignature, saveMyOfferSignature, getMyOfferSignatory, saveMyOfferSignatory } from "../lib/data";
 import { Avatar, Press, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import { theme, type, space, radius, shadow } from "../theme";
@@ -181,20 +181,37 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
   const [hasInk, setHasInk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  // Name and title, same as the web Settings card. A signature on its own is a
+  // mark; these are what make it a sign-off block on the letter.
+  const [sigName, setSigName] = useState("");
+  const [sigTitle, setSigTitle] = useState("");
 
-  useEffect(() => { if (visible) { setErr(null); toPngRef.current = null; setHasInk(false); } }, [visible]);
+  useEffect(() => {
+    if (!visible) return;
+    setErr(null); toPngRef.current = null; setHasInk(false);
+    let alive = true;
+    getMyOfferSignatory().then(({ name, title }) => {
+      if (!alive) return;
+      setSigName(name || ""); setSigTitle(title || "");
+    });
+    return () => { alive = false; };
+  }, [visible]);
 
   const save = async () => {
     Keyboard.dismiss();
-    if (!toPngRef.current) return;
-    setBusy(true); setErr(null);
-    let val = null;
-    try {
-      val = toPngRef.current();
-    } catch (e2) {
-      setBusy(false); setErr("Couldn't save that signature. Try drawing it again."); return;
+    // A fresh drawing replaces the old one; with no new ink the existing
+    // signature is kept, so this also saves a name or title on its own.
+    let val = initial || null;
+    if (toPngRef.current) {
+      try {
+        val = toPngRef.current();
+      } catch (e2) {
+        setErr("Couldn't save that signature. Try drawing it again."); return;
+      }
     }
-    const e = await saveMyOfferSignature(val);
+    if (!val) return;
+    setBusy(true); setErr(null);
+    const e = await saveMyOfferSignatory(val, sigName.trim() || null, sigTitle.trim() || null);
     setBusy(false);
     if (e) { setErr(e); return; }
     onSaved?.(val);
@@ -202,7 +219,7 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
   };
   const clear = async () => {
     setBusy(true); setErr(null);
-    const e = await saveMyOfferSignature(null);
+    const e = await saveMyOfferSignatory(null, sigName.trim() || null, sigTitle.trim() || null);
     setBusy(false);
     if (e) { setErr(e); return; }
     toPngRef.current = null; setHasInk(false); onSaved?.(null); onClose();
@@ -219,6 +236,26 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
             <SignaturePad onChange={(fn) => { toPngRef.current = fn; setHasInk(!!fn); }} />
           </View>
 
+          <Text style={styles.sigLabel}>Full name</Text>
+          <TextInput
+            value={sigName}
+            onChangeText={setSigName}
+            placeholder="Name as it should appear on the letter"
+            placeholderTextColor={theme.ink4}
+            style={styles.sigInput}
+          />
+          <Text style={styles.sigLabel}>Job title</Text>
+          <TextInput
+            value={sigTitle}
+            onChangeText={setSigTitle}
+            placeholder="e.g. Talent Acquisition Lead"
+            placeholderTextColor={theme.ink4}
+            style={styles.sigInput}
+          />
+          <Text style={[type.small, { color: theme.ink3, marginTop: 6, fontSize: 11.5 }]}>
+            Used on offer letters only, so they can differ from your account name.
+          </Text>
+
           {err ? <Text style={[type.small, { color: theme.danger, marginTop: 10 }]}>{err}</Text> : null}
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: space(5) }}>
@@ -227,7 +264,7 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
                 <Text style={[type.smallStrong, { color: theme.ink2 }]}>Clear</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={save} disabled={busy || !hasInk} style={[styles.sigBtn, { backgroundColor: hasInk ? theme.brand : theme.line, flex: 1 }]}>
+            <Pressable onPress={save} disabled={busy || !(hasInk || initial)} style={[styles.sigBtn, { backgroundColor: (hasInk || initial) ? theme.brand : theme.line, flex: 1 }]}>
               {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[type.smallStrong, { color: "#fff" }]}>Save signature</Text>}
             </Pressable>
           </View>
@@ -261,5 +298,7 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  sigLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5, textTransform: "uppercase", color: theme.ink2, marginTop: space(4), marginBottom: 6 },
+  sigInput: { borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.bg, paddingHorizontal: space(3), paddingVertical: space(3), fontSize: 14, fontFamily: "Inter_400Regular", color: theme.ink },
   sigBtn: { alignItems: "center", justifyContent: "center", borderRadius: radius.md, paddingVertical: 13, paddingHorizontal: 20 },
 });

@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sendOffer, loadApprovers, addApprover, getMyOfferSignatory, saveMyOfferSignatory } from "../lib/data";
+import { sendOffer, loadApprovers, addApprover, getMyOfferSignatory, saveMyOfferSignatory, listOfferSignatories } from "../lib/data";
 import { Button, Feather } from "./ui";
 import SignaturePad from "./SignaturePad";
 import CalendarSheet from "./CalendarSheet";
@@ -67,6 +67,10 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [hasInk, setHasInk] = useState(false);
   const [sigErr, setSigErr] = useState(false);
   const [sigName, setSigName] = useState("");       // name printed under it
+  // Same choice the web offer screen gives: anyone in the workspace who has
+  // drawn their own signature can be the one who signs this letter.
+  const [signatories, setSignatories] = useState([]);
+  const [signBy, setSignBy] = useState(null);      // chosen id, null = me
   const [sigTitle, setSigTitle] = useState(null);   // job title printed under it
   const toPngRef = useRef(null);
   const [body, setBody] = useState("");            // the offer letter (sent as the message)
@@ -172,15 +176,18 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (!visible) return;
     let alive = true;
     setRedraw(false); setHasInk(false); setSigErr(false); toPngRef.current = null;
+    setSignBy(null);
     getMyOfferSignatory().then(({ signature, name, title }) => {
       if (!alive) return;
       setSavedSig(signature && !String(signature).startsWith("typed:") ? signature : null);
       setSigName(name || ""); setSigTitle(title || null);
     });
+    listOfferSignatories().then((rows) => { if (alive) setSignatories(rows); });
     return () => { alive = false; };
   }, [visible]);
 
-  const needsSig = savedSig === null || redraw;
+  const chosenSignatory = signBy ? signatories.find((r) => r.id === signBy) || null : null;
+  const needsSig = !chosenSignatory && (savedSig === null || redraw);
 
   const submit = async () => {
     setErr(null);
@@ -205,8 +212,9 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       employmentType: empType,
       startDate,
       expiresAt: expiresAt || null,
-      signatoryName: sigName || null,
-      signatoryTitle: sigTitle || null,
+      signatoryName: (chosenSignatory ? chosenSignatory.name : sigName) || null,
+      signatoryTitle: (chosenSignatory ? chosenSignatory.title : sigTitle) || null,
+      signatorySignature: (chosenSignatory ? chosenSignatory.signature : savedSig) || null,
     };
     const res = await sendOffer({
       companyId, candidateId, candidateName, jobId,
@@ -340,8 +348,38 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               )}
             </View>
 
+            {signatories.length > 1 ? (
+              <Field label="Signed by">
+                {signatories.map((r) => {
+                  const on = signBy ? signBy === r.id : r.signature === savedSig;
+                  return (
+                    <Pressable
+                      key={r.id}
+                      onPress={() => { setSignBy(r.id); setSigErr(false); }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                      style={({ pressed }) => [styles.sbRow, on && styles.sbRowOn, pressed && { opacity: 0.85 }]}
+                    >
+                      <View style={[styles.sbDot, on && { borderColor: theme.brand }]}>
+                        {on ? <View style={styles.sbDotIn} /> : null}
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0, marginLeft: 10 }}>
+                        <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{r.name}</Text>
+                        <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12 }]}>{r.title || "No title set"}</Text>
+                      </View>
+                      <Image source={{ uri: r.signature }} resizeMode="contain" style={{ width: 74, height: 28 }} />
+                    </Pressable>
+                  );
+                })}
+              </Field>
+            ) : null}
+
             <Field label="Your signature">
-              {savedSig === undefined ? (
+              {chosenSignatory ? (
+                <Text style={[type.small, { color: theme.ink3, marginTop: -3, lineHeight: 17 }]}>
+                  {chosenSignatory.name} signs this letter. Your own signature is not used.
+                </Text>
+              ) : savedSig === undefined ? (
                 <View style={{ paddingVertical: space(4), alignItems: "center" }}><ActivityIndicator color={theme.brand} /></View>
               ) : needsSig ? (
                 <>
@@ -573,6 +611,10 @@ const styles = StyleSheet.create({
   apPickMarkTxt: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 12 },
   apPendingPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
   apPendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 12 },
+  sbRow: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3), marginBottom: 8 },
+  sbRowOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
+  sbDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: theme.line2, alignItems: "center", justifyContent: "center" },
+  sbDotIn: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.brand },
   sigPad: { borderRadius: radius.md, borderWidth: 1, borderColor: "transparent" },
   sigSaved: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
   apEmpty: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginBottom: 10 },

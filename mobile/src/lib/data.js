@@ -1251,6 +1251,16 @@ export async function getMyOfferSignatory() {
     title: data?.offer_signature_title || null,
   };
 }
+// Everyone in the workspace who has drawn their own signature, so the offer
+// sheet can offer a choice of who signs the letter. Empty until 0145/0146.
+export async function listOfferSignatories() {
+  const { data, error } = await supabase.rpc("list_offer_signatories");
+  if (error) {
+    if (error.code !== "42883" && error.code !== "PGRST202") console.warn("listOfferSignatories", error.message);
+    return [];
+  }
+  return (data || []).map((r) => ({ id: r.id, name: r.name, title: r.title || null, signature: r.signature }));
+}
 export async function saveMyOfferSignatory(sig, name, title) {
   const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_name: name ?? null, p_title: title ?? null });
   if (!error) return null;
@@ -1294,11 +1304,18 @@ export async function sendOffer({ companyId, candidateId, candidateName, jobId =
     .map((a) => ({ email: a.email.trim(), name: (a.name || "").trim() }));
   const needsApproval = valid.length > 0;
 
-  // Compose mode: stamp the sender's saved signature + name onto the offer.
+  // Compose mode: fall back to the sender's own sign-off for anything the
+  // caller did not choose. The offer sheet may have picked a different
+  // signatory, and that choice has to win.
   let sendTerms = terms;
   if (terms) {
     const so = await getMyOfferSignoff();
-    sendTerms = { ...terms, signatoryName: terms.signatoryName || so.name || null, signatorySignature: so.signature || null };
+    sendTerms = {
+      ...terms,
+      signatoryName: terms.signatoryName || so.name || null,
+      signatoryTitle: terms.signatoryTitle || null,
+      signatorySignature: terms.signatorySignature || so.signature || null,
+    };
   }
   const created = await createOffer(companyId, { candidateId, jobId, terms: sendTerms });
   if (!created || created.error || !created.token) {
