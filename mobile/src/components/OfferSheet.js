@@ -229,7 +229,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     setErr(null);
     if (!jobTitle.trim()) { setErr("Add the job title for this offer."); return; }
     if (!salary.trim()) { setErr("Add the base salary."); return; }
-    if (!startDate) { setErr("Pick their first day."); return; }
+    if (!startDate) { setErr("Pick the joining date."); return; }
     if (!expiresAt) { setErr("Pick the date this offer expires."); return; }
     if (needsSig && !toPngRef.current) { setSigErr(true); setSigOpen(true); setErr("Add your signature to sign off this offer."); return; }
     setSending(true);
@@ -336,7 +336,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             </Field>
 
             <View style={{ flexDirection: "row", gap: 12 }}>
-              <Field required label="First day" style={{ flex: 1 }}>
+              <Field required label="Joining date" style={{ flex: 1 }}>
                 <Pressable onPress={() => setPicker("start")} style={styles.dateBtn}>
                   <Feather name="calendar" size={15} color={theme.ink3} />
                   <Text style={[type.small, { color: startDate ? theme.ink : theme.ink4, marginLeft: 8 }]}>{prettyDate(startDate)}</Text>
@@ -641,8 +641,8 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       <CalendarSheet
         visible={!!picker}
         mode="date"
-        title={picker === "expires" ? "Offer expires" : "First day"}
-        confirmLabel={picker === "expires" ? "Set expiry" : "Set first day"}
+        title={picker === "expires" ? "Offer expires" : "Joining date"}
+        confirmLabel={picker === "expires" ? "Set expiry" : "Set joining date"}
         minDate={new Date()}
         initial={picker === "start" ? startDate : picker === "expires" ? expiresAt : null}
         onConfirm={onPickDate}

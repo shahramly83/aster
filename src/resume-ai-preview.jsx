@@ -25963,7 +25963,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     const e = {};
     if (!title.trim()) e.title = "Add the job title.";
     if (salary.trim() === "") e.salary = "Add the base salary.";
-    if (!startDate) e.startDate = "Add their first day.";
+    if (!startDate) e.startDate = "Add the joining date.";
     if (!expiresAt) e.expiresAt = "Add the date this offer expires.";
     setErr(e);
     if (Object.keys(e).length) { setLetterView("write"); return; }
@@ -26046,7 +26046,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               </select>
             </div>
             <div>
-              <label className={labelClass}>First day <span className="text-red-500">*</span></label>
+              <label className={labelClass}>Joining date <span className="text-red-500">*</span></label>
               <div className={err.startDate ? "rounded-lg ring-1 ring-red-300" : ""}>
                 <DatePicker value={startDate} min={dpYmd(new Date())} onChange={(v) => { setStartDate(v); if (err.startDate) setErr((p) => ({ ...p, startDate: null })); }} placeholder="Select a date" align="right" />
               </div>
