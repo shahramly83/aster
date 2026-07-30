@@ -86,6 +86,10 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [sigErr, setSigErr] = useState(false);
   const [sigName, setSigName] = useState("");       // name printed under it
   const [bodySel, setBodySel] = useState({ start: 0, end: 0 });
+  // Folded by default once there is nothing to do in them: a saved signature and
+  // no approvers are the common case, and both were pushing Send offer far down.
+  const [sigOpen, setSigOpen] = useState(false);
+  const [apprOpen, setApprOpen] = useState(false);
   const bodyRef = useRef(null);
   // Same choice the web offer screen gives: anyone in the workspace who has
   // drawn their own signature can be the one who signs this letter.
@@ -203,6 +207,11 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       setSigName(name || ""); setSigTitle(title || null);
     });
     listOfferSignatories().then((rows) => { if (alive) setSignatories(rows); });
+    // Nothing saved means a signature is required before this can send, so the
+    // section opens itself rather than hiding the one blocking step.
+    getMyOfferSignatory().then(({ signature }) => {
+      if (alive && !(signature && !String(signature).startsWith("typed:"))) setSigOpen(true);
+    });
     return () => { alive = false; };
   }, [visible]);
 
@@ -222,7 +231,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (!jobTitle.trim()) { setErr("Add the job title for this offer."); return; }
     if (!salary.trim()) { setErr("Add the base salary."); return; }
     if (!startDate) { setErr("Pick a start date."); return; }
-    if (needsSig && !toPngRef.current) { setSigErr(true); setErr("Add your signature to sign off this offer."); return; }
+    if (needsSig && !toPngRef.current) { setSigErr(true); setSigOpen(true); setErr("Add your signature to sign off this offer."); return; }
     setSending(true);
     // A new drawing is saved to the profile before sending. That is what makes
     // this a one-time step: the letter is signed from the stored signature.
@@ -419,7 +428,12 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               </Field>
             ) : null}
 
-            <Field label="Your signature">
+            <FoldField
+              label="Your signature"
+              open={sigOpen}
+              onToggle={() => setSigOpen((v) => !v)}
+              summary={chosenSignatory ? `Signed by ${chosenSignatory.name}` : savedSig ? (sigName || "Saved signature") : "Not set"}
+            >
               {chosenSignatory ? (
                 <Text style={[type.small, { color: theme.ink3, marginTop: -3, lineHeight: 17 }]}>
                   {chosenSignatory.name} signs this letter. Your own signature is not used.
@@ -455,9 +469,41 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                   </Pressable>
                 </View>
               )}
-            </Field>
 
-            <Field label="Approvers">
+              {/* Name and title live here too, not only in Settings. Web puts the
+                  same three fields in its offer modal, and a signature captured
+                  here without them would print a mark over a bare account name. */}
+              {!chosenSignatory && savedSig !== undefined ? (
+                <>
+                  <Text style={styles.sigFieldLabel}>Full name</Text>
+                  <TextInput
+                    value={sigName}
+                    onChangeText={setSigName}
+                    placeholder="Name as it should appear on the letter"
+                    placeholderTextColor={theme.ink4}
+                    style={styles.input}
+                  />
+                  <Text style={styles.sigFieldLabel}>Job title</Text>
+                  <TextInput
+                    value={sigTitle || ""}
+                    onChangeText={setSigTitle}
+                    placeholder="e.g. Talent Acquisition Lead"
+                    placeholderTextColor={theme.ink4}
+                    style={styles.input}
+                  />
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 6, fontSize: 11.5 }]}>
+                    Used on offer letters only, so they can differ from your account name.
+                  </Text>
+                </>
+              ) : null}
+            </FoldField>
+
+            <FoldField
+              label="Approvers"
+              open={apprOpen}
+              onToggle={() => setApprOpen((v) => !v)}
+              summary={approvers.length ? `${approvers.length} in order` : "None, goes straight to them"}
+            >
               <Text style={[type.small, { color: theme.ink3, marginTop: -3, marginBottom: 12, lineHeight: 17 }]}>
                 Optional. Anyone here signs off in order before {candidateName ? candidateName.split(" ")[0] : "the candidate"} is emailed the offer. You can send without one.
               </Text>
@@ -538,7 +584,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               {validApprovers.length ? (
                 <Text style={[type.small, { color: theme.ink4, marginTop: 12, lineHeight: 17 }]}>Sent in order, each approves from their email (no login). The candidate is emailed to sign only after the last approval.</Text>
               ) : null}
-            </Field>
+            </FoldField>
 
             {err ? (
               <View style={styles.err}><Feather name="alert-circle" size={14} color="#B42318" /><Text style={[type.small, { color: "#B42318", marginLeft: 8, flex: 1 }]}>{err}</Text></View>
@@ -593,6 +639,32 @@ function Field({ label, children, style }) {
     <View style={[{ marginTop: space(4) }, style]}>
       <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>{label}</Text>
       {children}
+    </View>
+  );
+}
+
+// A Field you can fold away, with a one-line summary of what is inside so the
+// section still answers its own question while shut. Signature and approvers are
+// the two longest blocks on this sheet and are usually already settled, so
+// collapsing them is what makes the terms and the letter reachable without a
+// long scroll.
+function FoldField({ label, summary, open, onToggle, children, style }) {
+  return (
+    <View style={[{ marginTop: space(4) }, style]}>
+      <Pressable
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${label}. ${open ? "Collapse" : "Expand"}`}
+        style={{ flexDirection: "row", alignItems: "center", paddingVertical: 4 }}
+      >
+        <Text style={[type.smallStrong, { color: theme.ink2 }]}>{label}</Text>
+        <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 12, flex: 1, marginLeft: 8, textAlign: "right" }]}>
+          {open ? "" : summary}
+        </Text>
+        <Feather name={open ? "chevron-up" : "chevron-down"} size={16} color={theme.ink3} style={{ marginLeft: 6 }} />
+      </Pressable>
+      {open ? <View style={{ marginTop: 7 }}>{children}</View> : null}
     </View>
   );
 }
@@ -665,6 +737,7 @@ const styles = StyleSheet.create({
   sbRowOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   sbDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: theme.line2, alignItems: "center", justifyContent: "center" },
   sbDotIn: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.brand },
+  sigFieldLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5, textTransform: "uppercase", color: theme.ink2, marginTop: space(4), marginBottom: 6 },
   lvBar: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   boldBtn: { width: 32, height: 32, borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
   sigPad: { borderRadius: radius.md, borderWidth: 1, borderColor: "transparent" },
