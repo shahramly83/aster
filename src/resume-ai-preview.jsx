@@ -25746,6 +25746,24 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false, onSig
   );
 }
 
+// Toggle **bold** around [a,b) of `text`. Returns the new text and where the
+// selection should land, so the caller can put the caret back exactly where the
+// writer left it. Shared by the web textarea toolbar and the mobile one, so the
+// two behave identically: unwrap when the selection is already bold, unwrap when
+// it sits just inside the markers, otherwise wrap.
+function toggleBoldRange(text, a, b) {
+  if (a === b) return null;                       // nothing selected
+  const sel = text.slice(a, b), before = text.slice(0, a), after = text.slice(b);
+  if (sel.length > 4 && sel.startsWith("**") && sel.endsWith("**")) {
+    const inner = sel.slice(2, -2);
+    return { text: before + inner + after, start: a, end: a + inner.length };
+  }
+  if (before.endsWith("**") && after.startsWith("**")) {
+    return { text: before.slice(0, -2) + sel + after.slice(2), start: a - 2, end: b - 2 };
+  }
+  return { text: before + "**" + sel + "**" + after, start: a + 2, end: b + 2 };
+}
+
 // Render **bold** spans in composed offer-letter text as <strong> (preview only;
 // the sent letter/PDF bold these via mdBold / paraRich server-side).
 function renderOfferBold(text) {
@@ -25771,6 +25789,17 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // Letter fields: who signs for the company, plus optional prose details.
   const [bodyEdited, setBodyEdited] = useState(!!r.body);  // resubmit keeps the saved letter as-is until re-edited
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
+  const bodyRef = useRef(null);
+  // Bold the selection. The markers stay in the stored text, which is what the
+  // server renderer and every offer already written expect; the writer just
+  // never has to type them.
+  const boldSelection = () => {
+    const el = bodyRef.current; if (!el) return;
+    const r = toggleBoldRange(body, el.selectionStart, el.selectionEnd);
+    if (!r) return;
+    setBody(r.text); setBodyEdited(true);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(r.start, r.end); });
+  };
   const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name, status}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
   // Approvers come from the company's approvers list (no accounts). Confirmed
@@ -26009,7 +26038,19 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         </div>
         {letterView === "write" ? (
           <>
-            <textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} rows={14} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
+            <div className="flex items-center gap-1 mb-1.5">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={boldSelection}
+                title="Bold (Ctrl+B)"
+                aria-label="Bold the selected text"
+                className="w-8 h-8 rounded-lg text-sm font-bold transition-colors hover:bg-[color:var(--bg)]"
+                style={{ color: "var(--ink-2)", border: "1px solid var(--line)" }}
+              >B</button>
+              <span className="text-[11px]" style={{ color: "var(--ink-4)" }}>Select text, then Bold</span>
+            </div>
+            <textarea ref={bodyRef} value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && (e.key === "b" || e.key === "B")) { e.preventDefault(); boldSelection(); } }} rows={14} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
             <div className="flex items-center justify-between gap-2 mb-4">
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit freely. The heading and greeting are added automatically.</p>
               {bodyEdited && <button type="button" onClick={() => { setBody(composeBody()); setBodyEdited(false); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset from terms</button>}

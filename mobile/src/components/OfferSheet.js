@@ -48,6 +48,24 @@ function prettyDate(iso) {
   return `${Number(dd)} ${months[Number(m) - 1]} ${y}`;
 }
 
+// Toggle **bold** around [a,b). Same rules as the web toolbar (resume-ai-preview
+// toggleBoldRange) so bolding behaves identically on both: unwrap when the
+// selection is already bold, unwrap when it sits just inside the markers,
+// otherwise wrap. The markers stay in the stored text, which is what the server
+// renderer and every offer already written expect.
+function toggleBoldRange(text, a, b) {
+  if (a === b) return null;
+  const sel = text.slice(a, b), before = text.slice(0, a), after = text.slice(b);
+  if (sel.length > 4 && sel.startsWith("**") && sel.endsWith("**")) {
+    const inner = sel.slice(2, -2);
+    return { text: before + inner + after, start: a, end: a + inner.length };
+  }
+  if (before.endsWith("**") && after.startsWith("**")) {
+    return { text: before.slice(0, -2) + sel + after.slice(2), start: a - 2, end: b - 2 };
+  }
+  return { text: before + "**" + sel + "**" + after, start: a + 2, end: b + 2 };
+}
+
 export default function OfferSheet({ visible, onClose, companyId, companyName, candidateId, candidateName, jobId, defaults = {}, onSent }) {
   const insets = useSafeAreaInsets();
   const kb = useKeyboardHeight();
@@ -67,6 +85,8 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [hasInk, setHasInk] = useState(false);
   const [sigErr, setSigErr] = useState(false);
   const [sigName, setSigName] = useState("");       // name printed under it
+  const [bodySel, setBodySel] = useState({ start: 0, end: 0 });
+  const bodyRef = useRef(null);
   // Same choice the web offer screen gives: anyone in the workspace who has
   // drawn their own signature can be the one who signs this letter.
   const [signatories, setSignatories] = useState([]);
@@ -188,6 +208,14 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
   const chosenSignatory = signBy ? signatories.find((r) => r.id === signBy) || null : null;
   const needsSig = !chosenSignatory && (savedSig === null || redraw);
+
+  const boldSelection = () => {
+    const r = toggleBoldRange(body, bodySel.start, bodySel.end);
+    if (!r) return;
+    setBody(r.text); setBodyEdited(true);
+    // Put the caret back where the writer left it, once RN has the new value.
+    setTimeout(() => bodyRef.current?.setNativeProps?.({ selection: { start: r.start, end: r.end } }), 0);
+  };
 
   const submit = async () => {
     setErr(null);
@@ -326,7 +354,24 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               </View>
               {letterView === "write" ? (
                 <>
-                  <TextInput value={body} onChangeText={(v) => { setBody(v); setBodyEdited(true); }} multiline style={[styles.input, styles.letterArea]} />
+                  <View style={styles.lvBar}>
+                    <Pressable
+                      onPress={boldSelection}
+                      accessibilityLabel="Bold the selected text"
+                      style={({ pressed }) => [styles.boldBtn, pressed && { backgroundColor: theme.bg }]}
+                    >
+                      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: theme.ink2 }}>B</Text>
+                    </Pressable>
+                    <Text style={[type.small, { color: theme.ink4, fontSize: 11.5, flex: 1, marginLeft: 8 }]}>Select text, then Bold</Text>
+                  </View>
+                  <TextInput
+                    ref={bodyRef}
+                    value={body}
+                    onChangeText={(v) => { setBody(v); setBodyEdited(true); }}
+                    onSelectionChange={(e) => setBodySel(e.nativeEvent.selection)}
+                    multiline
+                    style={[styles.input, styles.letterArea]}
+                  />
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 8 }}>
                     <Text style={[type.small, { color: theme.ink4, flex: 1 }]}>Aster adds the heading, greeting and signature automatically.</Text>
                     {bodyEdited ? (
@@ -398,8 +443,13 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               ) : (
                 /* Signed once already: a line of confirmation, not a task. */
                 <View style={styles.sigSaved}>
-                  <Image source={{ uri: savedSig }} resizeMode="contain" style={{ width: 104, height: 38 }} />
-                  <Text style={[type.small, { color: theme.ink3, fontSize: 12, flex: 1, marginLeft: space(3) }]}>Your saved signature</Text>
+                  <Image source={{ uri: savedSig }} resizeMode="contain" style={{ width: 92, height: 34 }} />
+                  {/* Name and title, so you can see the sign-off this letter will
+                      carry without opening Settings to check. */}
+                  <View style={{ flex: 1, minWidth: 0, marginLeft: space(3) }}>
+                    <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink, fontSize: 13 }]}>{sigName || "No name set"}</Text>
+                    <Text numberOfLines={1} style={[type.small, { color: theme.ink3, fontSize: 11.5 }]}>{sigTitle || "No title set"}</Text>
+                  </View>
                   <Pressable onPress={() => { setRedraw(true); setHasInk(false); toPngRef.current = null; }} hitSlop={8} style={{ paddingVertical: 6, paddingLeft: 8 }}>
                     <Text style={[type.small, { color: theme.brand, fontFamily: "Inter_600SemiBold" }]}>Change</Text>
                   </Pressable>
@@ -615,6 +665,8 @@ const styles = StyleSheet.create({
   sbRowOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   sbDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: theme.line2, alignItems: "center", justifyContent: "center" },
   sbDotIn: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.brand },
+  lvBar: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  boldBtn: { width: 32, height: 32, borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
   sigPad: { borderRadius: radius.md, borderWidth: 1, borderColor: "transparent" },
   sigSaved: { flexDirection: "row", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, paddingHorizontal: space(3), paddingVertical: space(3) },
   apEmpty: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginBottom: 10 },
