@@ -1242,13 +1242,17 @@ export async function getMyOfferSignatory() {
   const { data: u } = await supabase.auth.getUser();
   const uid = u?.user?.id;
   if (!uid) return { signature: null, title: null };
-  const { data, error } = await supabase.from("profiles").select("offer_signature, offer_signature_title").eq("id", uid).maybeSingle();
-  if (error && error.code === "42703") return { signature: await getMyOfferSignature(), title: null };
-  if (error) { console.warn("getMyOfferSignatory", error.message); return { signature: null, title: null }; }
-  return { signature: data?.offer_signature || null, title: data?.offer_signature_title || null };
+  const { data, error } = await supabase.from("profiles").select("offer_signature, offer_signature_name, offer_signature_title, full_name").eq("id", uid).maybeSingle();
+  if (error && error.code === "42703") return { signature: await getMyOfferSignature(), name: "", title: null };
+  if (error) { console.warn("getMyOfferSignatory", error.message); return { signature: null, name: "", title: null }; }
+  return {
+    signature: data?.offer_signature || null,
+    name: data?.offer_signature_name || data?.full_name || "",
+    title: data?.offer_signature_title || null,
+  };
 }
-export async function saveMyOfferSignatory(sig, title) {
-  const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_title: title ?? null });
+export async function saveMyOfferSignatory(sig, name, title) {
+  const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_name: name ?? null, p_title: title ?? null });
   if (!error) return null;
   if (error.code === "42883") {
     const fb = await saveMyOfferSignature(sig);

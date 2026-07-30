@@ -66,6 +66,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [redraw, setRedraw] = useState(false);           // "Change" tapped
   const [hasInk, setHasInk] = useState(false);
   const [sigErr, setSigErr] = useState(false);
+  const [sigName, setSigName] = useState("");       // name printed under it
   const [sigTitle, setSigTitle] = useState(null);   // job title printed under it
   const toPngRef = useRef(null);
   const [body, setBody] = useState("");            // the offer letter (sent as the message)
@@ -171,10 +172,10 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (!visible) return;
     let alive = true;
     setRedraw(false); setHasInk(false); setSigErr(false); toPngRef.current = null;
-    getMyOfferSignatory().then(({ signature, title }) => {
+    getMyOfferSignatory().then(({ signature, name, title }) => {
       if (!alive) return;
       setSavedSig(signature && !String(signature).startsWith("typed:") ? signature : null);
-      setSigTitle(title || null);
+      setSigName(name || ""); setSigTitle(title || null);
     });
     return () => { alive = false; };
   }, [visible]);
@@ -193,7 +194,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     if (needsSig && toPngRef.current) {
       let png = null;
       try { png = toPngRef.current(); } catch (e2) { setSending(false); setErr("Couldn't save that signature. Try drawing it again."); return; }
-      const se = await saveMyOfferSignatory(png, sigTitle);
+      const se = await saveMyOfferSignatory(png, sigName, sigTitle);
       if (se) { setSending(false); setErr(se); return; }
       setSavedSig(png); setRedraw(false);
     }
@@ -204,6 +205,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       employmentType: empType,
       startDate,
       expiresAt: expiresAt || null,
+      signatoryName: sigName || null,
       signatoryTitle: sigTitle || null,
     };
     const res = await sendOffer({

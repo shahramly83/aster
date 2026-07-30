@@ -22658,13 +22658,14 @@ function BillingCurrencyCard({ value, onChange }) {
 // Controlled editor: the draft is reported up via onDraftChange, and the page's
 // global "Save changes" bar owns persistence (no per-card Save button). savedSig
 // is the persisted baseline; resetSignal bumps to re-seed the editor on Cancel.
-function OfferSignatureCard({ savedSig, savedTitle, resetSignal = 0, onDraftChange, onTitleChange, intro, note = "Saved with the Save button at the bottom of the page." }) {
+function OfferSignatureCard({ savedSig, savedName, savedTitle, resetSignal = 0, onDraftChange, onNameChange, onTitleChange, intro, note = "Saved with the Save button at the bottom of the page." }) {
   // Drawn only. Typing your name was never a signature, just your name set in a
   // script face, and it is the same keystrokes anyone with the link could type.
   // Signatures already saved as "typed:<name>" still render on the letters and
   // certificates that carry them (see offer-letter.ts / aster-sign); they simply
   // cannot be created any more, and drawing replaces one.
   const [drawn, setDrawn] = useState(null);            // PNG data URI
+  const [sigName, setSigName] = useState("");
   const [title, setTitle] = useState("");
 
   // Seed the editor from the persisted baseline on load, re-seed on Cancel
@@ -22673,9 +22674,10 @@ function OfferSignatureCard({ savedSig, savedTitle, resetSignal = 0, onDraftChan
     const s = savedSig;
     if (s === undefined) return;                       // still loading
     setDrawn(s && !s.startsWith("typed:") ? s : null);
+    setSigName(savedName || "");
     setTitle(savedTitle || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedSig, savedTitle, resetSignal]);
+  }, [savedSig, savedName, savedTitle, resetSignal]);
 
   const current = drawn;
 
@@ -22701,8 +22703,22 @@ function OfferSignatureCard({ savedSig, savedTitle, resetSignal = 0, onDraftChan
       {/* The designation printed under the signature. Without it a letter ends
           with a name and a company and nothing saying on what authority it was
           signed, which is what made the sign-off block look unfinished. */}
+      {/* Name and title are what turn a mark into a sign-off block. The name is
+          separate from the account name on purpose: the name you sign letters
+          with is not always the name on your login, and you should not have to
+          rename your account to correct a letter. */}
       <label className="block mt-3">
-        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Your job title</span>
+        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Full name</span>
+        <input
+          value={sigName}
+          onChange={(e) => { setSigName(e.target.value); onNameChange?.(e.target.value); }}
+          placeholder="Name as it should appear on the letter"
+          className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]"
+          style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+      </label>
+      <label className="block mt-3">
+        <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Job title</span>
         <input
           value={title}
           onChange={(e) => { setTitle(e.target.value); onTitleChange?.(e.target.value); }}
@@ -22710,7 +22726,7 @@ function OfferSignatureCard({ savedSig, savedTitle, resetSignal = 0, onDraftChan
           className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]"
           style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
         />
-        <span className="block text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Printed under your signature on letters you sign off.</span>
+        <span className="block text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Both are printed under your signature on letters you sign off.</span>
       </label>
       {note ? <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p> : null}
     </div>
@@ -22738,19 +22754,22 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   // Save button). sigBase = persisted baseline; dSig = live editor draft.
   const [sigBase, setSigBase] = useState(undefined);   // undefined = loading
   const [dSig, setDSig] = useState(null);
+  const [sigNameBase, setSigNameBase] = useState("");
+  const [dSigName, setDSigName] = useState("");
   const [sigTitleBase, setSigTitleBase] = useState(null);
   const [dSigTitle, setDSigTitle] = useState("");
   const [sigReset, setSigReset] = useState(0);         // bump to re-seed the editor on Cancel
   useEffect(() => {
     let alive = true;
-    dbGetMyOfferSignatory().then(({ signature, title }) => {
+    dbGetMyOfferSignatory().then(({ signature, name, title }) => {
       if (!alive) return;
       setSigBase(signature || null); setDSig(signature || null);
+      setSigNameBase(name || ""); setDSigName(name || "");
       setSigTitleBase(title || null); setDSigTitle(title || "");
     });
     return () => { alive = false; };
   }, []);
-  const sigDirty = sigBase !== undefined && (dSig !== sigBase || (dSigTitle.trim() || null) !== sigTitleBase);
+  const sigDirty = sigBase !== undefined && (dSig !== sigBase || (dSigTitle.trim() || null) !== sigTitleBase || dSigName.trim() !== sigNameBase.trim());
 
   const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty;
 
@@ -22764,13 +22783,14 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         if (!res?.ok) { setSaving(false); setConnectErr(res?.error || "Couldn't save the billing currency."); return; }
       }
       if (sigDirty) {
-        const sErr = await dbSaveMyOfferSignatory(dSig, dSigTitle.trim() || null);
+        const sErr = await dbSaveMyOfferSignatory(dSig, dSigName.trim() || null, dSigTitle.trim() || null);
         if (sErr) { setSaving(false); setConnectErr(sErr); return; }
       }
     }
     if (dCurrency !== preferredCurrency) setPreferredCurrency(dCurrency);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
     setSigBase(dSig);
+    setSigNameBase(dSigName.trim());
     setSigTitleBase(dSigTitle.trim() || null);
     setSaving(false);
     setSavedMsg("All changes saved.");
@@ -22780,6 +22800,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
     setDNotif(notifBase);
     setDCurrency(preferredCurrency);
     setDSig(sigBase);
+    setDSigName(sigNameBase || "");
     setDSigTitle(sigTitleBase || "");
     setSigReset((n) => n + 1);
     setSavedMsg(null);
@@ -22804,7 +22825,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           </SettingsSection>
 
           <SettingsSection icon="offer" title="Offer signature" desc="Your sign-off, stamped on offer letters you compose">
-            <OfferSignatureCard savedSig={sigBase} savedTitle={sigTitleBase} resetSignal={sigReset} onDraftChange={setDSig} onTitleChange={setDSigTitle} />
+            <OfferSignatureCard savedSig={sigBase} savedName={sigNameBase} savedTitle={sigTitleBase} resetSignal={sigReset} onDraftChange={setDSig} onNameChange={setDSigName} onTitleChange={setDSigTitle} />
           </SettingsSection>
 
           <SettingsSection
@@ -25749,6 +25770,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [sigDraft, setSigDraft] = useState(null);      // 'typed:Name' | PNG data URI
   const [sigErr, setSigErr] = useState(false);
   const [myTitle, setMyTitle] = useState(null);
+  const [myName, setMyName] = useState("");
   // Everyone in the workspace who has drawn their own signature. The letter used
   // to be signed by whoever composed it, full stop; a hiring manager could not
   // send an offer signed off by the person who actually holds the authority.
@@ -25758,9 +25780,10 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [signBy, setSignBy] = useState(null);          // chosen signatory id, null = me
   useEffect(() => {
     let alive = true;
-    dbGetMyOfferSignatory().then(({ signature, title }) => {
+    dbGetMyOfferSignatory().then(({ signature, name, title }) => {
       if (!alive) return;
-      setSavedSig(signature || null); setSigDraft(signature || null); setMyTitle(title || null);
+      setSavedSig(signature || null); setSigDraft(signature || null);
+      setMyTitle(title || null); setMyName(name || "");
     });
     dbListOfferSignatories().then((rows) => { if (alive) setSignatories(rows); });
     return () => { alive = false; };
@@ -25818,7 +25841,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     employmentType: empType,
     startDate: startDate || null,
     expiresAt: expiresAt || null,
-    signatoryName: (chosenSignatory ? chosenSignatory.name : defaultSignatory || "").trim() || null,
+    signatoryName: (chosenSignatory ? chosenSignatory.name : (myName || defaultSignatory || "")).trim() || null,
     signatoryTitle: (chosenSignatory ? chosenSignatory.title : myTitle) || null,
     signatorySignature: (chosenSignatory ? chosenSignatory.signature : sigDraft) || null,
   };
@@ -25846,7 +25869,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     // Force a company signature before the letter can go out.
     if (composeNeedsSig) { setSigErr(true); return; }
     // Reuse this signature on future offers.
-    if (!chosenSignatory && sigDraft && sigDraft !== savedSig) dbSaveMyOfferSignatory(sigDraft, myTitle).catch(() => {});
+    if (!chosenSignatory && sigDraft && sigDraft !== savedSig) dbSaveMyOfferSignatory(sigDraft, myName, myTitle).catch(() => {});
     setSending(true);
     setTimeout(() => onSend(emailSent, terms, body, appr), emailSent ? 900 : 0);
   };

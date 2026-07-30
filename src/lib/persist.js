@@ -822,25 +822,31 @@ export async function dbGetMyOfferSignatory() {
   const { data: u } = await supabase.auth.getUser();
   const uid = u?.user?.id;
   if (!uid) return { signature: null, title: null };
-  let { data, error } = await supabase.from("profiles").select("offer_signature, offer_signature_title").eq("id", uid).maybeSingle();
+  let { data, error } = await supabase.from("profiles").select("offer_signature, offer_signature_name, offer_signature_title, full_name").eq("id", uid).maybeSingle();
   if (error && error.code === "42703") {
-    const only = await supabase.from("profiles").select("offer_signature").eq("id", uid).maybeSingle();
-    return { signature: only.data?.offer_signature || null, title: null };
+    const only = await supabase.from("profiles").select("offer_signature, full_name").eq("id", uid).maybeSingle();
+    return { signature: only.data?.offer_signature || null, name: only.data?.full_name || "", title: null };
   }
-  if (error) { console.error("dbGetMyOfferSignatory", error.message); return { signature: null, title: null }; }
-  return { signature: data?.offer_signature || null, title: data?.offer_signature_title || null };
+  if (error) { console.error("dbGetMyOfferSignatory", error.message); return { signature: null, name: "", title: null }; }
+  // The letter name falls back to the account name, so someone who never sets it
+  // sees the same sign-off they always had.
+  return {
+    signature: data?.offer_signature || null,
+    name: data?.offer_signature_name || data?.full_name || "",
+    title: data?.offer_signature_title || null,
+  };
 }
 
 // Save signature and title together. Degrades to the 0135 one-argument RPC when
 // 0145 has not been applied, so the signature still saves and only the title is
 // dropped, with a message saying why.
-export async function dbSaveMyOfferSignatory(sig, title) {
+export async function dbSaveMyOfferSignatory(sig, name, title) {
   if (!hasSupabase) return "Not connected to a live workspace.";
-  const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_title: title ?? null });
+  const { error } = await supabase.rpc("set_my_offer_signatory", { p_sig: sig ?? null, p_name: name ?? null, p_title: title ?? null });
   if (!error) return null;
   if (error.code === "42883") {
     const fb = await dbSaveMyOfferSignature(sig);
-    return fb || "Signature saved. Run migration 0145 to store the job title too.";
+    return fb || "Signature saved. Run migration 0146 to store the name and job title too.";
   }
   console.error("dbSaveMyOfferSignatory", error.message);
   return error.message || "Couldn't save your signature.";
