@@ -144,7 +144,10 @@ export default function TodayScreen({ navigation }) {
   // so a manager had to scroll past polls to reach past interviews. Splitting it
   // means each view is one screenful. "poll" covers both poll surfaces: the ones
   // I opened (panel progress) and the ones waiting on my own vote.
-  const [tab, setTab] = useState("next");
+  // Opens on Action, the tab that holds work owed. Falls back to Up next once
+  // there is nothing owed, so the screen never opens on an empty tab.
+  const [tab, setTab] = useState("action");
+  const [tabPicked, setTabPicked] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -217,6 +220,13 @@ export default function TodayScreen({ navigation }) {
   const past = doneTimed.filter(isClosed).reverse();            // closed → Past
   const needsAction = doneTimed.filter((i) => !isClosed(i)).reverse(); // in progress → Action
 
+  // Opening on an empty Action tab would be worse than opening on Up next, so
+  // slide over once, and only until the reader picks a tab themselves.
+  useEffect(() => {
+    if (tabPicked || tab !== "action") return;
+    if (pending.length + needsAction.length === 0 && upcoming.length > 0) setTab("next");
+  }, [tabPicked, tab, pending.length, needsAction.length, upcoming.length]);
+
   const weekCount = timelined.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
 
   return (
@@ -256,14 +266,14 @@ export default function TodayScreen({ navigation }) {
               contentContainerStyle={styles.tabsWrap}
             >
               {[
+                { k: "action", label: "Action", n: pending.length + needsAction.length },
                 { k: "next", label: "Up next", n: upcoming.length },
                 { k: "poll", label: "Poll", n: myPolls.length + polls.length },
-                { k: "action", label: "Action", n: pending.length + needsAction.length },
                 { k: "past", label: "Past", n: past.length },
               ].map((t) => {
                 const on = tab === t.k;
                 return (
-                  <Press key={t.k} onPress={() => setTab(t.k)} haptic="light" style={{ flex: 1 }} scaleTo={0.96}
+                  <Press key={t.k} onPress={() => { setTabPicked(true); setTab(t.k); }} haptic="light" style={{ flex: 1 }} scaleTo={0.96}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={`${t.label}, ${t.n}`}>
@@ -521,21 +531,32 @@ export default function TodayScreen({ navigation }) {
                   // "To score" and told you to collect scorecards for a candidate
                   // who already has an offer in their hands.
                   const awaitingSig = iv.stage === "offer" && !oa;
+                  // Panel finished, no offer yet: what is owed is the decision.
+                  // This used to fall through to "To score" and tell a hiring
+                  // manager to collect scorecards that were already in.
+                  const readyToDecide = !awaitingSig && !oa && iv.allScored && iv.stage !== "offer";
                   const pill = oa === "accepted" ? { label: "Signed", color: "#166534", bg: "#DCFCE7" }
                     : oa === "declined" ? { label: "Declined", color: theme.danger, bg: "#FEF3F2" }
                     : oa === "expired" ? { label: "Expired", color: "#B45309", bg: "#FEF3C7" }
                     : awaitingSig ? { label: "Offer sent", color: theme.brand, bg: theme.brandSoft }
+                    : readyToDecide ? { label: "Ready to decide", color: "#166534", bg: "#DCFCE7" }
                     : { label: "To score", color: theme.brand, bg: theme.brandSoft };
-                  const icon = oa === "accepted" ? "award" : oa === "declined" ? "rotate-ccw" : oa === "expired" ? "clock" : awaitingSig ? "send" : "edit-3";
+                  const icon = oa === "accepted" ? "award" : oa === "declined" ? "rotate-ccw" : oa === "expired" ? "clock" : awaitingSig ? "send" : readyToDecide ? "check-circle" : "edit-3";
                   const msg = oa === "accepted" ? (manager
                         ? `${first} signed the offer. Mark them as hired to close it out.`
-                        : `${first} signed the offer — the hiring manager will finalise the hire.`)
+                        : `${first} signed the offer. The hiring manager will finalise the hire.`)
                     : oa === "declined" ? `${first} declined the offer. Re-send a new one, or close them out.`
                     : oa === "expired" ? `The offer to ${first} lapsed without a signature. Re-send it or close them out.`
                     : awaitingSig ? `The offer is with ${first}, waiting to be signed.`
-                    : manager ? `Interview done. Collect the panel's scorecards, then make the call on ${first}.`
-                    : `Interview done. Add your scorecard for ${first} so the hiring manager can decide.`;
-                  const ctaLabel = oa === "accepted" ? (manager ? "Open offer" : "View candidate") : (oa || awaitingSig) ? "Open offer" : "Open interview";
+                    : readyToDecide ? (manager
+                        ? `The panel has scored. Make the call on ${first}.`
+                        : `The panel has scored. The hiring manager decides next.`)
+                    : manager ? `Interview done. Collect the panel's scorecards, then decide on ${first}.`
+                    : `Interview done. Add your scorecard for ${first}.`;
+                  const ctaLabel = oa === "accepted" ? (manager ? "Open offer" : "View candidate")
+                    : (oa || awaitingSig) ? "Open offer"
+                    : readyToDecide && manager ? "Make the call"
+                    : "Open interview";
                   return (
                     /* Same shape as the blocked-interview card above: status rail,
                        then a tinted strip naming the state and what it needs.
@@ -767,7 +788,8 @@ function pastOutcome(iv) {
     if (iv.offerAction === "expired") return { label: "Offer expired", color: "#B45309", tint: "#FEF3C7", icon: "alert-triangle" };
     return { label: "Offer sent", color: theme.brand, tint: theme.brandSoft, icon: "send" };
   }
-  return { label: "Decision pending", color: "#B45309", tint: "#FEF3C7", icon: "clock" };
+  if (iv.allScored) return { label: "Ready to decide", color: "#166534", tint: "#DCFCE7", icon: "check-circle" };
+  return { label: "Awaiting scorecards", color: "#B45309", tint: "#FEF3C7", icon: "clock" };
 }
 
 // Compact past-interview card for the horizontal Past carousel: date top-right,

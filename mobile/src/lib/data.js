@@ -69,6 +69,20 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       : { data: [] },
   ]);
 
+  // Who still owes a scorecard. Without this the Action card could only say "to
+  // score", so a candidate whose panel had finished and who was sitting at the
+  // decision step was still being told to collect scorecards.
+  let scoredByKey = {};
+  if (candIds.length) {
+    const { data: cards } = await supabase
+      .from("scorecards").select("candidate_id, job_id, interviewer_id")
+      .eq("company_id", companyId).in("candidate_id", candIds);
+    for (const c of cards || []) {
+      const k = `${c.candidate_id}:${c.job_id}`;
+      (scoredByKey[k] || (scoredByKey[k] = new Set())).add(c.interviewer_id);
+    }
+  }
+
   const candById = Object.fromEntries((cands.data || []).map((c) => [c.id, c]));
   const jobTitle = Object.fromEntries((jobs.data || []).map((j) => [j.id, j.title]));
   const stageByKey = Object.fromEntries((apps.data || []).map((a) => [`${a.candidate_id}:${a.job_id}`, a.stage || null]));
@@ -111,6 +125,17 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       status: iv.status, // scheduled | sent | reschedule
       stage: stageByKey[`${iv.candidate_id}:${iv.job_id}`] || null, // applied|shortlisted|interviewing|offer|hired|rejected
       offerAction: offerAction[iv.candidate_id] || null, // 'accepted'|'declined'|'expired' → offer-stage candidate still needs the HM
+      // Every interviewer on the panel has scored (the hiring manager's own card
+      // is optional, same rule as the candidate profile), so the decision is the
+      // thing that is owed, not more scorecards.
+      allScored: (() => {
+        const panel = Array.isArray(iv.attendees) ? iv.attendees : [];
+        const hasHmFlag = panel.some((x) => x && x.hm);
+        const required = panel.filter((x, i) => x && x.id && !(hasHmFlag ? x.hm : i === 0));
+        if (!required.length) return false;               // solo interview: no panel to wait on
+        const done = scoredByKey[`${iv.candidate_id}:${iv.job_id}`] || new Set();
+        return required.every((x) => done.has(x.id));
+      })(),
       scheduledAt: iv.scheduled_at,
       sentAt: iv.created_at || null,
       proposedSlots: Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [],
