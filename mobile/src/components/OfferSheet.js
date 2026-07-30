@@ -6,7 +6,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sendOffer, loadApprovers, addApprover, getMyOfferSignatory, saveMyOfferSignatory, listOfferSignatories } from "../lib/data";
+import { sendOffer, loadApprovers, addApprover, getMyOfferSignatory, saveMyOfferSignatory, listOfferSignatories, getOfferLetterTemplate } from "../lib/data";
+import { fillOfferTemplate, toggleBoldRange } from "../lib/offerLetter";
 import { Button, Feather } from "./ui";
 import SignaturePad from "./SignaturePad";
 import CalendarSheet from "./CalendarSheet";
@@ -48,24 +49,6 @@ function prettyDate(iso) {
   return `${Number(dd)} ${months[Number(m) - 1]} ${y}`;
 }
 
-// Toggle **bold** around [a,b). Same rules as the web toolbar (resume-ai-preview
-// toggleBoldRange) so bolding behaves identically on both: unwrap when the
-// selection is already bold, unwrap when it sits just inside the markers,
-// otherwise wrap. The markers stay in the stored text, which is what the server
-// renderer and every offer already written expect.
-function toggleBoldRange(text, a, b) {
-  if (a === b) return null;
-  const sel = text.slice(a, b), before = text.slice(0, a), after = text.slice(b);
-  if (sel.length > 4 && sel.startsWith("**") && sel.endsWith("**")) {
-    const inner = sel.slice(2, -2);
-    return { text: before + inner + after, start: a, end: a + inner.length };
-  }
-  if (before.endsWith("**") && after.startsWith("**")) {
-    return { text: before.slice(0, -2) + sel + after.slice(2), start: a - 2, end: b - 2 };
-  }
-  return { text: before + "**" + sel + "**" + after, start: a + 2, end: b + 2 };
-}
-
 export default function OfferSheet({ visible, onClose, companyId, companyName, candidateId, candidateName, jobId, defaults = {}, onSent }) {
   const insets = useSafeAreaInsets();
   const kb = useKeyboardHeight();
@@ -90,6 +73,9 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   // no approvers are the common case, and both were pushing Send offer far down.
   // All three start shut. The terms are what you came for; letter, signature and
   // approvers are usually already right, and each says so in its summary line.
+  // undefined while loading, so the letter is not composed from the default and
+  // then swapped underneath.
+  const [letterTemplate, setLetterTemplate] = useState(undefined);
   const [letterOpen, setLetterOpen] = useState(false);
   const [sigOpen, setSigOpen] = useState(false);
   const [apprOpen, setApprOpen] = useState(false);
@@ -133,33 +119,21 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const composeBody = () => {
     const SYM = { myr: "RM", usd: "$", sgd: "S$" };
     const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
-    const role = jobTitle.trim() || "[Position]";
-    const co = companyName || "[Company]";
-    const start = fmt(startDate) || "[start date]";
-    const pay = salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "[Basic Salary]";
-    const exp = fmt(expiresAt);
-    return [
-      `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
-      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before **${start}**, failing which this offer of employment shall be null and void.`,
-      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until **${exp}**. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
-      `REMUNERATION\nYou will be paid a Basic Salary of **${pay} per month** with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
-      `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
-      `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
-      `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
-      `ANNUAL LEAVE\nYou will be entitled to annual leave as per ${co}'s HR Policies on Terms and Conditions of Service.`,
-      `TERMINATION OF EMPLOYMENT\nAfter confirmation of employment, either party maintains the right to terminate this letter of employment by giving to the other not less than two (2) calendar months' notice or salary in lieu of such notice.`,
-      `COMPANY RULES\nYour appointment shall always be subject to your compliance with any conditions of service or Company rules and practices, either express or implied, for the time being in force.`,
-      `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week. You shall be required when necessary to work beyond the normal working hours.`,
-      `You will be reporting to your immediate superior and be responsible for the duties set out in your Job Description, and for their performance, profitability, market development and budget achievement and control.`,
-      `If you are agreeable with the above terms of employment, please signify your acceptance by signing where indicated below.`,
-    ].join("\n\n");
+    return fillOfferTemplate(letterTemplate, {
+      role: jobTitle.trim(),
+      company: companyName,
+      joiningDate: fmt(startDate),
+      salary: salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "",
+      expiryDate: fmt(expiresAt),
+    });
   };
 
   // Recompose the letter as the terms change, until the manager edits it by hand.
   useEffect(() => {
+    if (letterTemplate === undefined) return;   // still loading the company's wording
     if (!bodyEdited) setBody(composeBody());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobTitle, salary, currency, startDate, expiresAt, companyName]);
+  }, [jobTitle, salary, currency, startDate, expiresAt, companyName, letterTemplate]);
 
   const reset = () => {
     setSalary(""); setStartDate(null); setExpiresAt(null);
@@ -211,6 +185,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
       setSigName(name || ""); setSigTitle(title || null);
     });
     listOfferSignatories().then((rows) => { if (alive) setSignatories(rows); });
+    getOfferLetterTemplate().then((t) => { if (alive) setLetterTemplate(t || null); });
     return () => { alive = false; };
   }, [visible]);
 

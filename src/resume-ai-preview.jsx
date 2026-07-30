@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -22774,6 +22774,61 @@ function OfferSignatureCard({ savedSig, savedName, savedTitle, resetSignal = 0, 
   );
 }
 
+// The company's offer letter, written once. Tokens stay literal here, because
+// this is the wording for every future offer and there is no one candidate to
+// fill them from; the Make offer screen substitutes them per letter.
+function OfferLetterCard({ value, onChange, disabled }) {
+  const ref = useRef(null);
+  const bold = () => {
+    const el = ref.current; if (!el) return;
+    const r = toggleBoldRange(value ?? "", el.selectionStart, el.selectionEnd);
+    if (!r) return;
+    onChange(r.text);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(r.start, r.end); });
+  };
+  const insert = (tok) => {
+    const el = ref.current; if (!el) return;
+    const a2 = el.selectionStart, b2 = el.selectionEnd, v = value ?? "";
+    onChange(v.slice(0, a2) + tok + v.slice(b2));
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(a2 + tok.length, a2 + tok.length); });
+  };
+  return (
+    <div>
+      <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
+        Every offer your team composes starts from this. Aster fills the role, salary and dates for each candidate, and the hiring manager can still edit a single letter before sending it.
+      </p>
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={bold} disabled={disabled} title="Bold (Ctrl+B)" aria-label="Bold the selected text"
+          className="w-8 h-8 rounded-lg text-sm font-bold transition-colors hover:bg-[color:var(--bg)] disabled:opacity-40"
+          style={{ color: "var(--ink-2)", border: "1px solid var(--line)" }}>B</button>
+        <span className="text-[11px] mx-1" style={{ color: "var(--ink-4)" }}>Insert:</span>
+        {OFFER_TOKENS.map((t) => (
+          <button key={t} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insert(t)} disabled={disabled}
+            className="text-[11px] font-mono rounded-md px-2 py-1 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-40"
+            style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>{t}</button>
+        ))}
+      </div>
+      <textarea
+        ref={ref}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && (e.key === "b" || e.key === "B")) { e.preventDefault(); bold(); } }}
+        disabled={disabled}
+        rows={16}
+        className="w-full rounded-lg bg-white border px-3.5 py-2.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] disabled:opacity-60"
+        style={{ borderColor: "var(--line-strong)", color: "var(--ink)", lineHeight: 1.6 }}
+      />
+      <div className="flex items-center justify-between gap-2 mt-2">
+        <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Wrap text in **double asterisks** to bold it in the sent letter.</p>
+        <button type="button" onClick={() => onChange(OFFER_LETTER_DEFAULT)} disabled={disabled}
+          className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity disabled:opacity-40" style={{ color: "var(--brand)" }}>
+          Reset to Aster&apos;s default
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications, companyId = null, canPersist = false, logoUrl = null, preferredCurrency = "myr", setPreferredCurrency = () => {} }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -22795,6 +22850,19 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   // Save button). sigBase = persisted baseline; dSig = live editor draft.
   const [sigBase, setSigBase] = useState(undefined);   // undefined = loading
   const [dSig, setDSig] = useState(null);
+  // Offer letter template, drafted through the same Save bar as everything else.
+  const [tplBase, setTplBase] = useState(undefined);
+  const [dTpl, setDTpl] = useState("");
+  useEffect(() => {
+    let alive = true;
+    dbGetOfferLetterTemplate().then((t) => { if (alive) { setTplBase(t || null); setDTpl(t || OFFER_LETTER_DEFAULT); } });
+    return () => { alive = false; };
+  }, []);
+  // Saving Aster's default verbatim means "no custom wording", so it is stored
+  // as null and the company keeps following the default if it ever changes.
+  const tplValue = () => (dTpl.trim() === OFFER_LETTER_DEFAULT.trim() ? null : (dTpl.trim() || null));
+  const tplDirty = tplBase !== undefined && tplValue() !== tplBase;
+
   const [sigNameBase, setSigNameBase] = useState("");
   const [dSigName, setDSigName] = useState("");
   const [sigTitleBase, setSigTitleBase] = useState(null);
@@ -22812,7 +22880,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   }, []);
   const sigDirty = sigBase !== undefined && (dSig !== sigBase || (dSigTitle.trim() || null) !== sigTitleBase || dSigName.trim() !== sigNameBase.trim());
 
-  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty;
+  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty || tplDirty;
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setConnectErr(null);
@@ -22823,6 +22891,10 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         const res = await dbSetCompanyCurrency(dCurrency);
         if (!res?.ok) { setSaving(false); setConnectErr(res?.error || "Couldn't save the billing currency."); return; }
       }
+      if (tplDirty) {
+        const tErr = await dbSaveOfferLetterTemplate(tplValue());
+        if (tErr) { setSaving(false); setConnectErr(tErr); return; }
+      }
       if (sigDirty) {
         const sErr = await dbSaveMyOfferSignatory(dSig, dSigName.trim() || null, dSigTitle.trim() || null);
         if (sErr) { setSaving(false); setConnectErr(sErr); return; }
@@ -22831,6 +22903,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
     if (dCurrency !== preferredCurrency) setPreferredCurrency(dCurrency);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
     setSigBase(dSig);
+    setTplBase(tplValue());
     setSigNameBase(dSigName.trim());
     setSigTitleBase(dSigTitle.trim() || null);
     setSaving(false);
@@ -22841,6 +22914,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
     setDNotif(notifBase);
     setDCurrency(preferredCurrency);
     setDSig(sigBase);
+    setDTpl(tplBase || OFFER_LETTER_DEFAULT);
     setDSigName(sigNameBase || "");
     setDSigTitle(sigTitleBase || "");
     setSigReset((n) => n + 1);
@@ -22863,6 +22937,10 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         <div className="space-y-3">
           <SettingsSection icon="doc" title="Email templates" desc="Edit the offer, rejection, interview & other automated emails">
             <EmailTemplatesPanel plan={plan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />
+          </SettingsSection>
+
+          <SettingsSection icon="doc" title="Offer letter" desc="Your company's wording, used for every offer">
+            <OfferLetterCard value={dTpl} onChange={setDTpl} disabled={tplBase === undefined || !canPersist} />
           </SettingsSection>
 
           <SettingsSection icon="offer" title="Offer signature" desc="Your sign-off, stamped on offer letters you compose">
@@ -25083,8 +25161,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     {/* Offer: the prominent, brand-accented path. */}
                     <button onClick={() => (!anyScored && !scorecardsSkipped ? setPendingDecision("offer") : setShowOffer(true))} className="group relative overflow-hidden rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_20px_44px_-22px_rgba(var(--brand-rgb),0.75)]" style={{ background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)", border: "1px solid #CBD8F5" }}>
                       <div className="flex items-center gap-3">
-                        <span className="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" }}><Icon name="offer" className="w-5 h-5" /></span>
-                        <div className="min-w-0 flex-1">
+                                      <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Make an offer</p>
                           <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>Send {firstName} an offer to hire.</p>
                         </div>
@@ -25746,6 +25823,39 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false, onSig
   );
 }
 
+// Aster's default offer letter, as a token template. A company can save its own
+// wording over this (companies.offer_letter_template, 0147); the tokens are what
+// let a saved letter still carry the right role, salary and dates for each
+// candidate instead of freezing one offer's numbers into every future one.
+const OFFER_TOKENS = ["{{role}}", "{{company}}", "{{joining_date}}", "{{salary}}", "{{expiry_date}}"];
+const OFFER_LETTER_DEFAULT = [
+  `We are pleased to confirm our conditional offer of employment as {{role}} at {{company}}, subject to the following terms and conditions of service:`,
+  `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before **{{joining_date}}**, failing which this offer of employment shall be null and void.`,
+  `VALIDITY OF OFFER\nThis offer is open for your acceptance until **{{expiry_date}}**. If your signed acceptance is not received by this date, this offer shall lapse.`,
+  `REMUNERATION\nYou will be paid a Basic Salary of **{{salary}} per month** with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
+  `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons to do so.`,
+  `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
+  `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
+  `ANNUAL LEAVE\nYou will be entitled to annual leave as per {{company}}'s HR Policies on Terms and Conditions of Service.`,
+  `TERMINATION OF EMPLOYMENT\nAfter confirmation of employment, either party maintains the right to terminate this letter of employment by giving to the other not less than two (2) calendar months notice in writing, or payment in lieu of notice.`,
+  `COMPANY RULES\nYour appointment shall always be subject to your compliance with any conditions of service or Company rules and practices, either express or implied, for the time being in force.`,
+  `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week. You shall be required when necessary to work beyond the normal working hours.`,
+  `You will be reporting to your immediate superior and be responsible for the duties set out in your Job Description, and for their performance, profitability, market development and budget achievement and control.`,
+  `If you are agreeable with the above terms of employment, please signify your acceptance by signing where indicated below.`,
+].join("\n\n");
+
+// Fill a template's tokens. A value that has not been entered yet becomes its
+// bracket placeholder, so an unfinished letter reads as a draft rather than as a
+// sentence with a hole in it.
+function fillOfferTemplate(tpl, v) {
+  return String(tpl || OFFER_LETTER_DEFAULT)
+    .split("{{role}}").join(v.role || "[Position]")
+    .split("{{company}}").join(v.company || "[Company]")
+    .split("{{joining_date}}").join(v.joiningDate || "[joining date]")
+    .split("{{salary}}").join(v.salary || "[Basic Salary]")
+    .split("{{expiry_date}}").join(v.expiryDate || "[offer expiry date]");
+}
+
 // Toggle **bold** around [a,b) of `text`. Returns the new text and where the
 // selection should land, so the caller can put the caret back exactly where the
 // writer left it. Shared by the web textarea toolbar and the mobile one, so the
@@ -25814,6 +25924,14 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // Letter fields: who signs for the company, plus optional prose details.
   const [bodyEdited, setBodyEdited] = useState(!!r.body);  // resubmit keeps the saved letter as-is until re-edited
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
+  // The company's saved wording, if it has any. undefined while loading so the
+  // letter is not composed from the default and then swapped underneath.
+  const [letterTemplate, setLetterTemplate] = useState(undefined);
+  useEffect(() => {
+    let alive = true;
+    dbGetOfferLetterTemplate().then((t) => { if (alive) setLetterTemplate(t || null); });
+    return () => { alive = false; };
+  }, []);
   const bodyRef = useRef(null);
   // All shut to start, same as mobile. The terms are what you came for; the rest
   // is usually already right and each section says so without being opened.
@@ -25904,32 +26022,19 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const composeBody = () => {
     const SYM = { myr: "RM", usd: "$", sgd: "S$" };
     const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
-    const role = title.trim() || (jobTitle && jobTitle !== "the role" ? jobTitle : "[Position]");
-    const co = companyName || "[Company]";
-    const start = fmt(startDate) || "[start date]";
-    const pay = salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "[Basic Salary]";
-    const mgr = "your immediate superior";
-    const exp = fmt(expiresAt);   // optional: only shown when an expiry date is set
-    return [
-      `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
-      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before **${start}**, failing which this offer of employment shall be null and void.`,
-      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until **${exp}**. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
-      `REMUNERATION\nYou will be paid a Basic Salary of **${pay} per month** with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
-      `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
-      `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
-      `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
-      `ANNUAL LEAVE\nYou will be entitled to annual leave as per ${co}'s HR Policies on Terms and Conditions of Service.`,
-      `TERMINATION OF EMPLOYMENT\nAfter confirmation of employment, either party maintains the right to terminate this letter of employment by giving to the other not less than two (2) calendar months' notice or salary in lieu of such notice.`,
-      `COMPANY RULES\nYour appointment shall always be subject to your compliance with any conditions of service or Company rules and practices, either express or implied, for the time being in force.`,
-      `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week. You shall be required when necessary to work beyond the normal working hours.`,
-      `You will be reporting to ${mgr} and be responsible for the duties set out in your Job Description, and for their performance, profitability, market development and budget achievement and control.`,
-      `If you are agreeable with the above terms of employment, please signify your acceptance by signing where indicated below.`,
-    ].join("\n\n");
+    return fillOfferTemplate(letterTemplate, {
+      role: title.trim() || (jobTitle && jobTitle !== "the role" ? jobTitle : ""),
+      company: companyName,
+      joiningDate: fmt(startDate),
+      salary: salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "",
+      expiryDate: fmt(expiresAt),
+    });
   };
   useEffect(() => {
+    if (letterTemplate === undefined) return;   // still loading the company's wording
     if (!bodyEdited) setBody(composeBody());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, salary, currency, startDate, expiresAt, companyName]);
+  }, [title, salary, currency, startDate, expiresAt, companyName, letterTemplate]);
 
   const inputClass = "w-full rounded-lg bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-shadow focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -25980,7 +26085,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-xl rounded-2xl border bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" style={{ borderColor: "var(--line)" }}>
         {/* Sticky branded header */}
-        <div className="px-6 pt-5 pb-4 flex items-start gap-3.5 border-b" style={{ borderColor: "var(--line)", background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)" }}>
+        <div className="px-6 pt-5 pb-4 flex items-start gap-3 border-b" style={{ borderColor: "var(--line)", background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)" }}>
           <span className="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" }}><Icon name="offer" className="w-5 h-5" /></span>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{resubmit ? "Revise & resubmit offer" : `Send offer to ${candidateName}`}</h2>

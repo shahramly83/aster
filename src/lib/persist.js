@@ -855,6 +855,31 @@ export async function dbSaveMyOfferSignatory(sig, name, title) {
   return error.message || "Couldn't save your signature.";
 }
 
+// The company's own offer letter wording (0147), or null to use Aster's default.
+export async function dbGetOfferLetterTemplate() {
+  if (!hasSupabase) return null;
+  const { data, error } = await supabase.rpc("current_company_id");
+  const cid = error ? null : data;
+  if (!cid) return null;
+  const r = await supabase.from("companies").select("offer_letter_template").eq("id", cid).maybeSingle();
+  if (r.error) {
+    if (r.error.code !== "42703") console.error("dbGetOfferLetterTemplate", r.error.message);
+    return null;
+  }
+  return r.data?.offer_letter_template || null;
+}
+
+// Save it for the whole workspace. Null restores the built-in default.
+export async function dbSaveOfferLetterTemplate(tpl) {
+  if (!hasSupabase) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("set_offer_letter_template", { p_tpl: tpl ?? null });
+  if (!error) return null;
+  if (error.code === "42501") return "Only an owner or admin can change the offer letter.";
+  if (error.code === "42883" || error.code === "PGRST202") return "Run migration 0147 to save an offer letter template.";
+  console.error("dbSaveOfferLetterTemplate", error.message);
+  return error.message || "Couldn't save the offer letter.";
+}
+
 // Everyone in the workspace who has drawn a signature, so the offer screen can
 // offer a choice of who signs off the letter. Empty on a pre-0145 database.
 export async function dbListOfferSignatories() {

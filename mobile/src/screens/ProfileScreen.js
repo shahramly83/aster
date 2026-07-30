@@ -8,7 +8,8 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../AuthContext";
 import { registerForPush, unregisterPush, PUSH_PREF_KEY } from "../lib/push";
-import { getMyOfferSignature, saveMyOfferSignature, getMyOfferSignatory, saveMyOfferSignatory } from "../lib/data";
+import { getMyOfferSignature, saveMyOfferSignature, getMyOfferSignatory, saveMyOfferSignatory, getOfferLetterTemplate, saveOfferLetterTemplate } from "../lib/data";
+import { OFFER_LETTER_DEFAULT, OFFER_TOKENS, toggleBoldRange } from "../lib/offerLetter";
 import { Avatar, Press, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import { theme, type, space, radius, shadow } from "../theme";
@@ -28,6 +29,9 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => { if (manager) getMyOfferSignature().then(setSavedSig).catch(() => {}); }, [manager]);
   // A typed signature can still exist on older accounts (and the web app can
   // still save one), so keep reading it; new ones from here are always drawn.
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplCustom, setTplCustom] = useState(false);
+  useEffect(() => { getOfferLetterTemplate().then((t) => setTplCustom(!!t)); }, []);
   const sigSummary = savedSig ? (savedSig.startsWith("typed:") ? `Typed · ${savedSig.slice(6)}` : "Signed") : "Not set";
 
   useEffect(() => {
@@ -95,6 +99,15 @@ export default function ProfileScreen({ navigation }) {
             />
             {manager ? (
               <Row
+                icon="file-text" tint="#0EA5E9"
+                title="Offer letter"
+                subtitle={tplCustom ? "Your company's wording" : "Aster's default wording"}
+                right={<Feather name="chevron-right" size={18} color={theme.ink4} />}
+                onPress={() => setTplOpen(true)}
+              />
+            ) : null}
+            {manager ? (
+              <Row
                 icon="edit-3" tint="#7C3AED"
                 title="Offer signature"
                   subtitle={sigSummary}
@@ -132,6 +145,11 @@ export default function ProfileScreen({ navigation }) {
         </ScrollView>
       </SafeAreaView>
 
+      <OfferLetterSheet
+        visible={tplOpen}
+        onClose={() => setTplOpen(false)}
+        onSaved={(v) => setTplCustom(!!v)}
+      />
       <OfferSignatureSheet
         visible={sigOpen}
         initial={savedSig}
@@ -164,6 +182,104 @@ function Row({ icon, tint, title, subtitle, right, last, onPress }) {
     );
   }
   return <View style={[styles.row, !last && styles.rowDivider]}>{body}</View>;
+}
+
+// The company's offer letter, written once and reused by every offer. Tokens
+// stay literal here: this is the wording for future offers, and there is no one
+// candidate to fill them from. Owner/admin only, enforced by the RPC.
+function OfferLetterSheet({ visible, onClose, onSaved }) {
+  const insets = useSafeAreaInsets();
+  const [text, setText] = useState("");
+  const [base, setBase] = useState(undefined);
+  const [sel, setSel] = useState({ start: 0, end: 0 });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    setErr(null);
+    getOfferLetterTemplate().then((t) => {
+      if (!alive) return;
+      setBase(t || null); setText(t || OFFER_LETTER_DEFAULT);
+    });
+    return () => { alive = false; };
+  }, [visible]);
+
+  const bold = () => {
+    const r = toggleBoldRange(text, sel.start, sel.end);
+    if (!r) return;
+    setText(r.text);
+    setTimeout(() => ref.current?.setNativeProps?.({ selection: { start: r.start, end: r.end } }), 0);
+  };
+  const insert = (tok) => {
+    const a2 = sel.start, b2 = sel.end;
+    setText(text.slice(0, a2) + tok + text.slice(b2));
+    setTimeout(() => ref.current?.setNativeProps?.({ selection: { start: a2 + tok.length, end: a2 + tok.length } }), 0);
+  };
+  const save = async () => {
+    Keyboard.dismiss();
+    setBusy(true); setErr(null);
+    // Saving Aster's default verbatim means "no custom wording": stored as null
+    // so the company keeps following the default if it ever changes.
+    const val = text.trim() === OFFER_LETTER_DEFAULT.trim() ? null : (text.trim() || null);
+    const e = await saveOfferLetterTemplate(val);
+    setBusy(false);
+    if (e) { setErr(e); return; }
+    onSaved?.(val);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={[type.h3, { color: theme.ink }]}>Offer letter</Text>
+          <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 18 }]}>
+            Every offer your team composes starts from this. Aster fills the role, salary and dates for each candidate.
+          </Text>
+
+          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: space(4) }}>
+            <Pressable onPress={bold} style={({ pressed }) => [styles.tplBold, pressed && { backgroundColor: theme.bg }]}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: theme.ink2 }}>B</Text>
+            </Pressable>
+            {OFFER_TOKENS.map((t) => (
+              <Pressable key={t} onPress={() => insert(t)} style={({ pressed }) => [styles.tplTok, pressed && { opacity: 0.7 }]}>
+                <Text style={{ fontSize: 11, color: theme.brand, fontFamily: "Inter_600SemiBold" }}>{t}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <TextInput
+            ref={ref}
+            value={text}
+            onChangeText={setText}
+            onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
+            multiline
+            editable={base !== undefined && !busy}
+            style={[styles.sigInput, { marginTop: space(3), minHeight: 240, textAlignVertical: "top", lineHeight: 20 }]}
+          />
+          <Text style={[type.small, { color: theme.ink3, marginTop: 6, fontSize: 11.5 }]}>
+            Wrap text in **double asterisks** to bold it in the sent letter.
+          </Text>
+
+          {err ? <Text style={[type.small, { color: theme.danger, marginTop: 10 }]}>{err}</Text> : null}
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: space(5) }}>
+            <Pressable onPress={() => setText(OFFER_LETTER_DEFAULT)} disabled={busy} style={[styles.sigBtn, { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line }]}>
+              <Text style={[type.smallStrong, { color: theme.ink2 }]}>Reset</Text>
+            </Pressable>
+            <Pressable onPress={save} disabled={busy || base === undefined} style={[styles.sigBtn, { backgroundColor: theme.brand, flex: 1 }]}>
+              {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[type.smallStrong, { color: "#fff" }]}>Save offer letter</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 // Offer-signature capture. Drawn only, on both platforms.
@@ -298,6 +414,8 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  tplBold: { width: 32, height: 32, borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line, alignItems: "center", justifyContent: "center", marginRight: 8, marginBottom: 8 },
+  tplTok: { borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line, paddingHorizontal: 8, paddingVertical: 6, marginRight: 6, marginBottom: 8 },
   sigLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5, textTransform: "uppercase", color: theme.ink2, marginTop: space(4), marginBottom: 6 },
   sigInput: { borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.bg, paddingHorizontal: space(3), paddingVertical: space(3), fontSize: 14, fontFamily: "Inter_400Regular", color: theme.ink },
   sigBtn: { alignItems: "center", justifyContent: "center", borderRadius: radius.md, paddingVertical: 13, paddingHorizontal: 20 },

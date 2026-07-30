@@ -1251,6 +1251,26 @@ export async function getMyOfferSignatory() {
     title: data?.offer_signature_title || null,
   };
 }
+// The company's own offer letter wording (0147), or null for Aster's default.
+export async function getOfferLetterTemplate() {
+  const { data: cid, error } = await supabase.rpc("current_company_id");
+  if (error || !cid) return null;
+  const r = await supabase.from("companies").select("offer_letter_template").eq("id", cid).maybeSingle();
+  if (r.error) {
+    if (r.error.code !== "42703") console.warn("getOfferLetterTemplate", r.error.message);
+    return null;
+  }
+  return r.data?.offer_letter_template || null;
+}
+export async function saveOfferLetterTemplate(tpl) {
+  const { error } = await supabase.rpc("set_offer_letter_template", { p_tpl: tpl ?? null });
+  if (!error) return null;
+  if (error.code === "42501") return "Only an owner or admin can change the offer letter.";
+  if (error.code === "42883" || error.code === "PGRST202") return "Run migration 0147 to save an offer letter.";
+  console.warn("saveOfferLetterTemplate", error.message);
+  return error.message || "Couldn't save the offer letter.";
+}
+
 // Everyone in the workspace who has drawn their own signature, so the offer
 // sheet can offer a choice of who signs the letter. Empty until 0145/0146.
 export async function listOfferSignatories() {
