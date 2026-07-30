@@ -255,7 +255,7 @@ export default function JobDetailScreen({ route, navigation }) {
           {manager ? (
             <Pressable onPress={() => { setLinkSource(""); setCopied(false); setLinkOpen(true); }} style={styles.applyChip} hitSlop={6}>
               <Feather name="link" size={13} color={theme.white} />
-              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>Copy apply link</Text>
+              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>Share</Text>
             </Pressable>
           ) : null}
         </View>
