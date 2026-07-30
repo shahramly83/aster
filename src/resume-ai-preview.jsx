@@ -25034,14 +25034,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Ready to hire {firstName}</p>
                     <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{offerSigned ? `${firstName} signed the offer letter with Aster Sign. Download it below, then mark them as hired to complete the process.` : `${firstName}'s acceptance is recorded. Mark them as hired to complete the process.`}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                     {offerSigned && (
-                      <button onClick={downloadSignedOffer} disabled={offerDl} className="text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                      <button onClick={downloadSignedOffer} disabled={offerDl} className="text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors w-full sm:w-auto justify-center inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         {offerDl ? "Preparing…" : "Download signed letter"}
                       </button>
                     )}
-                    <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl text-white font-semibold px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5" style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 10px 22px -12px rgba(22,163,74,0.7)" }}>
+                    <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl text-white font-semibold px-4 py-2 hover:opacity-90 transition-opacity w-full sm:w-auto justify-center inline-flex items-center gap-1.5" style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 10px 22px -12px rgba(22,163,74,0.7)" }}>
                       <Icon name="check" className="w-4 h-4" /> Mark as hired
                     </button>
                   </div>
@@ -25121,15 +25121,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mt-3">
                     {offerSigned && (
-                      <button onClick={downloadSignedOffer} disabled={offerDl} className="text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                      <button onClick={downloadSignedOffer} disabled={offerDl} className="text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors w-full sm:w-auto justify-center inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         {offerDl ? "Preparing…" : "Download signed letter"}
                       </button>
                     )}
                     {offerSigned && (
-                      <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl text-white font-semibold px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5" style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 10px 22px -12px rgba(22,163,74,0.7)" }}>
+                      <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl text-white font-semibold px-4 py-2 hover:opacity-90 transition-opacity w-full sm:w-auto justify-center inline-flex items-center gap-1.5" style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 10px 22px -12px rgba(22,163,74,0.7)" }}>
                         <Icon name="check" className="w-4 h-4" /> Mark as hired
                       </button>
                     )}
