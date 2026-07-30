@@ -126,10 +126,10 @@ export default function JobDetailScreen({ route, navigation }) {
   }, [strongRows]);
   const total = loaded ? strongRows.length : null;
   const hired = loaded ? rows.filter((r) => r.stage === "hired").length : null;
-  // Interviewing + offer: the people still being considered, not a queue of
-  // things to review. "In the running" says that; "In progress" could have meant
-  // the role, the screening or the applications.
-  const toReview = loaded ? (counts.interviewing || 0) + (counts.offer || 0) : null;
+  // Offer stage only. This used to add interviewing to it, which was fine under
+  // a vaguer label but would make "Offer stage" count people who have not been
+  // offered anything.
+  const atOffer = loaded ? (counts.offer || 0) : null;
 
   // Star = add/remove a personal bookmark, nothing else. It used to move the
   // candidate applied <-> shortlisted, which advanced them in the pipeline (and
@@ -273,7 +273,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
         <View style={styles.heroFoot}>
           <HeroStat label="Hired" value={loaded ? hired : "—"} />
-          <HeroStat label="In the running" value={loaded ? toReview : "—"} />
+          <HeroStat label="Offer stage" value={loaded ? atOffer : "—"} />
           <HeroStat label="Posted" value={job?.postedAt ? relTime(job.postedAt) : "—"} small />
         </View>
       </LinearGradient>
