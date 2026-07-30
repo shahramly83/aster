@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard, TextInput, Platform, useWindowDimensions } from "react-native";
+import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard, TextInput, Platform, Image, KeyboardAvoidingView } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -26,13 +26,22 @@ export default function ProfileScreen({ navigation }) {
   const [sigOpen, setSigOpen] = useState(false);
   const [savedSig, setSavedSig] = useState(null); // current stored value
 
-  useEffect(() => { if (manager) getMyOfferSignature().then(setSavedSig).catch(() => {}); }, [manager]);
+  useEffect(() => {
+    if (!manager) return;
+    getMyOfferSignatory().then(({ signature, name, title }) => {
+      setSavedSig(signature); setSigName(name || ""); setSigTitle(title || "");
+    }).catch(() => {});
+  }, [manager]);
   // A typed signature can still exist on older accounts (and the web app can
   // still save one), so keep reading it; new ones from here are always drawn.
+  const [sigName, setSigName] = useState("");
+  const [sigTitle, setSigTitle] = useState("");
   const [tplOpen, setTplOpen] = useState(false);
   const [tplCustom, setTplCustom] = useState(false);
   useEffect(() => { getOfferLetterTemplate().then((t) => setTplCustom(!!t)); }, []);
-  const sigSummary = savedSig ? (savedSig.startsWith("typed:") ? `Typed · ${savedSig.slice(6)}` : "Signed") : "Not set";
+  const sigSummary = !savedSig ? "Not set"
+    : savedSig.startsWith("typed:") ? `Typed · ${savedSig.slice(6)}`
+    : [sigName, sigTitle].filter(Boolean).join(" · ") || "Signed";
 
   useEffect(() => {
     (async () => {
@@ -155,7 +164,7 @@ export default function ProfileScreen({ navigation }) {
         initial={savedSig}
         name={profile?.name}
         onClose={() => setSigOpen(false)}
-        onSaved={(v) => setSavedSig(v)}
+        onSaved={(v) => { setSavedSig(v); getMyOfferSignatory().then(({ name, title }) => { setSigName(name || ""); setSigTitle(title || ""); }).catch(() => {}); }}
       />
     </View>
   );
@@ -204,7 +213,6 @@ function useKeyboardHeight() {
 function OfferLetterSheet({ visible, onClose, onSaved }) {
   const insets = useSafeAreaInsets();
   const kb = useKeyboardHeight();
-  const { height: winH } = useWindowDimensions();
   const [text, setText] = useState("");
   const [base, setBase] = useState(undefined);
   const [sel, setSel] = useState({ start: 0, end: 0 });
@@ -248,56 +256,68 @@ function OfferLetterSheet({ visible, onClose, onSaved }) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.sheetBackdrop}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-        {/* The editor is the only part that gives way to the keyboard. Left to
-            grow, it pushed the title, the token buttons and Save off the top of
-            the screen, so there was no way to save without dismissing the
-            keyboard first. */}
-        <View style={[styles.sheet, {
-          paddingBottom: insets.bottom + space(3),
-          maxHeight: winH * 0.9,
-          marginBottom: Platform.OS === "ios" && kb > 0 ? kb : 0,
-        }]}>
-          <View style={styles.sheetHandle} />
-          <Text style={[type.h3, { color: theme.ink }]}>Offer letter</Text>
-          <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 18 }]}>
-            Every offer starts from this. Aster fills the role, salary and dates.
-          </Text>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      {/* Full screen, not a bottom sheet. The letter is thirteen paragraphs, and
+          a sheet gave it a window a few lines tall: everything was reachable but
+          scrolling through a document that size in that space was miserable. The
+          editor now takes whatever the header and the buttons do not. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1, backgroundColor: theme.card, paddingTop: insets.top }}
+      >
+        <View style={styles.tplHead}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[type.h3, { color: theme.ink }]}>Offer letter</Text>
+            <Text numberOfLines={1} style={[type.small, { color: theme.ink3, marginTop: 2 }]}>
+              Every offer starts from this
+            </Text>
+          </View>
+          <Pressable onPress={onClose} hitSlop={10} style={{ padding: 6 }}>
+            <Feather name="x" size={22} color={theme.ink3} />
+          </Pressable>
+        </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: space(4) }}>
-            <Pressable onPress={bold} style={({ pressed }) => [styles.tplBold, pressed && { backgroundColor: theme.bg }]}>
-              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: theme.ink2 }}>B</Text>
-            </Pressable>
+        <View style={styles.tplBar}>
+          <Pressable onPress={bold} style={({ pressed }) => [styles.tplBold, pressed && { backgroundColor: theme.bg }]}>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: theme.ink2 }}>B</Text>
+          </Pressable>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: "center" }}>
             {OFFER_TOKENS.map((t) => (
               <Pressable key={t} onPress={() => insert(t)} style={({ pressed }) => [styles.tplTok, pressed && { opacity: 0.7 }]}>
                 <Text style={{ fontSize: 11, color: theme.brand, fontFamily: "Inter_600SemiBold" }}>{t}</Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
+        </View>
 
+        {/* A flex:1 multiline TextInput does not scroll reliably on Android: the
+            view grows with its content instead of scrolling it, so a letter this
+            long had no way up or down and the caret vanished under the keyboard.
+            The ScrollView owns the scrolling; the input just grows inside it. */}
+        <ScrollView
+          style={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          contentContainerStyle={{ paddingHorizontal: space(5), paddingTop: space(4), paddingBottom: space(6) }}
+        >
           <TextInput
             ref={ref}
             value={text}
             onChangeText={setText}
             onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
             multiline
+            scrollEnabled={false}
             editable={base !== undefined && !busy}
-            style={[styles.sigInput, {
-              marginTop: space(3),
-              height: kb > 0 ? Math.max(120, winH * 0.28) : Math.max(200, winH * 0.42),
-              textAlignVertical: "top",
-              lineHeight: 20,
-            }]}
+            style={styles.tplInput}
           />
-          <Text style={[type.small, { color: theme.ink3, marginTop: 6, fontSize: 11.5 }]}>
+        </ScrollView>
+
+        <View style={[styles.tplFoot, { paddingBottom: insets.bottom + space(3) }]}>
+          {err ? <Text style={[type.small, { color: theme.danger, marginBottom: 8 }]}>{err}</Text> : null}
+          <Text style={[type.small, { color: theme.ink3, fontSize: 11.5, marginBottom: 10 }]}>
             Wrap text in **double asterisks** to bold it in the sent letter.
           </Text>
-
-          {err ? <Text style={[type.small, { color: theme.danger, marginTop: 10 }]}>{err}</Text> : null}
-
-          <View style={{ flexDirection: "row", gap: 10, marginTop: space(5) }}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable onPress={() => setText(OFFER_LETTER_DEFAULT)} disabled={busy} style={[styles.sigBtn, { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line }]}>
               <Text style={[type.smallStrong, { color: theme.ink2 }]}>Reset</Text>
             </Pressable>
@@ -306,7 +326,7 @@ function OfferLetterSheet({ visible, onClose, onSaved }) {
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -377,6 +397,18 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
         <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
           <View style={styles.sheetHandle} />
           <Text style={[type.h3, { color: theme.ink }]}>Offer signature</Text>
+          {/* The saved signature was held in `initial` and never shown, so this
+              sheet looked empty even when one was on file and you could not tell
+              what you were about to replace. */}
+          {initial && !String(initial).startsWith("typed:") && !hasInk ? (
+            <View style={styles.sigCurrent}>
+              <Image source={{ uri: initial }} resizeMode="contain" style={{ width: 120, height: 44 }} />
+              <Text style={[type.small, { color: theme.ink3, fontSize: 11.5, flex: 1, marginLeft: space(3) }]}>
+                Current. Draw below to replace it.
+              </Text>
+            </View>
+          ) : null}
+
           <View style={{ marginTop: space(4) }}>
             <SignaturePad onChange={(fn) => { toPngRef.current = fn; setHasInk(!!fn); }} />
           </View>
@@ -443,6 +475,11 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  sigCurrent: { flexDirection: "row", alignItems: "center", marginTop: space(4), borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.bg, paddingHorizontal: space(3), paddingVertical: space(3) },
+  tplHead: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(3) },
+  tplBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingBottom: space(3), borderBottomWidth: 1, borderBottomColor: theme.line },
+  tplInput: { minHeight: 320, fontSize: 14, fontFamily: "Inter_400Regular", color: theme.ink, lineHeight: 21, textAlignVertical: "top" },
+  tplFoot: { paddingHorizontal: space(5), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line, backgroundColor: theme.card },
   tplBold: { width: 32, height: 32, borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line, alignItems: "center", justifyContent: "center", marginRight: 8, marginBottom: 8 },
   tplTok: { borderRadius: radius.sm, borderWidth: 1, borderColor: theme.line, paddingHorizontal: 8, paddingVertical: 6, marginRight: 6, marginBottom: 8 },
   sigLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5, textTransform: "uppercase", color: theme.ink2, marginTop: space(4), marginBottom: 6 },
