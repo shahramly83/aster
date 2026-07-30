@@ -25161,7 +25161,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     {/* Offer: the prominent, brand-accented path. */}
                     <button onClick={() => (!anyScored && !scorecardsSkipped ? setPendingDecision("offer") : setShowOffer(true))} className="group relative overflow-hidden rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_20px_44px_-22px_rgba(var(--brand-rgb),0.75)]" style={{ background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)", border: "1px solid #CBD8F5" }}>
                       <div className="flex items-center gap-3">
-                                      <div className="min-w-0 flex-1">
+                        <span className="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" }}><Icon name="offer" className="w-5 h-5" /></span>
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Make an offer</p>
                           <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>Send {firstName} an offer to hire.</p>
                         </div>
@@ -26068,8 +26069,8 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     const e = {};
     if (!title.trim()) e.title = "Add the job title.";
     if (salary.trim() === "") e.salary = "Add the base salary.";
-    if (!startDate) e.startDate = "Add the joining date.";
-    if (!expiresAt) e.expiresAt = "Add the date this offer expires.";
+    if (!startDate) e.startDate = "Pick the joining date.";
+    if (!expiresAt) e.expiresAt = "Pick when this offer expires.";
     setErr(e);
     if (Object.keys(e).length) { setLetterView("write"); return; }
     // Force a company signature before the letter can go out.
@@ -26086,13 +26087,12 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
       <div className="relative w-full max-w-xl rounded-2xl border bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" style={{ borderColor: "var(--line)" }}>
         {/* Sticky branded header */}
         <div className="px-6 pt-5 pb-4 flex items-start gap-3 border-b" style={{ borderColor: "var(--line)", background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)" }}>
-          <span className="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" }}><Icon name="offer" className="w-5 h-5" /></span>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{resubmit ? "Revise & resubmit offer" : `Send offer to ${candidateName}`}</h2>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>
               {resubmit
                 ? "Edit the letter, terms and approvers, then send it round for approval again. This replaces the declined offer."
-                : <>Set the terms, Aster builds the letter and sends it to the candidate to <span className="font-medium" style={{ color: "var(--ink-2)" }}>sign with Aster Sign</span>.</>}
+                : <>Set the terms. Aster builds the letter and sends it to the candidate to <span className="font-medium" style={{ color: "var(--ink-2)" }}>sign</span>.</>}
             </p>
           </div>
           <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }} aria-label="Close"><Icon name="close" className="w-4 h-4" /></button>
@@ -26129,7 +26129,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Offer terms</p>
 
           <label className={labelClass}>Job title <span className="text-red-500">*</span></label>
-          <input value={title} onChange={(e) => { setTitle(e.target.value); if (err.title) setErr((p) => ({ ...p, title: null })); }} placeholder={jobTitle} className={`${inputClass} ${err.title ? "border-red-400 ring-1 ring-red-300" : ""} mb-1`} />
+          <input value={title} onChange={(e) => { setTitle(e.target.value); if (err.title) setErr((p) => ({ ...p, title: null })); }} placeholder="e.g. Digital Marketing Specialist" className={`${inputClass} ${err.title ? "border-red-400 ring-1 ring-red-300" : ""} mb-1`} />
           {err.title ? <p className="text-xs text-red-500 mb-2">{err.title}</p> : <div className="mb-3" />}
 
           <label className={labelClass}>Base salary <span className="text-red-500">*</span></label>
@@ -26197,7 +26197,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             </div>
             <textarea ref={bodyRef} value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && (e.key === "b" || e.key === "B")) { e.preventDefault(); boldSelection(); } }} rows={14} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
             <div className="flex items-center justify-between gap-2 mb-4">
-              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit freely. The heading and greeting are added automatically.</p>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit freely. Aster adds the heading, greeting and signature.</p>
               {bodyEdited && <button type="button" onClick={() => { setBody(composeBody()); setBodyEdited(false); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset from terms</button>}
             </div>
           </>
@@ -26310,7 +26310,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 note=""
               />
             </div>
-            {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>Add your signature to sign off the offer before sending.</p>}
+            {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>Add your signature before sending this offer.</p>}
             </>)}
           </div>
         )}
@@ -26319,7 +26319,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         {hasEmail && (
           <div className="mb-5">
             <button type="button" onClick={() => setApprOpen((v) => !v)} aria-expanded={apprOpen} className="w-full flex items-center gap-2 py-1 mb-1.5 text-left">
-              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Approvals</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Approvers</span>
               {!apprOpen && (
                 <span className="flex-1 min-w-0 text-xs truncate text-right" style={{ color: "var(--ink-3)" }}>
                   {approvers.length ? `${approvers.length} in order` : "None, goes straight to them"}

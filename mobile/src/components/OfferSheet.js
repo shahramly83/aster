@@ -202,11 +202,11 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
   const submit = async () => {
     setErr(null);
-    if (!jobTitle.trim()) { setErr("Add the job title for this offer."); return; }
+    if (!jobTitle.trim()) { setErr("Add the job title."); return; }
     if (!salary.trim()) { setErr("Add the base salary."); return; }
     if (!startDate) { setErr("Pick the joining date."); return; }
-    if (!expiresAt) { setErr("Pick the date this offer expires."); return; }
-    if (needsSig && !toPngRef.current) { setSigErr(true); setSigOpen(true); setErr("Add your signature to sign off this offer."); return; }
+    if (!expiresAt) { setErr("Pick when this offer expires."); return; }
+    if (needsSig && !toPngRef.current) { setSigErr(true); setSigOpen(true); setErr("Add your signature before sending this offer."); return; }
     setSending(true);
     // A new drawing is saved to the profile before sending. That is what makes
     // this a one-time step: the letter is signed from the stored signature.
@@ -373,7 +373,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                     style={[styles.input, styles.letterArea]}
                   />
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 8 }}>
-                    <Text style={[type.small, { color: theme.ink4, flex: 1 }]}>Aster adds the heading, greeting and signature automatically.</Text>
+                    <Text style={[type.small, { color: theme.ink4, flex: 1 }]}>Edit freely. Aster adds the heading, greeting and signature.</Text>
                     {bodyEdited ? (
                       <Pressable onPress={() => { setBody(composeBody()); setBodyEdited(false); }} hitSlop={6}>
                         <Text style={[type.small, { fontFamily: "Inter_600SemiBold", color: theme.brand }]}>Reset from terms</Text>
