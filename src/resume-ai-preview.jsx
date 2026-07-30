@@ -22767,7 +22767,7 @@ function OfferSignatureCard({ savedSig, savedName, savedTitle, resetSignal = 0, 
           className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]"
           style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
         />
-        <span className="block text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Both are printed under your signature on letters you sign off.</span>
+        <span className="block text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Used on offer letters only, so they can differ from your account name.</span>
       </label>
       {note ? <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p> : null}
     </div>
