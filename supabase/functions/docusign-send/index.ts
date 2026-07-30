@@ -25,7 +25,7 @@ const CURRENCY_SYMBOL: Record<string, string> = { myr: "RM", usd: "$", sgd: "S$"
 const EMPLOYMENT_LABEL: Record<string, string> = { full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship" };
 function fmtDate(d: string | null): string {
   if (!d) return "";
-  try { return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${d}T00:00:00`)); } catch { return d; }
+  try { return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${d}T00:00:00`)); } catch { return d; }
 }
 function esc(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       [comp?.address_state, comp?.address_postcode].filter(Boolean).join(" "),
       comp?.address_country,
     ].filter(Boolean).join(", ");
-    const dateStr = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
+    const dateStr = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
     let jobTitle = offer.offer_job_title || "the role";
     if (!offer.offer_job_title) {
       const { data: app } = await admin.from("applications").select("jobs(title)")

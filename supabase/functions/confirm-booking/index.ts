@@ -30,9 +30,9 @@ function fmt(iso: string, tz = "Asia/Kuala_Lumpur"): string {
     hour: "numeric", minute: "2-digit", timeZoneName: "short",
   };
   try {
-    return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: tz }).format(new Date(iso));
+    return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: tz }).format(new Date(iso));
   } catch {
-    try { return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso)); }
+    try { return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso)); }
     catch { return iso; }
   }
 }
@@ -42,9 +42,9 @@ function fmt(iso: string, tz = "Asia/Kuala_Lumpur"): string {
 function fmtRange(startIso: string, endIso: string, tz = "Asia/Kuala_Lumpur"): string {
   try {
     const s = new Date(startIso), e = new Date(endIso);
-    const datePart = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(s);
-    const t = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(d);
-    const zone = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", timeZoneName: "short" })
+    const datePart = new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(s);
+    const t = (d: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(d);
+    const zone = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "numeric", timeZoneName: "short" })
       .formatToParts(s).find((p) => p.type === "timeZoneName")?.value || "";
     return `${datePart}, ${t(s)} – ${t(e)}${zone ? ` ${zone}` : ""}`;
   } catch { return fmt(startIso, tz); }

@@ -118,7 +118,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   // (and the server), staying in sync until the manager edits the letter by hand.
   const composeBody = () => {
     const SYM = { myr: "RM", usd: "$", sgd: "S$" };
-    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
+    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
     return fillOfferTemplate(letterTemplate, {
       role: jobTitle.trim(),
       company: companyName,

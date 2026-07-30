@@ -404,7 +404,7 @@ async function buildSignedPdf(model: LetterModel, opts: {
   page.drawText(model.signatoryName, { x: leftX, y: ly, size: 10.5, font: bold, color: ink });
   page.drawText(opts.signedName, { x: rightX, y: ly, size: 10.5, font: bold, color: ink });
   ly -= 13;
-  const dsigned = new Date(opts.signedAtIso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  const dsigned = new Date(opts.signedAtIso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const leftMeta = model.signatoryTitle || (model.signatoryName !== model.companyName ? model.companyName : "");
   if (leftMeta) page.drawText(leftMeta, { x: leftX, y: ly, size: 9.5, font, color: gray });
   page.drawText(`Date: ${dsigned}`, { x: rightX, y: ly, size: 9.5, font, color: gray });
@@ -464,7 +464,7 @@ Deno.serve(async (req) => {
       comp?.address_street || comp?.address, comp?.address_city,
       [comp?.address_state, comp?.address_postcode].filter(Boolean).join(" "), comp?.address_country,
     ].filter(Boolean).join(", ");
-    const dateStr = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(new Date(offer.created_at || Date.now()));
+    const dateStr = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" }).format(new Date(offer.created_at || Date.now()));
     const isUpload = offer.offer_mode === "upload";
     // Compose mode builds a letter model; upload mode has no structured letter.
     const model = isUpload ? null : buildLetterModel(offer as OfferRow, { companyName, candidateName, jobTitle, addressLine, dateStr });

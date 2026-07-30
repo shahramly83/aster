@@ -4658,7 +4658,7 @@ function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossar
     return () => { alive = false; };
   }, []);
 
-  const dateLabel = date ? date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : null;
+  const dateLabel = date ? date.toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : null;
   const inputCls = "w-full rounded-xl bg-white border px-3.5 py-2.5 text-[15px] outline-none transition-colors focus:border-[color:var(--brand)]";
   const inputStyle = { borderColor: "var(--line)", color: "var(--ink)" };
 
@@ -9778,13 +9778,11 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
 // localStorage so it doesn't reset on every render/navigation; when it lapses the
 // window rolls forward another 3 days so the offer never dead-ends.
 const PROMO_CODE = "YEARLY10";
-function TrialPromoStrip({ accent, daysLeft = null }) {
+function TrialPromoStrip({ accent }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     try { navigator.clipboard?.writeText(PROMO_CODE); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* noop */ }
   };
-  // The offer expires with the trial, so the countdown is the trial's own days left.
-  const expiry = typeof daysLeft === "number" ? (daysLeft <= 1 ? "Ends today" : `Ends in ${daysLeft} days`) : null;
   return (
     <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-center" style={{ color: accent }}>
       <span className="font-bold">Extra 10% off yearly with</span>
@@ -9797,10 +9795,6 @@ function TrialPromoStrip({ accent, daysLeft = null }) {
         <span className="leading-none">{PROMO_CODE}</span>
         <span className="font-sans font-bold uppercase text-[9px] tracking-wider opacity-60 leading-none">{copied ? "Copied" : "Copy"}</span>
       </button>
-      {expiry && (<>
-        <span className="opacity-40">·</span>
-        <span className="font-semibold whitespace-nowrap">{expiry}</span>
-      </>)}
     </div>
   );
 }
@@ -10167,7 +10161,7 @@ function ApplicationsChart({ applicants = [] }) {
   const counts = [0, 0, 0, 0, 0, 0, 0];
   applicants.forEach((a) => { const r = rankDay(a.appliedAt); if (r !== null && r >= 0 && r <= 6) counts[6 - r] += 1; });
   const data = counts;
-  const labels = counts.map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" }); });
+  const labels = counts.map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" }); });
   const [hover, setHover] = useState(6); // default to today
 
   const w = 760, h = 300;
@@ -10708,7 +10702,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
               </div>
               </div>
               <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
-                <TrialPromoStrip accent={tone.accent} daysLeft={left} />
+                <TrialPromoStrip accent={tone.accent} />
                 <button
                   onClick={() => (onSubscribeYearly ? onSubscribeYearly() : navigate("billing"))}
                   className="flex-1 sm:flex-none text-sm text-white font-semibold px-4 py-2.5 rounded-xl transition-all hover:-translate-y-0.5 hover:opacity-95"
@@ -11706,7 +11700,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
     const now = new Date();
     savedRunMetaRef.current = {
       id: `imp-${now.getTime()}`,
-      label: `${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`,
+      label: `${now.toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`,
     };
     // Remember the DB id the save returns, so a later resolution updates the same row.
     Promise.resolve(onSaveRun?.(buildRun())).then((saved) => { savedRunDbIdRef.current = saved?.id || null; });
@@ -17557,7 +17551,7 @@ function formatTimezone(tz) {
   if (!tz) return "";
   const city = String(tz).split("/").pop().replace(/_/g, " ");
   try {
-    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date());
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date());
     const off = parts.find((p) => p.type === "timeZoneName")?.value;
     return off ? `${city} (${off})` : city;
   } catch { return city; }
@@ -18005,7 +17999,7 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, minSlot
   const firstOfMonth = new Date(viewYear, viewMonth, 1);
   const gridStart = new Date(viewYear, viewMonth, 1 - firstOfMonth.getDay());
   const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
-  const monthLabel = firstOfMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = firstOfMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const stepMonth = (delta) => { const d = new Date(viewYear, viewMonth + delta, 1); setViewYear(d.getFullYear()); setViewMonth(d.getMonth()); };
   const atStartMonth = viewYear === today0.getFullYear() && viewMonth === today0.getMonth();
 
@@ -18041,7 +18035,7 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, minSlot
   const rangeBlocked = (endM) => { for (let m = fromMin; m < endM; m += 30) if (takenSet.has(m)) return true; return false; };
 
   const canAdd = selDate && fromMin != null && toMin != null && toMin > fromMin;
-  const dayLabel = selDate ? selDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+  const dayLabel = selDate ? selDate.toLocaleDateString("en-GB", { weekday: "short", month: "short", day: "numeric" }) : "";
   const summary = canAdd ? `${dayLabel}, ${timeLabel(fromMin)} - ${timeLabel(toMin)}` : null;
 
   const local = (m) => `${selDate.getFullYear()}-${pad2(selDate.getMonth() + 1)}-${pad2(selDate.getDate())}T${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
@@ -22793,7 +22787,7 @@ function OfferLetterCard({ value, onChange, disabled }) {
   return (
     <div>
       <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
-        Every offer your team composes starts from this. Aster fills the role, salary and dates for each candidate, and the hiring manager can still edit a single letter before sending it.
+        Every offer starts from this. Aster fills the role, salary and dates, and a single letter can still be edited before sending.
       </p>
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={bold} disabled={disabled} title="Bold (Ctrl+B)" aria-label="Bold the selected text"
@@ -26020,7 +26014,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // stays in sync as HR fills in the terms, until they edit the letter by hand.
   const composeBody = () => {
     const SYM = { myr: "RM", usd: "$", sgd: "S$" };
-    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
+    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
     return fillOfferTemplate(letterTemplate, {
       role: title.trim() || (jobTitle && jobTitle !== "the role" ? jobTitle : ""),
       company: companyName,
@@ -26216,7 +26210,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               {logoUrl
                 ? <img src={logoUrl} alt={companyName || "Company"} style={{ height: 34, maxWidth: 190, objectFit: "contain", display: "block" }} />
                 : <div className="font-bold text-[15px]" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</div>}
-              <div className="text-right text-xs mt-3 mb-4" style={{ color: "var(--ink-3)" }}>{new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
+              <div className="text-right text-xs mt-3 mb-4" style={{ color: "var(--ink-3)" }}>{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</div>
               <p className="mb-3">Dear {(candidateName || "there").split(" ")[0]},</p>
               <p className="mb-4 font-bold uppercase text-[12px] tracking-wide" style={{ color: "var(--ink)" }}>Letter of Offer: {title.trim() || (jobTitle !== "the role" ? jobTitle : "the role")}</p>
               {(body || "").split(/\n{2,}/).filter((s) => s.trim()).map((blk, i) => {
@@ -27111,7 +27105,7 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
           // Clickable even when it can't run, so a click explains WHY in a popup
           // (a disabled button with only a hover tip is easy to miss).
           if (!canRank) { setRankInfo("AI Rank needs at least 2 candidates to rank. Once two or more applicants are ready, you can score them against this role."); return; }
-          if (rankLocked) { setRankInfo("These applicants are already ranked. AI Rank unlocks again the moment a new candidate applies, so you're not charged to re-rank an unchanged list."); return; }
+          if (rankLocked) { setRankInfo("Already ranked. AI Rank unlocks again when a new candidate applies."); return; }
           askAiRank(() => runMatching());
         }}
         disabled={matching || tourStep === 2}

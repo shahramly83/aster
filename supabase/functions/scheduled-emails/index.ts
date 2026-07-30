@@ -42,9 +42,9 @@ function fmtWhen(iso: string, tz = "Asia/Kuala_Lumpur"): string {
     hour: "numeric", minute: "2-digit", timeZoneName: "short",
   };
   try {
-    return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: tz }).format(new Date(iso));
+    return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: tz }).format(new Date(iso));
   } catch {
-    try { return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso)); }
+    try { return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso)); }
     catch { return iso; }
   }
 }
@@ -116,7 +116,7 @@ async function runTrialEnding(admin: Admin): Promise<number> {
     const { to, name } = await ownersOf(admin, s.company_id);
     if (!to.length) continue;
     const companyName = s.companies?.name || "your team";
-    const endLabel = new Date(s.current_period_end + "T00:00:00Z").toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    const endLabel = new Date(s.current_period_end + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
     const tpl = await loadTemplate(admin, "trial_ending", null, {
       subject: "Your Aster trial ends {{trial_end_date}}",

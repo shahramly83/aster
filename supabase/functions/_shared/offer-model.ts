@@ -38,7 +38,7 @@ export async function loadLetterContext(admin: Admin, offer: Record<string, unkn
     comp?.address_street || comp?.address, comp?.address_city,
     [comp?.address_state, comp?.address_postcode].filter(Boolean).join(" "), comp?.address_country,
   ].filter(Boolean).join(", ");
-  const dateStr = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" })
+  const dateStr = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" })
     .format(new Date((offer.created_at as string) || Date.now()));
   const model = buildLetterModel(offer as unknown as OfferRow, { companyName, candidateName, jobTitle, addressLine, dateStr });
   return { model, companyName, logoUrl: comp?.logo_url || null, candidateName, candEmail: cand?.email || null, jobTitle };

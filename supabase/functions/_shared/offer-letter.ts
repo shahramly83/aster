@@ -12,7 +12,7 @@ export const EMPLOYMENT_LABEL: Record<string, string> = {
 
 export function fmtDate(d: string | null | undefined): string {
   if (!d) return "";
-  try { return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${d}T00:00:00`)); } catch { return String(d); }
+  try { return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${d}T00:00:00`)); } catch { return String(d); }
 }
 
 export function esc(s: string): string {

@@ -1062,7 +1062,7 @@ function BookingDates({ role, blocked, setBlocked, audit }) {
   const [err, setErr] = useState("");
   const allowed = can(role, "booking.block");
   const inputCls = "rounded-lg border px-3 py-2 text-sm outline-none";
-  const fmt = (d) => { try { return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+  const fmt = (d) => { try { return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
 
   const add = async () => {
     if (!day || busy) return;
