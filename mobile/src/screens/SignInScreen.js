@@ -20,15 +20,15 @@ const SKIN = "sky";
 const SKINS = {
   sky: {
     // A light blue with real weight, not a near-white tint. Deep enough that the
-    // white orbit rings and photo rims read as light against it (1.7:1), still
-    // light enough to carry dark type at 10.7:1.
-    page: "#AFC6E9",
+    // white orbit rings and photo rims read as light against it (2.1:1), still
+    // light enough to carry dark type at 8.8:1.
+    page: "#98B4E0",
     ink: "#0E1220",
-    inkDim: "#3A465E",
-    inkFaint: "#3F4C67",   // 5.0:1. Every tone here was picked by measuring, not by eye
-    rule: "#7C95C2",
+    inkDim: "#2E3A50",
+    inkFaint: "#35415A",   // 4.8:1. Every tone here was picked by measuring, not by eye
+    rule: "#6683B4",
     ruleOn: "#0B2AE0",
-    surfaceOff: "#9AB2DA",
+    surfaceOff: "#84A0CF",
     danger: "#A81B31",
     errorBg: "#F6DDE1",
     ring: "rgba(255,255,255,0.95)",
