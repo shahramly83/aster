@@ -133,10 +133,12 @@ export default function FaceConstellation({ height, style, ring = RING_DEFAULT, 
               style={{
                 position: "absolute",
                 width: size, height: size, borderRadius: size / 2,
-                // hairlineWidth is one physical pixel, the thinnest line the screen
-                // can draw: 0.29dp here rather than 1dp. Thinner means fainter, so
-                // the skin compensates with a fully opaque white.
-                borderWidth: StyleSheet.hairlineWidth, borderColor: ring,
+                // Two physical pixels: 0.57dp on this screen. One pixel was a touch
+                // too faint to hold the arrangement together, 1dp read as a drawn
+                // stroke competing with the faces. Expressed in hairlines so it
+                // stays two pixels on any density rather than becoming a fat line
+                // on a 2x screen.
+                borderWidth: StyleSheet.hairlineWidth * 2, borderColor: ring,
                 left: px(RING_CX) - size / 2,
                 top: height * RING_CY - size / 2,
               }}
