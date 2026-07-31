@@ -20701,6 +20701,17 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
     return Math.round((1 - ya.amount / full) * 100);
   };
 
+  // The same discount in money, for the per-plan pill. Null on the same terms as
+  // yearlySaving, so the two never disagree about whether a discount exists.
+  const yearlySaved = (planKey) => {
+    const m = priceFor(planKey, "monthly"), y = priceFor(planKey, "yearly");
+    if (!m || !y) return null;
+    const ma = inCur(m), ya = inCur(y);
+    const full = ma.amount * 12;
+    if (ya.amount >= full) return null;
+    return formatMoney(full - ya.amount, ma.currency, { whole: true });
+  };
+
   // Hide the yearly option entirely when no yearly Stripe price is configured.
   const yearlyOffered = !!(priceFor("launch", "yearly") || priceFor("scale", "yearly") || priceFor("elite", "yearly"));
   const billingYearlySaving = yearlySaving("launch") ?? yearlySaving("scale") ?? yearlySaving("elite");
@@ -21090,8 +21101,13 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
                     <span className="text-4xl font-extrabold font-display leading-none tnum" style={{ color: "var(--ink)" }}>{p.price}</span>
                   </div>
                   {p.cadence && <p className="text-xs text-neutral-500 mt-1.5">{p.cadence}</p>}
-                  {cycleMatters && cycle === "yearly" && yearlySaving(p.key) != null && (
-                    <span className="inline-flex w-fit items-center gap-1 text-[11px] font-semibold mt-2 px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Save {yearlySaving(p.key)}% yearly</span>
+                  {/* Money, not percent: the cycle toggle above already carries the
+                      percentage, so repeating it on all three cards said one thing
+                      four times. Matches the marketing pricing cards. */}
+                  {cycleMatters && cycle === "yearly" && yearlySaved(p.key) && (
+                    <span className="inline-flex w-fit items-center gap-1 text-[11px] font-semibold mt-2 px-2 py-0.5 rounded-full tnum" style={{ background: "#DCFCE7", color: "#166534" }}>
+                      <Icon name="check" className="w-2.5 h-2.5" /> Save {yearlySaved(p.key)}
+                    </span>
                   )}
                   <p className="text-xs text-neutral-500 mt-3">{p.blurb}</p>
                   <div className="h-px my-4" style={{ background: "var(--line)" }} />
