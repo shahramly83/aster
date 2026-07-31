@@ -12089,12 +12089,13 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                         {row.uploadStatus === "done" ? "Reading…" : row.uploadStatus === "blocked" ? "Blocked" : "Uploading…"}
                       </span>
                     )}
+                    {row.parseStatus !== "pending" && verdictBadge(row)}
                     {stage === "done" && (row.person || row.parseStatus === "flagged") && (
-                      <button onClick={() => setPreviewRow(row)} className="inline-flex items-center gap-1 font-medium rounded-lg border px-2 py-1 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                        <Icon name="eye" className="w-3.5 h-3.5" /> View
+                      <button onClick={() => setPreviewRow(row)} aria-label={`View ${row.fileName}`} title="View"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-lg border hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                        <Icon name="eye" className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {row.parseStatus !== "pending" && verdictBadge(row)}
                   </div>
                 </div>
                 {(row.parseStatus === "flagged" || row.parseStatus === "rejected" || row.parseStatus === "skipped") && row.reason && (
@@ -13102,6 +13103,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // Sidebar content, job-post credits meter + a "how it works" accordion,
   // mirroring the Candidate Search sidebar for a consistent look across screens.
   const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
+  const [postTip, setPostTip] = useState(false);   // why the locked Post a job is locked
   const jobPlanLabel = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current";
   const JOBS_HELP = [
     { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Each open role takes one of your plan's slots; close a role to free one up." },
@@ -13247,7 +13249,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             })}
           </div>
 
-          <div className="relative order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0">
+          <div className="relative order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0"
+            onMouseEnter={() => setPostTip(true)} onMouseLeave={() => setPostTip(false)}>
             <button
               onClick={jobPostBlocked ? undefined : () => navigate("newJob")}
               aria-disabled={jobPostBlocked || undefined}
@@ -13256,6 +13259,16 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             >
               <Icon name={jobPostBlocked ? "lock" : "jobs"} className="w-4 h-4" /> Post a job
             </button>
+            {jobPostBlocked && postTip && (
+              <div className="absolute z-40 right-0 top-full mt-2 w-64 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(18,19,42,0.24)" }}>
+                <span className="absolute -top-1.5 right-6 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+                <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Open positions</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                  All {jobPostUsage.limit} open positions on your plan are in use. Close one, or upgrade to post another.
+                </p>
+                <button onClick={() => navigate("billing")} className="mt-2.5 text-xs font-bold rounded-lg px-3 py-1.5 brand-gradient text-white">See plans</button>
+              </div>
+            )}
             {showPostCta && (
               <div className="absolute top-full right-0 mt-2.5 z-40">
                 <GuideBubble step="1" total={1} pointer="up" arrowAlign="right" primaryLabel="Post a job" onPrimary={() => { dismissPostCta(); navigate("newJob"); }} onClose={dismissPostCta}>
@@ -14199,11 +14212,45 @@ function ResetBadge({ label }) {
   );
 }
 
+// The rows of a usage tooltip: what came from the plan, what was bought, the
+// total, and, when a row is empty, what that stops you doing.
+function UsageBreakdown({ it, accent, noun, purchasedNum, totalLeft, leftDisplay, resetLabel, trialLabel }) {
+  return (
+    <>
+      <div className="flex items-center justify-between text-xs mb-2">
+        <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
+        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{Math.max(0, it.limit - it.used).toLocaleString()}</span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
+        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{purchasedNum.toLocaleString()}</span>
+      </div>
+      <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+        <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
+        <span className="font-extrabold tnum" style={{ color: accent }}>{leftDisplay}</span>
+      </div>
+      {totalLeft <= 0 && (
+        <p className="text-[11px] mt-2.5 font-medium" style={{ color: "#B45309" }}>
+          {it.outMessage || `You have used every ${noun.replace(/s$/, "")}.${it.onBuy ? " Buy more to carry on." : ""}`}
+        </p>
+      )}
+      {(trialLabel || resetLabel) && (
+        <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>{trialLabel ? `Trial ends ${trialLabel}` : `Resets ${resetLabel}`}</p>
+      )}
+    </>
+  );
+}
+
 // Combined usage card: the same simple "N credits left" pill rows, merged into ONE
 // brand-soft card (a divider between rows) instead of separate floating pills.
 // Each item: { title, used, limit, noun, purchased, danger, onBuy }.
-function UsagePanel({ items }) {
+function UsagePanel({ items, resetLabel = null, trialLabel = null }) {
   const rows = (items || []).filter(Boolean);
+  // Which row has its breakdown open. The floating pill version of this has had
+  // one since it shipped; these rows only ever showed a total, so "498 credits
+  // left" gave no way to tell plan credits from ones you topped up, and a row at
+  // zero did not say so.
+  const [openRow, setOpenRow] = useState(null);
   if (rows.length === 0) return null;
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: "var(--brand-soft)" }}>
@@ -14216,7 +14263,13 @@ function UsagePanel({ items }) {
         const leftNoun = totalLeft === 1 ? noun.replace(/s$/, "") : noun;
         const accent = it.danger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
         return (
-          <div key={it.title} className="flex items-center gap-2 pl-3.5 pr-1.5 py-2.5" style={i > 0 ? { borderTop: "1px solid rgba(var(--brand-rgb),0.14)" } : undefined}>
+          <div
+            key={it.title}
+            className="relative flex items-center gap-2 pl-3.5 pr-1.5 py-2.5"
+            style={i > 0 ? { borderTop: "1px solid rgba(var(--brand-rgb),0.14)" } : undefined}
+            onMouseEnter={() => setOpenRow(it.title)}
+            onMouseLeave={() => setOpenRow(null)}
+          >
             <span className="text-[11px] font-semibold uppercase tracking-wide truncate flex-1 min-w-0" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{it.title}</span>
             <span className="flex items-baseline gap-1 whitespace-nowrap">
               <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
@@ -14225,6 +14278,13 @@ function UsagePanel({ items }) {
             {it.onBuy
               ? <button onClick={it.onBuy} className="shrink-0 text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>
               : <span className="shrink-0 w-1.5" />}
+            {openRow === it.title && (
+              <div className="absolute z-40 right-1.5 top-full -mt-1 w-64 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(18,19,42,0.24)" }}>
+                <span className="absolute -top-1.5 right-6 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+                <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{it.title}</p>
+                {unlimited ? <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>Unlimited on your plan.</p> : <UsageBreakdown it={it} accent={accent} noun={noun} purchasedNum={purchasedNum} totalLeft={totalLeft} leftDisplay={leftDisplay} resetLabel={resetLabel} trialLabel={trialLabel} />}
+              </div>
+            )}
           </div>
         );
       })}
