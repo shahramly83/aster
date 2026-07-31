@@ -18,7 +18,18 @@
 // trouble — we record has_site: true. Denying a real company its trial because
 // our network blinked is far worse than letting one throwaway through.
 //
-// Response: { domain, has_site, cached }
+// It also asks Kickbox, when KICKBOX_API_KEY is set, for two facts the site
+// check cannot see: is this a disposable domain, and is it a free provider.
+// mailinator.com has a perfectly good website, so only Kickbox catches it; and
+// copawoke.com scored 0.887 there, so only the site check catches that. Neither
+// layer replaces the other.
+//
+// Kickbox's own `deliverable` verdict is ignored on purpose. It said "unknown"
+// for hireaster.com and "undeliverable" for a real Microsoft address. Only
+// `disposable` and `free` are trusted, because they describe the domain rather
+// than the mailbox.
+//
+// Response: { domain, has_site, disposable, free_provider, cached }
 // Needs no session: it runs on the sign-up screen, before the account exists.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -81,7 +92,9 @@ Deno.serve(async (req) => {
     const domain = domainOf(body?.email || body?.domain || "");
     if (!domain) return json({ error: "bad domain" }, 400);
 
-    if (PUBLIC_DOMAINS.has(domain)) return json({ domain, has_site: true, cached: false, note: "public provider" });
+    if (PUBLIC_DOMAINS.has(domain)) {
+      return json({ domain, has_site: true, disposable: false, free_provider: true, cached: false, note: "public provider" });
+    }
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -91,11 +104,19 @@ Deno.serve(async (req) => {
 
     const { data: hit } = await admin
       .from("domain_site_checks")
-      .select("has_site, checked_at")
+      .select("has_site, disposable, free_provider, verifier, checked_at")
       .eq("domain", domain)
       .maybeSingle();
-    if (hit && Date.now() - new Date(hit.checked_at).getTime() < FRESH_DAYS * 864e5) {
-      return json({ domain, has_site: hit.has_site, cached: true });
+    // A row written before the verifier was switched on carries a null verdict,
+    // and would keep answering "not disposable" for a month. Treat it as stale.
+    const kbKey = Deno.env.get("KICKBOX_API_KEY");
+    const verifierMissing = !!kbKey && !hit?.verifier;
+    if (hit && !verifierMissing && Date.now() - new Date(hit.checked_at).getTime() < FRESH_DAYS * 864e5) {
+      return json({
+        domain, has_site: hit.has_site,
+        disposable: hit.disposable ?? false, free_provider: hit.free_provider ?? false,
+        cached: true,
+      });
     }
 
     let has_site: boolean;
@@ -112,11 +133,37 @@ Deno.serve(async (req) => {
       note = `check failed, failed open: ${String((e as Error)?.message || e).slice(0, 120)}`;
     }
 
+    // Kickbox runs alongside, on a throwaway local part: `disposable` and `free`
+    // are properties of the domain, so the mailbox does not need to exist. Left
+    // null when the key is unset or the call fails, and null never blocks.
+    let disposable: boolean | null = null;
+    let free_provider: boolean | null = null;
+    if (kbKey) {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+      try {
+        const r = await fetch(
+          `https://api.kickbox.com/v2/verify?email=${encodeURIComponent("check@" + domain)}&apikey=${kbKey}`,
+          { signal: ctl.signal },
+        );
+        const k = await r.json();
+        if (typeof k?.disposable === "boolean") disposable = k.disposable;
+        if (typeof k?.free === "boolean") free_provider = k.free;
+      } catch { /* unreachable verifier must not block a signup */ }
+      clearTimeout(t);
+    }
+
     await admin.from("domain_site_checks").upsert({
-      domain, has_site, http_status: status, note, checked_at: new Date().toISOString(),
+      domain, has_site, http_status: status, note,
+      disposable, free_provider, verifier: kbKey ? "kickbox" : null,
+      checked_at: new Date().toISOString(),
     });
 
-    return json({ domain, has_site, cached: false });
+    return json({
+      domain, has_site,
+      disposable: disposable ?? false, free_provider: free_provider ?? false,
+      cached: false,
+    });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);

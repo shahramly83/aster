@@ -8418,13 +8418,20 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   // and nobody waits on a fetch. Deliberately fire-and-forget: this decides
   // whether a free trial is granted, never whether the account can be created.
   const warmedDomain = useRef(null);
+  const [domainVerdict, setDomainVerdict] = useState(null); // {domain, disposable, free_provider}
   const warmDomainCheck = (addr) => {
     const d = emailDomain(addr);
     if (!d || !d.includes(".") || warmedDomain.current === d || !hasSupabase) return;
     warmedDomain.current = d;
     supabase.functions.invoke("check-domain-site", { body: { domain: d } })
+      .then(({ data }) => { if (data?.domain === d) setDomainVerdict(data); })
       .catch(() => { warmedDomain.current = null; });   // let a retry happen on submit
   };
+  // Only a verdict for the address currently typed counts; a stale one from a
+  // previous domain must not colour the field someone is fixing.
+  const domainRejected = !!domainVerdict
+    && domainVerdict.domain === emailDomain(email)
+    && (domainVerdict.disposable || domainVerdict.free_provider);
 
   const emailTrimmed = email.trim();
   const emailFmtOk = isValidEmail(emailTrimmed);
@@ -8484,8 +8491,16 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     // Belt and braces: normally the blur handler warmed this long ago and the
     // call returns a cached row instantly. Awaited rather than fired here so a
     // fast typist still gets their trial decided on real information.
-    try { await supabase.functions.invoke("check-domain-site", { body: { domain: emailDomain(em) } }); }
-    catch { /* the edge function fails open; a miss must not block signup */ }
+    try {
+      const { data: dv } = await supabase.functions.invoke("check-domain-site", { body: { domain: emailDomain(em) } });
+      if (dv?.disposable || dv?.free_provider) {
+        setDomainVerdict(dv); setBusy(false);
+        setErr(dv.disposable
+          ? "That looks like a temporary email address. Please sign up with your work email."
+          : "Please use your work email. Personal accounts aren't accepted.");
+        return;
+      }
+    } catch { /* the edge function fails open; a miss must not block signup */ }
 
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
     const { data, error } = await supabase.auth.signUp({
@@ -8718,10 +8733,14 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             <div>
               <label htmlFor="su-email" className={labelDark} style={{ color: "var(--ink)" }}>Work email{reqStar}</label>
               <input id="su-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} onBlur={(e) => warmDomainCheck(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
-              <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: emailFmtOk && !emailBusiness ? "#DC2626" : emailBusiness ? "#16A34A" : "var(--ink-3)" }}>
+              {/* The green tick used to appear for anything not on the hardcoded
+                  consumer list, which is how a throwaway address got told it
+                  "looks like a work email". It now waits for the verifier. */}
+              <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: (emailFmtOk && !emailBusiness) || domainRejected ? "#DC2626" : emailBusiness && !domainRejected ? "#16A34A" : "var(--ink-3)" }}>
                 {!emailTrimmed ? "Use your work email, not a personal one (Gmail, Outlook, iCloud, etc.)."
                   : !emailFmtOk ? "Enter a valid email address."
                   : !emailBusiness ? <><Icon name="close" className="w-3 h-3 shrink-0" /> Personal emails aren&apos;t accepted. Use your work email.</>
+                  : domainRejected ? <><Icon name="close" className="w-3 h-3 shrink-0" /> {domainVerdict.disposable ? "That's a temporary email address. Use your work email." : "Personal emails aren't accepted. Use your work email."}</>
                   : <><Icon name="check" className="w-3 h-3 shrink-0" /> Looks like a work email.</>}
               </p>
             </div>
