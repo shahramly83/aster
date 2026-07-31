@@ -462,7 +462,13 @@ Deno.serve(async (req) => {
       "metadata[company_id]": companyId,
       "metadata[plan]": plan,
       "metadata[cycle]": c,
-      allow_promotion_codes: "true",
+      // YEARLY10 is the only code we advertise and it is a yearly offer. Stripe
+      // coupons restrict by PRODUCT, not by price, so a coupon scoped to the three
+      // plans would happily discount a monthly subscription too, and a promotion
+      // code's minimum_amount can't separate them either (Elite monthly costs more
+      // than Launch yearly). The reliable place to draw the line is the session:
+      // a monthly checkout gets no promotion field, so there is nowhere to type it.
+      allow_promotion_codes: c === "yearly" ? "true" : "false",
       success_url: `${base}/billing?checkout=success`,
       cancel_url: `${base}/billing?checkout=cancel`,
     }, secret);
