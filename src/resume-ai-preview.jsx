@@ -13260,13 +13260,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               <Icon name={jobPostBlocked ? "lock" : "jobs"} className="w-4 h-4" /> Post a job
             </button>
             {jobPostBlocked && postTip && (
-              <div className="absolute z-40 right-0 top-full mt-2 w-64 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(18,19,42,0.24)" }}>
+              <div className="absolute z-40 right-0 top-full pt-2 w-64">
+              <div className="relative rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(18,19,42,0.24)" }}>
                 <span className="absolute -top-1.5 right-6 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
                 <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Open positions</p>
                 <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
                   All {jobPostUsage.limit} open positions on your plan are in use. Close one, or upgrade to post another.
                 </p>
                 <button onClick={() => navigate("billing")} className="mt-2.5 text-xs font-bold rounded-lg px-3 py-1.5 brand-gradient text-white">See plans</button>
+              </div>
               </div>
             )}
             {showPostCta && (
@@ -17245,11 +17247,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               </div>
             );
           })()}
+          <label className="hidden sm:inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+            <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
+            <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0 sm:min-w-[180px]" style={{ color: "var(--ink)" }} />
+          </label>
           {/* Every plan can invite. The only limit is seats, so a full workspace is
-              sent to billing rather than shown a locked button. */}
+              sent to billing rather than shown a locked button. Pushed right: it is
+              the action, the controls to its left are the filters. */}
           <button
             onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setInviteRole(null); setEmail(""); setApproverName(""); setShowForm(true); }}
-            className="flex-1 sm:flex-none text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2.5 sm:py-2 transition-opacity inline-flex items-center justify-center gap-1.5 sm:min-w-[172px]"
+            className="flex-1 sm:flex-none sm:ml-auto text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2.5 sm:py-2 transition-opacity inline-flex items-center justify-center gap-1.5 sm:min-w-[172px]"
           >
             {atSeatCap ? "Seats full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
           </button>
