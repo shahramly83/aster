@@ -357,6 +357,10 @@ let planPricesPromise = null;
 // keeps it in step with preferred_currency; buy-credits re-derives server-side.
 let uiCurrency = "myr";
 function setUiCurrency(c) { if (["usd", "myr", "sgd"].includes(c)) uiCurrency = c; }
+// "live" | "test" | "unknown", read off the Stripe key's prefix by the prices
+// function. Staging runs on test keys, where a checkout looks exactly like a real
+// one right up to the card form, so the billing screen says which world it is in.
+let planKeyMode = null;
 function fetchPlanPrices() {
   if (!hasSupabase) return Promise.resolve({});
   if (!planPricesPromise) {
@@ -364,6 +368,7 @@ function fetchPlanPrices() {
       .invoke("get-plan-prices")
       .then(({ data, error }) => {
         if (error || !data?.prices) { console.error("get-plan-prices failed:", error); return {}; }
+        planKeyMode = data.key_mode || null;
         return data.prices;
       })
       .catch((e) => { console.error("get-plan-prices failed:", e); return {}; });
@@ -380,6 +385,18 @@ function usePlanPrices() {
     return () => { cancelled = true; };
   }, []);
   return prices;
+}
+
+// Null until the prices land, then the Stripe key's mode. Shares the one
+// in-flight request with usePlanPrices rather than making its own.
+function useStripeKeyMode() {
+  const [mode, setMode] = useState(planKeyMode);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPlanPrices().then(() => { if (!cancelled) setMode(planKeyMode); });
+    return () => { cancelled = true; };
+  }, []);
+  return mode;
 }
 
 // Whole days from today to a `date` column ('YYYY-MM-DD'), floored at 0. Parsed
@@ -12368,9 +12385,26 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
                 <div className="mt-5 pt-4 border-t" style={{ borderColor: "var(--line)" }}>
                   {storesOriginal ? (
-                    <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2.5 transition-colors">
-                      <Icon name="download" className="w-4 h-4" /> Download original
-                    </button>
+                    // The file the user dropped is still in memory on this row, so
+                    // the original comes straight off the blob. This button had no
+                    // handler at all before: it looked live and did nothing.
+                    previewRow.blob ? (
+                      <button
+                        onClick={() => {
+                          const url = URL.createObjectURL(previewRow.blob);
+                          const a = document.createElement("a");
+                          a.href = url; a.download = previewRow.fileName;
+                          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                          setTimeout(() => URL.revokeObjectURL(url), 0);
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2.5 transition-colors">
+                        <Icon name="download" className="w-4 h-4" /> Download original
+                      </button>
+                    ) : (
+                      <p className="text-xs leading-relaxed" style={{ color: "var(--ink-3)" }}>
+                        The original is stored on your plan. Open the candidate to download it.
+                      </p>
+                    )
                   ) : (
                     <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
                       <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>The original file isn't stored on the {planName} plan. <button onClick={() => { setPreviewRow(null); navigate("billing"); }} className="font-semibold hover:opacity-70" style={{ color: "var(--brand)" }}>Upgrade</button> to keep &amp; download originals.</p>
@@ -20622,6 +20656,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
   const openInvoice = invoices.find((i) => i.status === "open") || null;
 
   const prices = usePlanPrices();
+  const keyMode = useStripeKeyMode();
   // Prices loaded but empty = Stripe price secrets missing or mode-mismatched.
   const pricesEmpty = prices && Object.keys(prices).length === 0;
   const [priceDiag, setPriceDiag] = useState(null); // owner-only diagnostics
@@ -20809,6 +20844,19 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
         {msg && (
           <div role="status" aria-live="polite" className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BFDBFE", background: "#EFF6FF", color: "#1E40AF" }}>
             {msg}
+          </div>
+        )}
+
+        {/* Test-mode Stripe looks identical to the real thing right up to the card
+            form, and staging runs on it. Say so before anyone types a card in. */}
+        {keyMode === "test" && (
+          <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 mb-4" style={{ background: "#FFFBEB", border: "1px solid #FCD34D" }}>
+            <span className="shrink-0 mt-px inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded px-1.5 py-0.5" style={{ background: "#B45309", color: "#fff", letterSpacing: "0.06em" }}>
+              Test mode
+            </span>
+            <p className="text-xs leading-relaxed min-w-0" style={{ color: "#92400E" }}>
+              Stripe is on test keys. Checkout works and nothing is charged. Use card <span className="font-semibold tnum">4242 4242 4242 4242</span>, any future expiry and any CVC.
+            </p>
           </div>
         )}
 

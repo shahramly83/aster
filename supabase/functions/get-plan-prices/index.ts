@@ -99,7 +99,10 @@ Deno.serve(async (req) => {
 
     // Short cache: prices change rarely, but a longer hold made currency/price edits
     // in Stripe take minutes to appear. 30s keeps it snappy without hammering Stripe.
-    return json({ ok: true, prices }, 200, { "Cache-Control": "public, max-age=30, s-maxage=30" });
+    // key_mode rides along so the billing screen can say out loud that it is on
+    // test Stripe. It is derived from the key's prefix, not the key itself, so
+    // it is safe to return and safe to cache.
+    return json({ ok: true, key_mode: keyMode, prices }, 200, { "Cache-Control": "public, max-age=30, s-maxage=30" });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);
