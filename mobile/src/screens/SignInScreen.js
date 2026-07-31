@@ -15,7 +15,7 @@ import { space } from "../theme";
 // Two grounds for the same screen. Flip SKIN to compare: "sky" is a pale blue
 // page with dark type, "brand" is the deep brand blue with everything laid over
 // it in white at graded opacities.
-const SKIN = "sky";
+const SKIN = "mid";
 
 const SKINS = {
   sky: {
@@ -38,6 +38,27 @@ const SKINS = {
     ctaBg: "#0B2AE0",
     ctaTxt: "#FFFFFF",
     bar: "dark",
+  },
+  // A middle ground: dark enough to carry white type properly, far short of the
+  // full brand blue. White on the pale page measured 1.7:1, which is why the
+  // type could not simply be recoloured.
+  mid: {
+    page: "#33569F",
+    ink: "#FFFFFF",
+    inkDim: "#D2DEF6",
+    inkFaint: "#C0D0F2",
+    rule: "rgba(255,255,255,0.38)",
+    ruleOn: "#FFFFFF",
+    surfaceOff: "rgba(255,255,255,0.16)",
+    danger: "#FFC2C6",
+    errorBg: "rgba(0,0,0,0.24)",
+    ring: "#FFFFFF",
+    dotA: "#FFFFFF",
+    dotB: "#93A7FF",
+    logo: "#FFFFFF",
+    ctaBg: "#FFFFFF",
+    ctaTxt: "#0B2AE0",
+    bar: "light",
   },
   brand: {
     page: "#0B2AE0",
