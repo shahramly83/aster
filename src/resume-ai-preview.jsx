@@ -16529,13 +16529,6 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       onOpenNotifications={onOpenNotifications}
       hideBack={forInterviewer}
     >
-      {!forInterviewer && (
-        <div className="flex justify-stretch sm:justify-end mb-4">
-          <button onClick={() => navigate("interviewers")} className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2.5 sm:py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>
-            <Icon name="users" className="w-4 h-4" /> Manage team
-          </button>
-        </div>
-      )}
 
       <PendingPollsSurface companyId={companyId} currentUserId={currentUserId} profile={profile} />
 
@@ -17175,18 +17168,24 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       ) : null}
     >
         {/* Filter + invite action */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           {(() => {
             const opts = [
-              { key: "all", label: "All roles" },
+              { key: "all", label: "Everyone" },
               { key: "admin", label: "Hiring Managers" },
               { key: "interviewer", label: "Interviewers" },
+              { key: "approver", label: "Offer approvers" },
+              { key: "invited", label: "Invited, not joined" },
             ];
             const countFor = (key) => key === "all"
-              ? 1 + team.length + pendingInvites.length
+              ? 1 + team.length + pendingInvites.length + approvers.length
               : key === "admin"
                 ? 1 + team.filter((i) => i.role === "admin").length + pendingInvites.filter((i) => i.role === "admin").length
-                : team.filter((i) => i.role === "interviewer").length + pendingInvites.filter((i) => i.role === "interviewer").length;
+                : key === "interviewer"
+                  ? team.filter((i) => i.role === "interviewer").length + pendingInvites.filter((i) => i.role === "interviewer").length
+                  : key === "approver"
+                    ? approvers.length
+                    : team.filter((i) => i.status === "pending").length + pendingInvites.length;
             const active = opts.find((o) => o.key === roleFilter) || opts[0];
             return (
               <div className="relative flex-1 sm:flex-none min-w-0">
@@ -17250,26 +17249,13 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         )}
 
-        {/* Members / Invitations tabs + search. One scrollable row rather than a
-            wrapping block: three counted tabs do not fit a phone, and wrapping
-            left a ragged two-line stack whose second row read as a separate
-            control. Scrolling keeps them one group and one rhythm. */}
-        <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar scroll-fade -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
-          {(() => {
-            const memberCount = 1 + team.filter((iv) => iv.status !== "pending").length;
-            const inviteCount = team.filter((iv) => iv.status === "pending").length + pendingInvites.length;
-            return [["members", "Members", memberCount], ["invitations", "Invitations", inviteCount], ["approvers", "Approvers", approvers.length]].map(([k, label, n]) => (
-              <button key={k} onClick={() => setTeamTab(k)} className="shrink-0 text-sm font-semibold px-3.5 py-2.5 sm:py-2 rounded-xl transition-colors inline-flex items-center gap-2 whitespace-nowrap"
-                style={teamTab === k ? { background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--ink-3)", border: "1px solid var(--line)" }}>
-                {label} <span className="text-[11px] tnum px-1.5 py-0.5 rounded-full" style={teamTab === k ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-3)" }}>{n}</span>
-              </button>
-            ));
-          })()}
-          <label className="hidden sm:inline-flex sm:ml-auto items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
-            <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
-            <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0 sm:min-w-[160px]" style={{ color: "var(--ink)" }} />
-          </label>
-        </div>
+        {/* The three tabs were one list split in three: everyone attached to this
+            workspace. Members, invitations and approvers now share it, and the
+            role dropdown does the narrowing, which is what a filter is for. */}
+        <label className="flex sm:hidden items-center gap-2 rounded-xl px-3 py-2.5 mb-3" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+          <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
+          <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0" style={{ color: "var(--ink)" }} />
+        </label>
 
         {/* Search: its own full-width row on phones, where it cannot share the
             tab strip without one of them being unusable. */}
@@ -17283,7 +17269,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           <div className="overflow-x-auto">
             {(() => {
               // Approvers tab: no-login offer approvers, in the same table shape.
-              if (teamTab === "approvers") {
+              if (false) {
                 const shown = approvers.filter((a) => !teamQ || `${a.name || ""} ${a.email}`.toLowerCase().includes(teamQ.toLowerCase()));
                 if (shown.length === 0) {
                   return (
@@ -17355,18 +17341,25 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               if (owner || ownerIsYou) rows.push({ id: owner?.id || "me", name: ownerName || "You", email: ownerEmail, role: "owner", kind: "owner" });
               team.forEach((iv) => rows.push({ ...iv, kind: iv.status === "pending" ? "invitedProfile" : "active" }));
               pendingInvites.forEach((inv) => rows.push({ id: inv.id, name: inv.email, email: inv.email, role: inv.role, kind: "invite" }));
+              // Approvers join the same list rather than hiding behind a tab.
+              approvers.forEach((ap) => rows.push({ id: ap.id, name: ap.name || ap.email, email: ap.email, role: "approver", kind: "approver", status: ap.status }));
               const isMember = (k) => k === "owner" || k === "active";
               const shown = rows.filter((r) => {
-                const tabOk = teamTab === "members" ? isMember(r.kind) : !isMember(r.kind);
-                const roleOk = roleFilter === "all" || r.role === roleFilter || (r.kind === "owner" && roleFilter === "admin");
+                const roleOk = roleFilter === "all"
+                  ? true
+                  : roleFilter === "invited"
+                    ? !isMember(r.kind) && r.kind !== "approver"
+                    : roleFilter === "approver"
+                      ? r.kind === "approver"
+                      : (r.role === roleFilter || (r.kind === "owner" && roleFilter === "admin")) && r.kind !== "approver";
                 const qOk = !teamQ || `${r.name} ${r.email}`.toLowerCase().includes(teamQ.toLowerCase());
-                return tabOk && roleOk && qOk;
+                return roleOk && qOk;
               });
               if (shown.length === 0) {
                 return (
                   <div className="px-5 py-14 text-center">
-                    <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{teamTab === "members" ? "No members match this view." : "No pending invitations."}</p>
-                    {teamTab !== "invitations" && <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Try clearing the role filter or search.</p>}
+                    <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>Nobody matches this view.</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Try clearing the role filter or search.</p>
                   </div>
                 );
               }
