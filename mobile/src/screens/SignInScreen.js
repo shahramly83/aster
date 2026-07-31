@@ -19,16 +19,16 @@ const SKIN = "sky";
 
 const SKINS = {
   sky: {
-    // A light blue with some weight in it, not a near-white tint. Deep enough
-    // that the white rings and photo rims read as light on it, still light
-    // enough to carry dark type at 12.8:1.
-    page: "#C6D7F2",
+    // A light blue with real weight, not a near-white tint. Deep enough that the
+    // white orbit rings and photo rims read as light against it (1.7:1), still
+    // light enough to carry dark type at 10.7:1.
+    page: "#AFC6E9",
     ink: "#0E1220",
-    inkDim: "#414D66",
-    inkFaint: "#4E5B77",   // 4.7:1; #6B7894 looked right and measured 3.0:1
-    rule: "#8FA6CE",
+    inkDim: "#3A465E",
+    inkFaint: "#3F4C67",   // 5.0:1. Every tone here was picked by measuring, not by eye
+    rule: "#7C95C2",
     ruleOn: "#0B2AE0",
-    surfaceOff: "#AFC2E4",
+    surfaceOff: "#9AB2DA",
     danger: "#A81B31",
     errorBg: "#F6DDE1",
     ring: "rgba(255,255,255,0.95)",
