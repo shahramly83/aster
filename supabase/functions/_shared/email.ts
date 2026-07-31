@@ -17,7 +17,7 @@
 const BRAND = "#0B2AE0";       // Aster primary blue
 const BRAND_2 = "#3550EE";     // gradient end (lighter blue)
 const BRAND_0 = "#5570F5";     // gradient start (light blue)
-const SITE = "https://hireaster.com";
+const SITE = Deno.env.get("SITE_URL") || "https://hireaster.com";
 
 const DEFAULT_FROM = "Aster <notifications@hireaster.com>";
 const DEFAULT_REPLY_TO = "support@hireaster.com";

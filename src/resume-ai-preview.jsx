@@ -1248,7 +1248,7 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
 // wildcard DNS + SSL are live in Vercel; flip to true (and redeploy) to switch on
 // the branded per-workspace login + apex→subdomain forwarding.
 const SUBDOMAIN_ROUTING = true;
-const APEX_ROOT = "hireaster.com";
+const APEX_ROOT = (import.meta.env?.VITE_APEX_ROOT || "hireaster.com").toLowerCase();
 // Subdomains that are NOT workspaces (marketing, product surfaces, infra).
 const RESERVED_SUBDOMAINS = new Set(["www", "app", "jobs", "help", "api", "admin", "staging", "preview", "mail", "cdn", "assets", "static"]);
 // The workspace slug from the current host, or null on the apex / localhost /
