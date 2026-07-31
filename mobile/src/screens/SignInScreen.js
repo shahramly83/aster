@@ -70,11 +70,12 @@ const SKINS = {
     surfaceOff: "rgba(255,255,255,0.15)",
     danger: "#FFC2C6",
     errorBg: "rgba(0,0,0,0.24)",
-    // Rings and dots sit back a little: they are the setting for the faces, not
-    // competing marks. Held above 0.7 so the hairline rings do not disappear.
-    ring: "rgba(255,255,255,0.72)",
-    dotA: "rgba(255,255,255,0.76)",
-    dotB: "rgba(138,163,255,0.78)",
+    // Rings and dots are the setting the faces sit in, not marks in their own
+    // right. Two physical pixels at ~50% is close to the floor: any fainter and
+    // the rings stop resolving on screen rather than merely looking lighter.
+    ring: "rgba(255,255,255,0.52)",
+    dotA: "rgba(255,255,255,0.58)",
+    dotB: "rgba(138,163,255,0.60)",
     logo: "#FFFFFF",
     ctaBg: "#FFFFFF",
     ctaTxt: "#0B2AE0",

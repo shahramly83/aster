@@ -35,15 +35,31 @@ const BRAND = "#0B2AE0";
 const PERI = "#93A7FF";
 const RING_DEFAULT = "rgba(255,255,255,0.9)";
 
-// `a` is the strong dot, `b` the soft one. Which actual colours those are comes
-// from the skin: on a blue ground a brand-blue dot is invisible.
+// Dots sit ON the orbits, so each is given a ring and an angle rather than a
+// free position: x = cx + r*cos(t), y = cy + r*sin(t). They also live inside the
+// rotating layer with the rings. That matters, because the rings turn about the
+// centre of the art box while their own centre is offset from it, so the whole
+// group drifts as it turns. A dot placed at a fixed point would slide off the
+// line within a minute.
+// `a` is the strong dot, `b` the soft one; the skin decides the actual colours,
+// because a brand-blue dot on a brand-blue page is invisible.
 const DOTS = [
-  { x: 0.455, y: 0.185, d: 0.032, t: "a" },
-  { x: 0.900, y: 0.095, d: 0.022, t: "a" },
-  { x: 0.035, y: 0.500, d: 0.028, t: "b" },
-  { x: 0.420, y: 0.875, d: 0.052, t: "a" },
-  { x: 0.885, y: 0.815, d: 0.040, t: "b" },
-  { x: 0.630, y: 0.415, d: 0.016, t: "a" },
+  { ring: 0, deg: -58, d: 0.032, t: "a" },
+  { ring: 0, deg: 42, d: 0.016, t: "a" },
+  { ring: 0, deg: 128, d: 0.020, t: "b" },
+  { ring: 0, deg: 246, d: 0.013, t: "b" },
+  { ring: 1, deg: 202, d: 0.022, t: "a" },
+  { ring: 1, deg: 96, d: 0.052, t: "a" },
+  { ring: 1, deg: -22, d: 0.015, t: "b" },
+  { ring: 1, deg: 154, d: 0.011, t: "a" },
+  { ring: 2, deg: 152, d: 0.028, t: "b" },
+  { ring: 2, deg: 62, d: 0.018, t: "a" },
+  { ring: 2, deg: -104, d: 0.024, t: "b" },
+  { ring: 2, deg: 218, d: 0.012, t: "a" },
+  { ring: 3, deg: 28, d: 0.040, t: "b" },
+  { ring: 3, deg: 112, d: 0.017, t: "a" },
+  { ring: 3, deg: -46, d: 0.014, t: "b" },
+  { ring: 3, deg: 196, d: 0.021, t: "a" },
 ];
 
 const RING_RADII = [0.28, 0.43, 0.59, 0.76];   // fractions of box width
@@ -145,20 +161,24 @@ export default function FaceConstellation({ height, style, ring = RING_DEFAULT, 
             />
           );
         })}
-      </Animated.View>
 
-      {DOTS.map((d, n) => {
-        const size = px(d.d);
-        return (
-          <View
-            key={n}
-            style={{
-              position: "absolute", width: size, height: size, borderRadius: size / 2,
-              backgroundColor: d.t === "a" ? dotA : dotB, left: px(d.x) - size / 2, top: height * d.y - size / 2,
-            }}
-          />
-        );
-      })}
+        {DOTS.map((d, n) => {
+          const size = px(d.d);
+          const r = px(RING_RADII[d.ring]);
+          const a = (d.deg * Math.PI) / 180;
+          return (
+            <View
+              key={n}
+              style={{
+                position: "absolute", width: size, height: size, borderRadius: size / 2,
+                backgroundColor: d.t === "a" ? dotA : dotB,
+                left: px(RING_CX) + r * Math.cos(a) - size / 2,
+                top: height * RING_CY + r * Math.sin(a) - size / 2,
+              }}
+            />
+          );
+        })}
+      </Animated.View>
 
       {LAYOUT.map((f, n) => {
         const size = px(f.d);
