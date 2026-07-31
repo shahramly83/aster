@@ -31,7 +31,7 @@ const SKINS = {
     surfaceOff: "#84A0CF",
     danger: "#A81B31",
     errorBg: "#F6DDE1",
-    ring: "rgba(255,255,255,0.95)",
+    ring: "#FFFFFF",
     dotA: "#0B2AE0",
     dotB: "#7E97FF",
     logo: "#0B2AE0",
