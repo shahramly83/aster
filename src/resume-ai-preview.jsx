@@ -252,12 +252,39 @@ function formatMoney(amount, currency, opts = {}) {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: currency.toUpperCase(),
-      minimumFractionDigits: opts.whole ? 0 : (zero ? 0 : 2),
+      // `whole` drops a trailing ".00", it does not drop cents: a price that
+      // really is RM9,590.40 must not print as "RM9,590.4".
+      minimumFractionDigits: opts.whole ? (Number.isInteger(value) ? 0 : 2) : (zero ? 0 : 2),
       maximumFractionDigits: zero ? 0 : 2,
     }).format(value);
   } catch {
     return `${currency.toUpperCase()} ${value.toFixed(zero ? 0 : 2)}`;
   }
+}
+
+// A yearly price divided by twelve rarely lands on a whole unit: RM950/yr is
+// RM79.166… a month. Showing "MYR 79.17" puts false precision on a figure nobody
+// is ever charged, so round the headline to a whole unit and print the real
+// yearly total right beneath it.
+function roundToUnit(amount, currency) {
+  const zero = ZERO_DECIMAL.has(String(currency || "").toLowerCase());
+  return zero ? Math.round(amount) : Math.round(amount / 100) * 100;
+}
+
+// The line under a plan's headline price: what is actually charged, then what
+// the yearly discount is worth. Height is reserved so switching Monthly/Yearly
+// moves the buttons below by nothing.
+function PlanBilledLine({ note, saved }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 min-h-[1.25rem]">
+      {note && <span className="text-xs tnum" style={{ color: "var(--ink-3)" }}>{note}</span>}
+      {saved && (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-1.5 py-0.5 tnum" style={{ background: "#DCFCE7", color: "#166534" }}>
+          <Icon name="check" className="w-2.5 h-2.5" /> Save {saved}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // Tiny inline-SVG currency flags for the USD/RM/SGD toggle. SVG (not emoji) so they
@@ -2996,12 +3023,15 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     if (p.interval !== "year") return { price: formatMoney(a.amount, a.currency, { whole: true }), sub: "/month", note: null };
     const monthly = prices?.[`${key}|monthly`];
     const m = monthly ? inCur(monthly) : null;
-    const saving = m && a.amount < m.amount * 12
-      ? Math.round((1 - a.amount / (m.amount * 12)) * 100) : null;
+    const full = m ? m.amount * 12 : null;
+    const saved = full && a.amount < full ? full - a.amount : null;
+    // The toggle above already carries the percentage, so the card says what the
+    // discount is worth in money instead. Different fact, no repetition.
     return {
-      price: formatMoney(Math.round(a.amount / 12), a.currency, { whole: true }),
-      sub: "/mo, billed yearly",
-      note: `${formatMoney(a.amount, a.currency, { whole: true })}/yr${saving ? ` · save ${saving}%` : ""}`,
+      price: formatMoney(roundToUnit(a.amount / 12, a.currency), a.currency, { whole: true }),
+      sub: "/month",
+      note: `${formatMoney(a.amount, a.currency, { whole: true })} billed yearly`,
+      saved: saved ? formatMoney(saved, a.currency, { whole: true }) : null,
     };
   };
 
@@ -3611,9 +3641,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 {/* price, baseline aligned, never wraps */}
                 <div className="mt-4 flex items-baseline gap-1.5">
                   <span className="font-bold font-display text-neutral-900 tnum" style={{ fontSize: "2.1rem", letterSpacing: "-0.02em" }}>{plan.price}</span>
-                  {plan.sub && <span className="text-sm text-neutral-500">{plan.sub}</span>}
+                  {plan.sub && <span className="text-sm text-neutral-500 whitespace-nowrap">{plan.sub}</span>}
                 </div>
-                <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
+                <PlanBilledLine note={plan.note} saved={plan.saved} />
                 <button onClick={() => (plan.key === "enterprise" ? navigate("contactSales") : goSignup(plan.key))}
                   className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all inline-flex items-center justify-center gap-1.5 ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(var(--brand-rgb),0.6)]"}`}
                   style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
@@ -3675,9 +3705,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               <p className="text-sm text-neutral-500 mt-1">{plan.tagline}</p>
               <div className="mt-4 flex items-baseline gap-1.5">
                 <span className="font-bold font-display text-neutral-900 tnum" style={{ fontSize: "2.4rem", letterSpacing: "-0.02em" }}>{plan.price}</span>
-                {plan.sub && <span className="text-sm text-neutral-500">{plan.sub}</span>}
+                {plan.sub && <span className="text-sm text-neutral-500 whitespace-nowrap">{plan.sub}</span>}
               </div>
-              <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
+              <PlanBilledLine note={plan.note} saved={plan.saved} />
               <button onClick={() => goSignup(plan.key)}
                 className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(var(--brand-rgb),0.6)]"}`}
                 style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
@@ -20614,15 +20644,15 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
     ? { amount: p.currencies[curSel], currency: curSel }
     : (p ? { amount: p.amount, currency: p.currency } : { amount: 0, currency: "usd" });
   const priceFor = (planKey, forCycle) => prices?.[`${planKey}|${forCycle}`] || null;
-  const monthlyEquivalent = (p) => { const a = inCur(p); return p.interval === "year" ? Math.round(a.amount / 12) : a.amount; };
+  const monthlyEquivalent = (p) => { const a = inCur(p); return p.interval === "year" ? roundToUnit(a.amount / 12, a.currency) : a.amount; };
   const priceCopy = (planKey, forCycle) => {
     if (!prices) return { price: "—", cadence: " " };            // loading, hold the space
     const p = priceFor(planKey, forCycle) || priceFor(planKey, "monthly");
     if (!p) return { price: "—", cadence: "pricing unavailable" };
     const a = inCur(p);
     return p.interval === "year"
-      ? { price: formatMoney(monthlyEquivalent(p), a.currency), cadence: `per month, ${formatMoney(a.amount, a.currency)} billed yearly` }
-      : { price: formatMoney(a.amount, a.currency), cadence: "per month" };
+      ? { price: formatMoney(monthlyEquivalent(p), a.currency, { whole: true }), cadence: `per month · ${formatMoney(a.amount, a.currency, { whole: true })} billed yearly` }
+      : { price: formatMoney(a.amount, a.currency, { whole: true }), cadence: "per month" };
   };
 
   // The real yearly discount, derived rather than asserted. Null when either
