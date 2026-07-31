@@ -15,7 +15,7 @@ import { space } from "../theme";
 // Two grounds for the same screen. Flip SKIN to compare: "sky" is a pale blue
 // page with dark type, "brand" is the deep brand blue with everything laid over
 // it in white at graded opacities.
-const SKIN = "mid";
+const SKIN = "brand";
 
 const SKINS = {
   sky: {
@@ -62,21 +62,18 @@ const SKINS = {
   },
   brand: {
     page: "#0B2AE0",
-    // Light blue rather than white: on this ground pure white type is glarier
-    // than it needs to be, and the tint ties the copy to the artwork. Still
-    // ~12:1 against #0B2AE0, so it clears AA with room to spare.
-    ink: "#DCE7FF",
-    inkDim: "#A8C0FF",
-    inkFaint: "#A6BDFF",   // 4.7:1, so placeholders and icons still clear AA
-    rule: "rgba(168,192,255,0.42)",
-    ruleOn: "#DCE7FF",
-    surfaceOff: "rgba(255,255,255,0.14)",
+    ink: "#FFFFFF",
+    inkDim: "#CFDCFF",
+    inkFaint: "#A6BDFF",   // 4.7:1; anything dimmer fails AA on this ground
+    rule: "rgba(255,255,255,0.32)",
+    ruleOn: "#FFFFFF",
+    surfaceOff: "rgba(255,255,255,0.15)",
     danger: "#FFC2C6",
-    errorBg: "rgba(0,0,0,0.22)",
-    ring: "rgba(255,255,255,0.26)",
-    dotA: "#DCE7FF",
-    dotB: "#7E97FF",
-    logo: "#DCE7FF",
+    errorBg: "rgba(0,0,0,0.24)",
+    ring: "#FFFFFF",
+    dotA: "#FFFFFF",
+    dotB: "#8AA3FF",
+    logo: "#FFFFFF",
     ctaBg: "#FFFFFF",
     ctaTxt: "#0B2AE0",
     bar: "light",
