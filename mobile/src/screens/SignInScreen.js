@@ -15,22 +15,25 @@ import { space } from "../theme";
 // Two grounds for the same screen. Flip SKIN to compare: "sky" is a pale blue
 // page with dark type, "brand" is the deep brand blue with everything laid over
 // it in white at graded opacities.
-const SKIN = "brand";
+const SKIN = "sky";
 
 const SKINS = {
   sky: {
-    page: "#E4ECFA",
+    // A light blue with some weight in it, not a near-white tint. Deep enough
+    // that the white rings and photo rims read as light on it, still light
+    // enough to carry dark type at 12.8:1.
+    page: "#C6D7F2",
     ink: "#0E1220",
-    inkDim: "#6B7385",
-    inkFaint: "#9AA2B4",
-    rule: "#BFCFEC",
+    inkDim: "#414D66",
+    inkFaint: "#4E5B77",   // 4.7:1; #6B7894 looked right and measured 3.0:1
+    rule: "#8FA6CE",
     ruleOn: "#0B2AE0",
-    surfaceOff: "#CEDBF3",
-    danger: "#C0233A",
-    errorBg: "#FBE3E7",
-    ring: "rgba(255,255,255,0.9)",
+    surfaceOff: "#AFC2E4",
+    danger: "#A81B31",
+    errorBg: "#F6DDE1",
+    ring: "rgba(255,255,255,0.95)",
     dotA: "#0B2AE0",
-    dotB: "#93A7FF",
+    dotB: "#7E97FF",
     logo: "#0B2AE0",
     ctaBg: "#0B2AE0",
     ctaTxt: "#FFFFFF",
