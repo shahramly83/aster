@@ -59,3 +59,8 @@ tests/fixtures/resume-e2e-*.pdf
 # iOS screenshot working files (generated / raw captures)
 mobile/store-screens/raw/
 mobile/store-screens/out/
+
+# Supabase CLI scratch: service versions and link state for whichever project
+# is linked right now. Regenerated on every CLI call, so tracking it just made
+# every deploy show up as a code change.
+supabase/.temp/
