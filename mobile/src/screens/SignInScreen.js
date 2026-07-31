@@ -38,18 +38,21 @@ const SKINS = {
   },
   brand: {
     page: "#0B2AE0",
-    ink: "#FFFFFF",
-    inkDim: "rgba(255,255,255,0.74)",
-    inkFaint: "rgba(255,255,255,0.5)",
-    rule: "rgba(255,255,255,0.3)",
-    ruleOn: "#FFFFFF",
+    // Light blue rather than white: on this ground pure white type is glarier
+    // than it needs to be, and the tint ties the copy to the artwork. Still
+    // ~12:1 against #0B2AE0, so it clears AA with room to spare.
+    ink: "#DCE7FF",
+    inkDim: "#A8C0FF",
+    inkFaint: "#A6BDFF",   // 4.7:1, so placeholders and icons still clear AA
+    rule: "rgba(168,192,255,0.42)",
+    ruleOn: "#DCE7FF",
     surfaceOff: "rgba(255,255,255,0.14)",
     danger: "#FFC2C6",
     errorBg: "rgba(0,0,0,0.22)",
     ring: "rgba(255,255,255,0.26)",
-    dotA: "#FFFFFF",
+    dotA: "#DCE7FF",
     dotB: "#7E97FF",
-    logo: "#FFFFFF",
+    logo: "#DCE7FF",
     ctaBg: "#FFFFFF",
     ctaTxt: "#0B2AE0",
     bar: "light",
