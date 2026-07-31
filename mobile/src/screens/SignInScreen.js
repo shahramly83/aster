@@ -1,24 +1,25 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, ScrollView, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing } from "react-native";
+import { View, Text, TextInput, ScrollView, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { Feather } from "../components/ui";
-import { AsterLogo, AsterMark } from "../components/Logo";
+import { AsterLogo } from "../components/Logo";
+import FaceConstellation from "../components/FaceConstellation";
 import { theme, space } from "../theme";
 
-// Brand blue edge to edge: no white card floating on it, no boxed inputs. One
-// very large headline and fields drawn as ruled lines, straight on the blue. The
-// colour carries the screen, so everything laid over it is white at graded
-// opacities rather than another surface.
-const PAGE = "#0B2AE0";
-const TEXT = "#FFFFFF";
-const TEXT_DIM = "rgba(255,255,255,0.72)";
-const TEXT_FAINT = "rgba(255,255,255,0.48)";
-const RULE = "rgba(255,255,255,0.28)";
-const SURFACE_OFF = "rgba(255,255,255,0.14)"; // disabled button fill
-const DANGER = "#FFC2C6";
+// The screen leads with people, not with the brand: nine faces on slow orbits
+// over a pale ground, with the form sitting underneath on the same page. The old
+// version was edge-to-edge brand blue, which looked confident but said nothing
+// about what the product is for.
+const PAGE = "#F4F7FC";
+const INK = "#0E1220";
+const INK_DIM = "#6B7385";
+const INK_FAINT = "#9AA2B4";
+const RULE = "#D5DCEA";
+const RULE_ON = "#0B2AE0";
+const SURFACE_OFF = "#DFE5F0"; // disabled button fill
+const DANGER = "#C0233A";
 
 // Android edge-to-edge doesn't resize the view for the keyboard, so track its
 // height and lift the scroll content above it manually.
@@ -60,17 +61,17 @@ function Field({ label, icon, inputRef, invalid, children }) {
 
   return (
     <Pressable onPress={() => inputRef?.current?.focus()} style={styles.field}>
-      <Text style={[styles.fieldLabel, focused && { color: TEXT }]}>{label}</Text>
+      <Text style={[styles.fieldLabel, focused && { color: RULE_ON }]}>{label}</Text>
       <View style={styles.fieldRow}>
-        <Feather name={icon} size={17} color={focused ? TEXT : TEXT_FAINT} />
+        <Feather name={icon} size={17} color={focused ? RULE_ON : INK_FAINT} />
         {children({ onFocus: () => setFocused(true), onBlur: () => setFocused(false) })}
       </View>
       <Animated.View
         style={[
           styles.rule,
           {
-            backgroundColor: invalid ? DANGER : a.interpolate({ inputRange: [0, 1], outputRange: [RULE, TEXT] }),
             height: a.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }),
+            backgroundColor: invalid ? DANGER : (focused ? RULE_ON : RULE),
           },
         ]}
       />
@@ -81,6 +82,7 @@ function Field({ label, icon, inputRef, invalid, children }) {
 export default function SignInScreen() {
   const { signIn } = useAuth();
   const kb = useKeyboardHeight();
+  const { height: winH } = useWindowDimensions();
   const scrollRef = useRef(null);
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -101,58 +103,21 @@ export default function SignInScreen() {
 
   const ready = !!email && !!password;
 
-  // Two loops on the background mark: one full turn every 90s, and a 7s breathe.
-  // Both run on the native driver so nothing here touches the JS thread while
-  // someone is typing.
-  const spin = useRef(new Animated.Value(0)).current;
-  const breathe = useRef(new Animated.Value(0)).current;
+  // The artwork gives up its height to the keyboard rather than pushing the
+  // fields off-screen. Height can't run on the native driver, but this animates
+  // once per keyboard event, not per frame of typing.
+  const artFull = Math.round(winH * 0.47);
+  const artH = useRef(new Animated.Value(artFull)).current;
   useEffect(() => {
-    const turn = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 90000, easing: Easing.linear, useNativeDriver: true })
-    );
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, { toValue: 1, duration: 3500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(breathe, { toValue: 0, duration: 3500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
-    );
-    turn.start(); pulse.start();
-    return () => { turn.stop(); pulse.stop(); };
-  }, [spin, breathe]);
+    Animated.timing(artH, {
+      toValue: kb > 0 ? Math.round(artFull * 0.34) : artFull,
+      duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+  }, [kb, artFull, artH]);
 
   return (
     <View style={{ flex: 1, backgroundColor: PAGE }}>
-      <StatusBar style="light" />
-      {/* The gradient IS the page, not a panel behind a card. Everything sits
-          straight on it. */}
-      <LinearGradient
-        colors={["#2B5BFF", "#0B2AE0", "#0A1E9E"]}
-        start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-
-      {/* One big mark bleeding off the top-right corner, above the form and clear
-          of the button. It turns once every 90 seconds and breathes slightly:
-          slow enough that you never catch it moving, but the screen is never
-          quite still either. Background geometry must not pull the eye off the
-          form, so both the speed and the contrast stay very low. */}
-      <Animated.View
-        style={[
-          styles.mark,
-          {
-            opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }),
-            transform: [
-              { rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
-              { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
-            ],
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <AsterMark size={340} color="rgba(255,255,255,0.06)" />
-      </Animated.View>
-
+      <StatusBar style="dark" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <ScrollView
           ref={scrollRef}
@@ -161,24 +126,28 @@ export default function SignInScreen() {
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          <View>
-            <Rise delay={0}><AsterLogo width={150} color={TEXT} /></Rise>
-            <Rise delay={90}><Text style={styles.h1}>Welcome back.</Text></Rise>
-            <Rise delay={160}><Text style={styles.sub}>All in one tap.</Text></Rise>
+          {/* Bleeds the full width; the form below keeps the page margin. */}
+          <Animated.View style={{ height: artH, overflow: "hidden", marginHorizontal: -space(7) }}>
+            <FaceConstellation height={artFull} />
+          </Animated.View>
 
+          <View style={styles.form}>
+            <Rise delay={220}><AsterLogo width={116} color={theme.brand} /></Rise>
+            <Rise delay={290}><Text style={styles.h1}>Welcome back.</Text></Rise>
+            <Rise delay={350}><Text style={styles.sub}>Hiring, all in one tap.</Text></Rise>
 
-            <Rise delay={240} style={{ marginTop: space(9) }}>
+            <Rise delay={420} style={{ marginTop: space(8) }}>
               <Field label="WORK EMAIL" icon="mail" inputRef={emailRef} invalid={!!error}>
                 {({ onFocus, onBlur }) => (
                   <TextInput
                     ref={emailRef}
                     style={styles.input}
                     placeholder="you@company.com"
-                    placeholderTextColor={TEXT_FAINT}
+                    placeholderTextColor={INK_FAINT}
                     autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
                     textContentType="emailAddress" autoComplete="email"
                     returnKeyType="next"
-                    selectionColor={TEXT}
+                    selectionColor={RULE_ON}
                     value={email}
                     onChangeText={(v) => { setEmail(v); if (error) setError(""); }}
                     onFocus={onFocus} onBlur={onBlur}
@@ -196,10 +165,10 @@ export default function SignInScreen() {
                         ref={passwordRef}
                         style={styles.input}
                         placeholder="••••••••"
-                        placeholderTextColor={TEXT_FAINT}
+                        placeholderTextColor={INK_FAINT}
                         secureTextEntry={!show} textContentType="password" autoComplete="password"
                         returnKeyType="go"
-                        selectionColor={TEXT}
+                        selectionColor={RULE_ON}
                         value={password}
                         onChangeText={(v) => { setPassword(v); if (error) setError(""); }}
                         onFocus={() => { onFocus(); setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120); }}
@@ -213,7 +182,7 @@ export default function SignInScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={show ? "Hide password" : "Show password"}
                       >
-                        <Feather name={show ? "eye-off" : "eye"} size={17} color={TEXT_FAINT} />
+                        <Feather name={show ? "eye-off" : "eye"} size={17} color={INK_FAINT} />
                       </Pressable>
                     </>
                   )}
@@ -229,25 +198,24 @@ export default function SignInScreen() {
             ) : null}
 
             {/* One action, and it looks like the only thing on the screen worth
-                pressing. Disabled is a flat raised surface, not a washed-out tint
-                of the brand colour. */}
-            <Rise delay={320}>
-            <Pressable
-              onPress={onSubmit}
-              disabled={!ready || busy}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !ready || busy, busy }}
-              style={({ pressed }) => [
-                styles.cta,
-                ready ? styles.ctaOn : styles.ctaOff,
-                pressed && ready && { opacity: 0.9 },
-              ]}
-            >
-              <Text style={[styles.ctaTxt, !ready && { color: TEXT_FAINT }]}>
-                {busy ? "Signing in…" : "Sign in"}
-              </Text>
-              {!busy ? <Feather name="arrow-right" size={18} color={ready ? theme.brand : TEXT_FAINT} /> : null}
-            </Pressable>
+                pressing. */}
+            <Rise delay={490}>
+              <Pressable
+                onPress={onSubmit}
+                disabled={!ready || busy}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !ready || busy, busy }}
+                style={({ pressed }) => [
+                  styles.cta,
+                  ready ? styles.ctaOn : styles.ctaOff,
+                  pressed && ready && { opacity: 0.9 },
+                ]}
+              >
+                <Text style={[styles.ctaTxt, !ready && { color: INK_FAINT }]}>
+                  {busy ? "Signing in…" : "Sign in"}
+                </Text>
+                {!busy ? <Feather name="arrow-right" size={18} color={ready ? "#FFFFFF" : INK_FAINT} /> : null}
+              </Pressable>
             </Rise>
           </View>
         </ScrollView>
@@ -257,28 +225,21 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Top right, well clear of the form and the button below it. Only the lower
-  // arms reach into the screen, so it frames the header rather than sitting
-  // behind anything you have to read or press.
-  mark: { position: "absolute", top: -150, right: -150 },
-  scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space(7), paddingVertical: space(10) },
-  // Left-aligned, sharing the same left edge as the labels and inputs below.
-  // Centring the brand and left-aligning the form left two competing axes on one
-  // screen, which is what made it feel off.
-  brand: { alignItems: "flex-start" },
+  scroll: { flexGrow: 1, paddingHorizontal: space(7), paddingBottom: space(10) },
+  form: { marginTop: space(4) },
   h1: {
-    fontFamily: "PlusJakartaSans_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.7,
-    color: TEXT, marginTop: space(5),
+    fontFamily: "PlusJakartaSans_700Bold", fontSize: 29, lineHeight: 35, letterSpacing: -0.8,
+    color: INK, marginTop: space(4),
   },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 15.5, color: TEXT_DIM, marginTop: space(2) },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 15.5, color: INK_DIM, marginTop: space(2) },
   field: { paddingBottom: 10 },
-  fieldLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.4, color: TEXT_FAINT, marginBottom: 12 },
+  fieldLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.4, color: INK_DIM, marginBottom: 12 },
   fieldRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 30 },
-  input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 17, color: TEXT, padding: 0 },
+  input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 17, color: INK, padding: 0 },
   rule: { marginTop: 10, borderRadius: 1 },
   errorRow: {
     flexDirection: "row", alignItems: "flex-start",
-    backgroundColor: "rgba(0,0,0,0.22)", borderRadius: 14, padding: 12, marginTop: space(6),
+    backgroundColor: "#FDECEF", borderRadius: 14, padding: 12, marginTop: space(6),
   },
   errorTxt: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19, color: DANGER, marginLeft: 8, flex: 1 },
   cta: {
@@ -286,10 +247,10 @@ const styles = StyleSheet.create({
     height: 58, borderRadius: 18, marginTop: space(9),
   },
   ctaOn: {
-    backgroundColor: TEXT,
-    shadowColor: "#050B3D", shadowOpacity: 0.3, shadowRadius: 20,
+    backgroundColor: theme.brand,
+    shadowColor: "#0B2AE0", shadowOpacity: 0.32, shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 }, elevation: 8,
   },
   ctaOff: { backgroundColor: SURFACE_OFF },
-  ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: theme.brand },
+  ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: "#FFFFFF" },
 });
