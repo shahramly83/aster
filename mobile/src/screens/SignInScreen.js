@@ -70,9 +70,11 @@ const SKINS = {
     surfaceOff: "rgba(255,255,255,0.15)",
     danger: "#FFC2C6",
     errorBg: "rgba(0,0,0,0.24)",
-    ring: "#FFFFFF",
-    dotA: "#FFFFFF",
-    dotB: "#8AA3FF",
+    // Rings and dots sit back a little: they are the setting for the faces, not
+    // competing marks. Held above 0.7 so the hairline rings do not disappear.
+    ring: "rgba(255,255,255,0.72)",
+    dotA: "rgba(255,255,255,0.76)",
+    dotB: "rgba(138,163,255,0.78)",
     logo: "#FFFFFF",
     ctaBg: "#FFFFFF",
     ctaTxt: "#0B2AE0",
