@@ -46,9 +46,7 @@ create table if not exists public.domain_trial_allowlist (
 alter table public.domain_trial_allowlist enable row level security;
 
 -- Allowlisted, or checked and found to have a site. An unchecked domain is NOT
--- eligible: the signup form always warms this cache before it calls
--- create_company_and_owner, so a missing row means the form was bypassed, which
--- is precisely the case worth denying.
+-- eligible here; 0149 relaxes that, see the reasoning there.
 create or replace function public._domain_has_site(p_domain text)
 returns boolean language sql stable security definer set search_path = public as $$
   select coalesce(
