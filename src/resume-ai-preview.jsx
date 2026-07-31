@@ -14825,11 +14825,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Seed from the persisted view state so returning from a candidate profile
   // keeps the same tab, filters, page, results and scroll (no reset/refresh).
   const P = (persist && persist.current) || {};
-  const [tab, setTab] = useState(P.tab ?? "browse"); // browse | skills | role
+  const [tab, setTab] = useState(P.tab === "skills" || P.tab === "browse" ? "find" : (P.tab ?? "find")); // find | role
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Browse tab
   const [query, setQuery] = useState(P.query ?? "");
-  const [nameOpen, setNameOpen] = useState(false); // name type-ahead dropdown
   const [minYears, setMinYears] = useState(P.minYears ?? 0);
   const [sortBy, setSortBy] = useState(P.sortBy ?? "name"); // name | experience
   const [page, setPage] = useState(P.page ?? 1);
@@ -14879,7 +14879,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // as the criteria change (no button, no metered "AI runs"). Other tabs keep
   // their own flow, so clear this ranking when leaving.
   useEffect(() => {
-    if (tab !== "skills") { setMatchScores(null); setRankedMeta(null); return; }
+    if (tab !== "find") { setMatchScores(null); setRankedMeta(null); return; }
     // Any one of skills, industry, or an experience band is enough to search on.
     if (!skillTags.length && !industryTags.length && !expLevels.length) { setMatchScores(null); setRankedMeta(null); return; }
     const map = {};
@@ -15058,26 +15058,26 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
   // ---- Build the visible list for the active tab ----
   const q = query.trim().toLowerCase();
-  // Name type-ahead suggestions for the Browse tab.
-  const nameMatches = tab === "browse" && q
-    ? available.filter((c) => c.parsed.name.toLowerCase().includes(q)).sort((a, b) => a.parsed.name.localeCompare(b.parsed.name)).slice(0, 8)
-    : [];
+  // Any skill/industry/experience filter in play. With none, Find is a plain
+  // name search over everyone; with some, the two narrow the same list together.
+  const hasFilters = skillTags.length > 0 || industryTags.length > 0 || expLevels.length > 0;
   let list = [];
-  if (tab === "browse") {
-    // Browse by name only.
-    list = available
-      .filter((c) => !q || c.parsed.name.toLowerCase().includes(q))
-      .sort((a, b) => a.parsed.name.localeCompare(b.parsed.name));
-  } else if (matchScores) {
-    const pool = tab === "role" ? available.filter((c) => !alreadyApplied.has(c.id)) : available;
-    list = [...pool];
-    if (tab === "skills") list = list.filter((c) => (matchScores[c.id] ?? 0) > 0 && passesExp(c)); // real matches, within the chosen experience bands
-    if (tab === "skills" && !ranked) {
-      list.sort((a, b) => (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)); // plain view: most experienced first
-    } else {
-      const sc = aiRank?.scores || matchScores; // AI ranking when available, else the heuristic
+  if (tab === "find") {
+    list = available.filter((c) => !q || c.parsed.name.toLowerCase().includes(q));
+    if (hasFilters && matchScores) list = list.filter((c) => (matchScores[c.id] ?? 0) > 0 && passesExp(c));
+    if (hasFilters && !ranked && matchScores) {
+      list.sort((a, b) => (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0));
+    } else if (hasFilters && matchScores) {
+      const sc = aiRank?.scores || matchScores;
       list.sort((a, b) => ((sc[b.id] ?? 0) - (sc[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
+    } else {
+      list.sort((a, b) => a.parsed.name.localeCompare(b.parsed.name));
     }
+  } else if (matchScores) {
+    const pool = available.filter((c) => !alreadyApplied.has(c.id));
+    list = [...pool];
+    const sc = aiRank?.scores || matchScores;
+    list.sort((a, b) => ((sc[b.id] ?? 0) - (sc[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
   }
 
   // Click "AI Rank" → Claude (Sonnet) ranks the filtered candidates by fit and
@@ -15349,9 +15349,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     </div>
   );
 
+  // "Browse by name" and "Skills & industry" were one job split in two: find a
+  // candidate. They are one tab, with the filters folded under the search box.
+  // Matches stays separate because it answers a different question and spends a
+  // credit to answer it.
   const TABS = [
-    { key: "browse", full: "Browse by name", icon: "users" },
-    { key: "skills", full: "Skills & industry", icon: "matching" },
+    { key: "find", full: "Find candidates", icon: "users" },
     { key: "role", full: "Matches", icon: "briefcase" },
   ];
   // Popular skills across job families (not just engineering), each exists in
@@ -15434,63 +15437,38 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         </div>
 
         {/* ---------- Tab 1: Browse ---------- */}
-        {tab === "browse" && (
+        {tab === "find" && (
           <>
+            {/* One search box. Skills, industry and experience fold underneath,
+                because most searches are a name and the panel was taking the top
+                half of the screen before any results appeared. */}
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-5 h-5" /></span>
-              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); setNameOpen(true); }} onFocus={() => setNameOpen(true)} onBlur={() => setTimeout(() => setNameOpen(false), 150)} aria-label="Search candidates by name" placeholder="Search by name…"
-                className="w-full rounded-2xl bg-white border pl-12 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow"
+              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+                placeholder="Search candidates by name…"
+                className="w-full rounded-2xl bg-white border pl-12 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300"
                 style={{ borderColor: "var(--line)", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }} />
-              {query && <button onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
-              {nameOpen && nameMatches.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-2xl bg-white border act-shadow overflow-hidden max-h-72 overflow-y-auto" style={{ borderColor: "var(--line)" }}>
-                  {nameMatches.map((c) => (
-                    <button key={c.id} onMouseDown={(e) => { e.preventDefault(); onViewCandidate(c.id); }} className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-neutral-50 transition-colors">
-                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={30} showPhotoDot={false} />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</span>
-                        <span className="block text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.parsed.experience?.[0]?.title || ""}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              {query && <button onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
             </div>
-            {q && (
-              <div className="flex items-center justify-end mt-4 -mb-1">
-                <button onClick={() => { setQuery(""); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>
-              </div>
-            )}
-            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.", null) : (<>
-              <div className="grid sm:grid-cols-2 gap-3 mt-5">
-                {browseItems.map((c) => browseCard(c))}
-              </div>
-              {pageCount > 1 && (
-                <div className="flex items-center justify-center gap-1.5 mt-6">
-                  <button onClick={() => goToPage(safePage - 1)} disabled={safePage === 1} aria-label="Previous page"
-                    className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neutral-50 inline-flex items-center gap-1" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                    <Icon name="chevronLeft" className="w-3.5 h-3.5" /> Prev
-                  </button>
-                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
-                    <button key={n} onClick={() => goToPage(n)} aria-label={`Page ${n}`} aria-current={n === safePage ? "page" : undefined}
-                      className="w-8 h-8 rounded-lg text-xs font-semibold transition-colors"
-                      style={n === safePage ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))", color: "#fff" } : { border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-                      {n}
-                    </button>
-                  ))}
-                  <button onClick={() => goToPage(safePage + 1)} disabled={safePage === pageCount} aria-label="Next page"
-                    className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neutral-50 inline-flex items-center gap-1" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                    Next <Icon name="chevronRight" className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </>)}
-          </>
-        )}
 
-        {/* ---------- Tab 2: Match by skills ---------- */}
-        {tab === "skills" && (
-          <>
+            <button type="button" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}
+              className="w-full flex items-center gap-2 py-2 mt-3 text-left">
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Filters</span>
+              <span className="flex-1 min-w-0 text-xs truncate" style={{ color: hasFilters ? "var(--brand)" : "var(--ink-3)" }}>
+                {hasFilters
+                  ? [...skillTags, ...industryTags, ...EXP_LEVELS.filter((l) => expLevels.includes(l.key)).map((l) => l.label)].join(", ")
+                  : "Skills, industry, experience"}
+              </span>
+              {hasFilters && (
+                <span role="button" tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setSkillTags([]); setIndustryTags([]); setExpLevels([]); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setSkillTags([]); setIndustryTags([]); setExpLevels([]); } }}
+                  className="text-xs font-medium shrink-0 hover:opacity-70" style={{ color: "var(--ink-3)" }}>Clear</span>
+              )}
+              <Icon name="chevronRight" className={`w-4 h-4 shrink-0 transition-transform ${filtersOpen ? "rotate-90" : ""}`} style={{ color: "var(--ink-3)" }} />
+            </button>
+
+            {filtersOpen && (
             <div className="rounded-2xl p-5 sm:p-6 mb-5 relative act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
               <div>
                 <div className="min-w-0">
@@ -15534,6 +15512,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 </div>
               </div>
             </div>
+            )}
+
+            {/* Filters on: matched, scored and rankable. Filters off: a plain
+                name list, which is what the old Browse tab was. */}
+            {hasFilters ? (<>
             {matchScores && (
               <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="A fit score from 0 to 100. The fuller the ring, the closer this person matches what you searched." />}</p>
@@ -15557,6 +15540,33 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 : emptyState("Find your best fit candidates", "Pick a skill, an industry or an experience level above and matching people appear here.", "matching"))
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
+            </>) : (<>
+              {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}".` : "Import resumes to start searching.", null) : (<>
+                <p className="text-sm mt-4 mb-1" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> candidate{list.length === 1 ? "" : "s"}</p>
+                <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                  {browseItems.map((c) => browseCard(c))}
+                </div>
+                {pageCount > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 mt-6">
+                    <button onClick={() => goToPage(safePage - 1)} disabled={safePage === 1} aria-label="Previous page"
+                      className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[color:var(--bg)] inline-flex items-center gap-1" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                      <Icon name="chevronLeft" className="w-3.5 h-3.5" /> Prev
+                    </button>
+                    {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                      <button key={n} onClick={() => goToPage(n)} aria-label={`Page ${n}`} aria-current={n === safePage ? "page" : undefined}
+                        className="w-8 h-8 rounded-lg text-xs font-semibold transition-colors"
+                        style={n === safePage ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))", color: "#fff" } : { color: "var(--ink-2)" }}>
+                        {n}
+                      </button>
+                    ))}
+                    <button onClick={() => goToPage(safePage + 1)} disabled={safePage === pageCount} aria-label="Next page"
+                      className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[color:var(--bg)] inline-flex items-center gap-1" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                      Next <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </>)}
+            </>)}
           </>
         )}
 
