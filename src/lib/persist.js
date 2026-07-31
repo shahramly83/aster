@@ -566,6 +566,30 @@ export async function dbSignedOfferUrl(candidateId) {
   return data.url;
 }
 
+// Accepted offers for a set of candidates, in one query, so the Hired list can
+// show when each person signed and when they start without asking per row.
+export async function dbListAcceptedOffers(companyId, candidateIds = []) {
+  if (!hasSupabase || !companyId || !candidateIds.length) return {};
+  const { data, error } = await supabase
+    .from("offers")
+    .select("candidate_id, signed_at, responded_at, start_date, signed_pdf_path, offer_job_title, created_at")
+    .eq("company_id", companyId)
+    .in("candidate_id", candidateIds)
+    .eq("status", "accepted")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("dbListAcceptedOffers", error.message); return {}; }
+  const out = {};
+  for (const o of data || []) {
+    if (out[o.candidate_id]) continue;             // newest wins
+    out[o.candidate_id] = {
+      acceptedAt: o.signed_at || o.responded_at || null,
+      startDate: o.start_date || null,
+      hasSignedPdf: !!o.signed_pdf_path,
+    };
+  }
+  return out;
+}
+
 // The notification bell's authoritative feed (0106). Company-scoped by RLS.
 export async function dbListActivity(companyId, limit = 60) {
   if (!hasSupabase || !companyId) return [];

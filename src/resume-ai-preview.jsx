@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, dbListAcceptedOffers, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -27539,7 +27539,16 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
   );
 }
 
-function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCandidate, plan = "launch", hiredIds = new Set(), hiredDates = {}, activities = [], onOpenNotifications, avatarUrl = null, profile }) {
+// "29 Jul 2026" from either a timestamp or a plain YYYY-MM-DD.
+function fmtDay(v) {
+  if (!v) return "";
+  try {
+    const d = String(v).length === 10 ? new Date(`${v}T00:00:00`) : new Date(v);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  } catch { return String(v); }
+}
+
+function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCandidate, plan = "launch", hiredIds = new Set(), hiredDates = {}, activities = [], onOpenNotifications, avatarUrl = null, profile, companyId = null }) {
   const [query, setQuery] = useState("");
   // Which job(s) each candidate applied to, so the applications / interview lists
   // can label the role a candidate came in for (essential once several jobs are
@@ -27599,6 +27608,24 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
     }
   }
 
+  // When each hire signed and when they start, from their accepted offer. One
+  // query for the whole list rather than one per row.
+  const [hiredOffers, setHiredOffers] = useState({});
+  useEffect(() => {
+    if (!isHiredView || !companyId) return;
+    const ids = base.map((c) => c.id).filter(Boolean);
+    if (!ids.length) return;
+    let alive = true;
+    dbListAcceptedOffers(companyId, ids).then((m) => { if (alive) setHiredOffers(m || {}); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHiredView, companyId, base.length]);
+
+  const dlSigned = async (candidateId) => {
+    const url = await dbSignedOfferUrl(candidateId);
+    if (url && typeof window !== "undefined") window.open(url, "_blank", "noopener");
+  };
+
   // Month options for the Hired view, derived from when each hire happened.
   const monthLabel = (ym) => {
     const [y, m] = ym.split("-");
@@ -27609,6 +27636,12 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
     : [];
   if (isHiredView && hiredMonth !== "all") {
     base = base.filter((c) => (hiredDates[c.id] || "").slice(0, 7) === hiredMonth);
+  }
+
+  // Newest hire on top: the list was in whatever order the candidates arrived,
+  // so the most recent hire could sit anywhere in it.
+  if (isHiredView) {
+    base = [...base].sort((x, y) => String(hiredDates[y.id] || "").localeCompare(String(hiredDates[x.id] || "")));
   }
 
   const q = query.trim().toLowerCase();
@@ -27705,6 +27738,13 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
                     {when
                       ? <p className="text-[11px] mt-0.5 inline-flex items-center gap-1" style={{ color: "var(--ink-3)" }}><Icon name="calendar" className="w-3 h-3" /> Hired {when}</p>
                       : <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold mt-1" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Hired</span>}
+                    {(hiredOffers[c.id]?.acceptedAt || hiredOffers[c.id]?.startDate) && (
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
+                        {hiredOffers[c.id]?.acceptedAt ? `Accepted ${fmtDay(hiredOffers[c.id].acceptedAt)}` : ""}
+                        {hiredOffers[c.id]?.acceptedAt && hiredOffers[c.id]?.startDate ? " · " : ""}
+                        {hiredOffers[c.id]?.startDate ? `Starts ${fmtDay(hiredOffers[c.id].startDate)}` : ""}
+                      </p>
+                    )}
                   </div>
                   <Icon name="chevronRight" className="w-5 h-5 shrink-0" style={{ color: "var(--ink-3)" }} />
                 </button>
@@ -27716,8 +27756,8 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
               <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    {["Candidate", "Role", "Hired", ""].map((h, i) => (
-                      <th key={i} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: i === 3 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                    {["Candidate", "Role", "Hired", "Accepted", "Starts", "Offer"].map((h, i) => (
+                      <th key={i} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -27743,7 +27783,17 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
                             ? <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "var(--ink-2)" }}><Icon name="calendar" className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} /> {when}</span>
                             : <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Hired</span>}
                         </td>
-                        <td className="px-4 py-3 text-right"><Icon name="chevronRight" className="w-5 h-5 inline-block" style={{ color: "var(--ink-3)" }} /></td>
+                        {/* Accepted, joining date and the signed letter: what a
+                            hire record is actually asked for after the fact. */}
+                        <td className="px-4 py-3 text-sm tnum whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{fmtDay(hiredOffers[c.id]?.acceptedAt) || "—"}</td>
+                        <td className="px-4 py-3 text-sm tnum whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{fmtDay(hiredOffers[c.id]?.startDate) || "—"}</td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          {hiredOffers[c.id]?.hasSignedPdf ? (
+                            <button onClick={() => dlSigned(c.id)} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line)", color: "var(--brand)" }}>
+                              <Icon name="doc" className="w-3.5 h-3.5" /> Download
+                            </button>
+                          ) : <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>}
+                        </td>
                       </tr>
                     );
                   })}
@@ -30539,6 +30589,7 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
             avatarUrl={avatarUrl}
             profile={profile}
+            companyId={companyId}
           />
         )}
         {screen === "applicants" && !isInterviewer(profile?.role) && (
