@@ -10549,7 +10549,10 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
 
   const goToCandidates = (filter) => {
     setCandidateFilter(filter);
-    navigate("candidates");
+    // Name the view in the URL so Back, refresh and a shared link all land on
+    // the same list rather than on everyone.
+    const view = filter?.hired ? "hired" : filter?.interview ? "interview" : filter?.source === "public_application" ? "applications" : null;
+    navigate("candidates", view ? `/candidates?view=${view}` : "/candidates");
   };
   const goToJobs = (statusFilter) => {
     setJobStatusFilter(statusFilter);
@@ -28435,7 +28438,15 @@ export default function ResumeAIPreview() {
   const [viewCandidateJobId, setViewCandidateJobId] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("job") : null));
   const [viewCandidateStage, setViewCandidateStage] = useState(null);
   const [viewCandidateTab, setViewCandidateTab] = useState(null); // open the profile on a specific tab
-  const [candidateFilter, setCandidateFilter] = useState(null);
+  // The candidate list's view lived only in state, so refreshing /candidates
+  // dropped it and a Hired list came back as all 28 candidates. It rides in the
+  // URL now: ?view=hired | interview | applications.
+  const CANDIDATE_VIEWS = { hired: { hired: true }, interview: { interview: true }, applications: { source: "public_application" } };
+  const [candidateFilter, setCandidateFilter] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const v = new URLSearchParams(window.location.search).get("view");
+    return (v && CANDIDATE_VIEWS[v]) || null;
+  });
   const [jobStatusFilter, setJobStatusFilter] = useState(null);
   const [interviewers, setInterviewers] = useState(INITIAL_INTERVIEWERS);
   const [pendingInvites, setPendingInvites] = useState([]); // teammate invites with no profile yet (count toward seats)
@@ -29564,6 +29575,10 @@ export default function ResumeAIPreview() {
       const ajob = applicantsJobFromPath(path);
       const target = cid ? "candidateProfile" : (ajob ? "applicants" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (tinfo ? "trust" : (linfo ? "legal" : (PATH_TO_SCREEN[path] || "landing")))))))));
       if (cid) { setViewCandidateId(cid); setViewCandidateJobId(new URLSearchParams(window.location.search).get("job")); }
+      if (target === "candidates") {
+        const v = new URLSearchParams(window.location.search).get("view");
+        setCandidateFilter((v && CANDIDATE_VIEWS[v]) || null);
+      }
       if (ajob) setActiveJobId(ajob);
       if (pslug != null) setProductSlug(pslug);
       if (sslug != null) setSolutionSlug(sslug);
