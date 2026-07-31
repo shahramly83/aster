@@ -14215,8 +14215,10 @@ function ResetBadge({ label }) {
 // The rows of a usage tooltip: what came from the plan, what was bought, the
 // total, and, when a row is empty, what that stops you doing.
 function UsageBreakdown({ it, accent, noun, purchasedNum, totalLeft, leftDisplay, resetLabel, trialLabel }) {
+  const hasTopUp = typeof it.purchased === "number";
   return (
     <>
+      {hasTopUp ? (<>
       <div className="flex items-center justify-between text-xs mb-2">
         <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{Math.max(0, it.limit - it.used).toLocaleString()}</span>
@@ -14225,6 +14227,16 @@ function UsageBreakdown({ it, accent, noun, purchasedNum, totalLeft, leftDisplay
         <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{purchasedNum.toLocaleString()}</span>
       </div>
+      </>) : (<>
+      <div className="flex items-center justify-between text-xs mb-2">
+        <span style={{ color: "var(--ink-2)" }}>On your plan</span>
+        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{it.limit?.toLocaleString?.() ?? it.limit}</span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span style={{ color: "var(--ink-2)" }}>In use</span>
+        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{it.used?.toLocaleString?.() ?? it.used}</span>
+      </div>
+      </>)}
       <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
         <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
         <span className="font-extrabold tnum" style={{ color: accent }}>{leftDisplay}</span>
@@ -14253,7 +14265,7 @@ function UsagePanel({ items, resetLabel = null, trialLabel = null }) {
   const [openRow, setOpenRow] = useState(null);
   if (rows.length === 0) return null;
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "var(--brand-soft)" }}>
+    <div className="relative rounded-2xl" style={{ background: "var(--brand-soft)" }}>
       {rows.map((it, i) => {
         const unlimited = it.limit === Infinity;
         const purchasedNum = typeof it.purchased === "number" ? it.purchased : 0;
@@ -17174,8 +17186,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               { key: "all", label: "Everyone" },
               { key: "admin", label: "Hiring Managers" },
               { key: "interviewer", label: "Interviewers" },
-              { key: "approver", label: "Offer approvers" },
-              { key: "invited", label: "Invited, not joined" },
+              { key: "approver", label: "Approvers" },
+              { key: "invited", label: "Pending invites" },
             ];
             const countFor = (key) => key === "all"
               ? 1 + team.length + pendingInvites.length + approvers.length
