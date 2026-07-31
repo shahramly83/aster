@@ -33,15 +33,17 @@ const LAYOUT = [
 
 const BRAND = "#0B2AE0";
 const PERI = "#93A7FF";
-const RING = "#DCE4F2";
+const RING_DEFAULT = "rgba(255,255,255,0.9)";
 
+// `a` is the strong dot, `b` the soft one. Which actual colours those are comes
+// from the skin: on a blue ground a brand-blue dot is invisible.
 const DOTS = [
-  { x: 0.455, y: 0.185, d: 0.032, c: BRAND },
-  { x: 0.900, y: 0.095, d: 0.022, c: BRAND },
-  { x: 0.035, y: 0.500, d: 0.028, c: PERI },
-  { x: 0.420, y: 0.875, d: 0.052, c: BRAND },
-  { x: 0.885, y: 0.815, d: 0.040, c: PERI },
-  { x: 0.630, y: 0.415, d: 0.016, c: BRAND },
+  { x: 0.455, y: 0.185, d: 0.032, t: "a" },
+  { x: 0.900, y: 0.095, d: 0.022, t: "a" },
+  { x: 0.035, y: 0.500, d: 0.028, t: "b" },
+  { x: 0.420, y: 0.875, d: 0.052, t: "a" },
+  { x: 0.885, y: 0.815, d: 0.040, t: "b" },
+  { x: 0.630, y: 0.415, d: 0.016, t: "a" },
 ];
 
 const RING_RADII = [0.28, 0.43, 0.59, 0.76];   // fractions of box width
@@ -71,12 +73,17 @@ function Face({ source, size, left, top, delay, still }) {
         },
       ]}
     >
-      <Image source={source} style={{ width: size, height: size, borderRadius: size / 2 }} />
+      {/* Android antialiases a rounded Image poorly on its own, so the ring is a
+          separate clipping View and the image inside is left square. Without
+          this the circle edge comes out visibly stepped. */}
+      <View style={{ width: size - 6, height: size - 6, borderRadius: (size - 6) / 2, overflow: "hidden" }}>
+        <Image source={source} style={{ width: size - 6, height: size - 6 }} resizeMode="cover" fadeDuration={0} />
+      </View>
     </Animated.View>
   );
 }
 
-export default function FaceConstellation({ height, style }) {
+export default function FaceConstellation({ height, style, ring = RING_DEFAULT, dotA = BRAND, dotB = PERI }) {
   const { width } = useWindowDimensions();
   const [still, setStill] = React.useState(false);
 
@@ -126,7 +133,7 @@ export default function FaceConstellation({ height, style }) {
               style={{
                 position: "absolute",
                 width: size, height: size, borderRadius: size / 2,
-                borderWidth: 1, borderColor: RING,
+                borderWidth: 1, borderColor: ring,
                 left: px(RING_CX) - size / 2,
                 top: height * RING_CY - size / 2,
               }}
@@ -142,7 +149,7 @@ export default function FaceConstellation({ height, style }) {
             key={n}
             style={{
               position: "absolute", width: size, height: size, borderRadius: size / 2,
-              backgroundColor: d.c, left: px(d.x) - size / 2, top: height * d.y - size / 2,
+              backgroundColor: d.t === "a" ? dotA : dotB, left: px(d.x) - size / 2, top: height * d.y - size / 2,
             }}
           />
         );
@@ -171,8 +178,7 @@ const styles = StyleSheet.create({
   // the group reading as a flat collage.
   chip: {
     position: "absolute",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+    padding: 3,
     backgroundColor: "#FFFFFF",
     shadowColor: "#1B2559",
     shadowOpacity: 0.16,

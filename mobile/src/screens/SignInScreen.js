@@ -1,25 +1,70 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, ScrollView, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing, useWindowDimensions } from "react-native";
+import { View, Text, TextInput, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { Feather } from "../components/ui";
 import { AsterLogo } from "../components/Logo";
 import FaceConstellation from "../components/FaceConstellation";
-import { theme, space } from "../theme";
+import { space } from "../theme";
 
 // The screen leads with people, not with the brand: nine faces on slow orbits
 // over a pale ground, with the form sitting underneath on the same page. The old
 // version was edge-to-edge brand blue, which looked confident but said nothing
 // about what the product is for.
-const PAGE = "#F4F7FC";
-const INK = "#0E1220";
-const INK_DIM = "#6B7385";
-const INK_FAINT = "#9AA2B4";
-const RULE = "#D5DCEA";
-const RULE_ON = "#0B2AE0";
-const SURFACE_OFF = "#DFE5F0"; // disabled button fill
-const DANGER = "#C0233A";
+// Two grounds for the same screen. Flip SKIN to compare: "sky" is a pale blue
+// page with dark type, "brand" is the deep brand blue with everything laid over
+// it in white at graded opacities.
+const SKIN = "brand";
+
+const SKINS = {
+  sky: {
+    page: "#E4ECFA",
+    ink: "#0E1220",
+    inkDim: "#6B7385",
+    inkFaint: "#9AA2B4",
+    rule: "#BFCFEC",
+    ruleOn: "#0B2AE0",
+    surfaceOff: "#CEDBF3",
+    danger: "#C0233A",
+    errorBg: "#FBE3E7",
+    ring: "rgba(255,255,255,0.9)",
+    dotA: "#0B2AE0",
+    dotB: "#93A7FF",
+    logo: "#0B2AE0",
+    ctaBg: "#0B2AE0",
+    ctaTxt: "#FFFFFF",
+    bar: "dark",
+  },
+  brand: {
+    page: "#0B2AE0",
+    ink: "#FFFFFF",
+    inkDim: "rgba(255,255,255,0.74)",
+    inkFaint: "rgba(255,255,255,0.5)",
+    rule: "rgba(255,255,255,0.3)",
+    ruleOn: "#FFFFFF",
+    surfaceOff: "rgba(255,255,255,0.14)",
+    danger: "#FFC2C6",
+    errorBg: "rgba(0,0,0,0.22)",
+    ring: "rgba(255,255,255,0.26)",
+    dotA: "#FFFFFF",
+    dotB: "#7E97FF",
+    logo: "#FFFFFF",
+    ctaBg: "#FFFFFF",
+    ctaTxt: "#0B2AE0",
+    bar: "light",
+  },
+};
+
+const S = SKINS[SKIN];
+const PAGE = S.page;
+const INK = S.ink;
+const INK_DIM = S.inkDim;
+const INK_FAINT = S.inkFaint;
+const RULE = S.rule;
+const RULE_ON = S.ruleOn;
+const SURFACE_OFF = S.surfaceOff;
+const DANGER = S.danger;
 
 // Android edge-to-edge doesn't resize the view for the keyboard, so track its
 // height and lift the scroll content above it manually.
@@ -82,8 +127,6 @@ function Field({ label, icon, inputRef, invalid, children }) {
 export default function SignInScreen() {
   const { signIn } = useAuth();
   const kb = useKeyboardHeight();
-  const { height: winH } = useWindowDimensions();
-  const scrollRef = useRef(null);
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const [email, setEmail] = useState("");
@@ -103,40 +146,34 @@ export default function SignInScreen() {
 
   const ready = !!email && !!password;
 
-  // The artwork gives up its height to the keyboard rather than pushing the
-  // fields off-screen. Height can't run on the native driver, but this animates
-  // once per keyboard event, not per frame of typing.
-  const artFull = Math.round(winH * 0.47);
-  const artH = useRef(new Animated.Value(artFull)).current;
-  useEffect(() => {
-    Animated.timing(artH, {
-      toValue: kb > 0 ? Math.round(artFull * 0.34) : artFull,
-      duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-    }).start();
-  }, [kb, artFull, artH]);
+  // The artwork takes whatever height is left after the form, measured rather
+  // than assumed, so the screen fits exactly once on any device and never
+  // scrolls. Below the floor the box clips from the bottom instead of squashing
+  // the arrangement, which keeps the faces circular and evenly spread.
+  const [artH, setArtH] = useState(0);
+  const ART_FLOOR = 210;
 
   return (
     <View style={{ flex: 1, backgroundColor: PAGE }}>
-      <StatusBar style="dark" />
+      <StatusBar style={S.bar} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={[styles.scroll, kb > 0 && { paddingBottom: kb + space(4) }]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          showsVerticalScrollIndicator={false}
-        >
+        {/* Android edge-to-edge doesn't resize for the keyboard, so the padding
+            does it, and the flexible artwork above absorbs the loss. */}
+        <View style={[styles.page, kb > 0 && { paddingBottom: kb }]}>
           {/* Bleeds the full width; the form below keeps the page margin. */}
-          <Animated.View style={{ height: artH, overflow: "hidden", marginHorizontal: -space(7) }}>
-            <FaceConstellation height={artFull} />
-          </Animated.View>
+          <View
+            style={styles.art}
+            onLayout={(e) => setArtH(Math.round(e.nativeEvent.layout.height))}
+          >
+            {artH > 0 ? <FaceConstellation height={Math.max(artH, ART_FLOOR)} ring={S.ring} dotA={S.dotA} dotB={S.dotB} /> : null}
+          </View>
 
           <View style={styles.form}>
-            <Rise delay={220}><AsterLogo width={116} color={theme.brand} /></Rise>
+            <Rise delay={220}><AsterLogo width={116} color={S.logo} /></Rise>
             <Rise delay={290}><Text style={styles.h1}>Welcome back.</Text></Rise>
             <Rise delay={350}><Text style={styles.sub}>Hiring, all in one tap.</Text></Rise>
 
-            <Rise delay={420} style={{ marginTop: space(8) }}>
+            <Rise delay={420} style={{ marginTop: space(6) }}>
               <Field label="WORK EMAIL" icon="mail" inputRef={emailRef} invalid={!!error}>
                 {({ onFocus, onBlur }) => (
                   <TextInput
@@ -157,7 +194,7 @@ export default function SignInScreen() {
                 )}
               </Field>
 
-              <View style={{ marginTop: space(6) }}>
+              <View style={{ marginTop: space(5) }}>
                 <Field label="PASSWORD" icon="lock" inputRef={passwordRef} invalid={!!error}>
                   {({ onFocus, onBlur }) => (
                     <>
@@ -171,7 +208,7 @@ export default function SignInScreen() {
                         selectionColor={RULE_ON}
                         value={password}
                         onChangeText={(v) => { setPassword(v); if (error) setError(""); }}
-                        onFocus={() => { onFocus(); setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120); }}
+                        onFocus={onFocus}
                         onBlur={onBlur}
                         onSubmitEditing={onSubmit}
                         accessibilityLabel="Password"
@@ -214,22 +251,25 @@ export default function SignInScreen() {
                 <Text style={[styles.ctaTxt, !ready && { color: INK_FAINT }]}>
                   {busy ? "Signing in…" : "Sign in"}
                 </Text>
-                {!busy ? <Feather name="arrow-right" size={18} color={ready ? "#FFFFFF" : INK_FAINT} /> : null}
+                {!busy ? <Feather name="arrow-right" size={18} color={ready ? S.ctaTxt : INK_FAINT} /> : null}
               </Pressable>
             </Rise>
           </View>
-        </ScrollView>
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, paddingHorizontal: space(7), paddingBottom: space(10) },
-  form: { marginTop: space(4) },
+  page: { flex: 1, paddingHorizontal: space(7), paddingBottom: space(4) },
+  // flexShrink lets the artwork give up height to the keyboard; minHeight 0 is
+  // what actually allows a flex child to shrink below its content.
+  art: { flex: 1, minHeight: 0, overflow: "hidden", marginHorizontal: -space(7) },
+  form: { flexShrink: 0, paddingTop: space(2) },
   h1: {
     fontFamily: "PlusJakartaSans_700Bold", fontSize: 29, lineHeight: 35, letterSpacing: -0.8,
-    color: INK, marginTop: space(4),
+    color: INK, marginTop: space(3),
   },
   sub: { fontFamily: "Inter_400Regular", fontSize: 15.5, color: INK_DIM, marginTop: space(2) },
   field: { paddingBottom: 10 },
@@ -239,18 +279,18 @@ const styles = StyleSheet.create({
   rule: { marginTop: 10, borderRadius: 1 },
   errorRow: {
     flexDirection: "row", alignItems: "flex-start",
-    backgroundColor: "#FDECEF", borderRadius: 14, padding: 12, marginTop: space(6),
+    backgroundColor: S.errorBg, borderRadius: 14, padding: 12, marginTop: space(6),
   },
   errorTxt: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19, color: DANGER, marginLeft: 8, flex: 1 },
   cta: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    height: 58, borderRadius: 18, marginTop: space(9),
+    height: 56, borderRadius: 18, marginTop: space(6),
   },
   ctaOn: {
-    backgroundColor: theme.brand,
-    shadowColor: "#0B2AE0", shadowOpacity: 0.32, shadowRadius: 20,
+    backgroundColor: S.ctaBg,
+    shadowColor: "#050B3D", shadowOpacity: 0.32, shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 }, elevation: 8,
   },
   ctaOff: { backgroundColor: SURFACE_OFF },
-  ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: "#FFFFFF" },
+  ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: S.ctaTxt },
 });
