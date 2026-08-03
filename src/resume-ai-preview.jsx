@@ -15977,8 +15977,14 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   scoped.forEach((a) => { if (counts[a.stage] != null) counts[a.stage]++; });
   const exits = counts.rejected + counts.declined;
 
+  // Anyone already dealt with is out of this list: it is for deciding who to look
+  // at next, and a hired or rejected candidate is not that. Clicking a funnel bar
+  // still shows them, because then you asked for that stage by name.
+  const DECIDED_STAGES = ["interviewing", "offer", "hired", "rejected", "declined"];
+
   const rows = scoped
     .filter((a) => (!stageFilter || a.stage === stageFilter) && (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
+    .filter((a) => stageFilter || !DECIDED_STAGES.includes(a.stage))
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
 
   // AI Rank: score the selected position's applied candidates against the role,
