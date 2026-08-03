@@ -3,6 +3,136 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-calibrate-interviewers-so-a-4-means-the-same-thing-to-everyone",
+    "title": "How to calibrate interviewers so a 4 means the same thing to everyone",
+    "category": "interviewing",
+    "excerpt": "A scorecard only works if your interviewers agree on what the numbers mean. Here's how to calibrate a panel so scores are comparable, not personal.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-03",
+    "readMins": 6,
+    "tags": [
+      "interviewing",
+      "scorecards",
+      "calibration",
+      "hiring-decisions"
+    ],
+    "body": [
+      {
+        "p": "You built a scorecard. Everyone fills it in. And yet when the debrief starts, one interviewer's 4 turns out to mean \"strong yes, hire tomorrow\" while another's 4 means \"fine, no red flags.\" The numbers look comparable on the page, but they were measuring different things. That gap is where good candidates get rejected and weak ones sail through."
+      },
+      {
+        "p": "Calibration is the fix. It's the work of getting a group of interviewers to apply the same standard to the same evidence, so a score reflects the candidate and not who happened to be in the room. It isn't glamorous and it never fully finishes, but it's the difference between a scorecard that clarifies a decision and one that just decorates it."
+      },
+      {
+        "h": "Why scores drift apart in the first place"
+      },
+      {
+        "p": "Interviewers don't disagree because they're careless. They disagree because they're bringing different reference points to the same rating scale. A few common ones:"
+      },
+      {
+        "ul": [
+          "**Anchoring on the last person they saw.** A candidate looks strong or weak relative to yesterday's interview, not relative to the bar for the role.",
+          "**Different definitions of the same word.** \"Senior\" means seven years to one interviewer and \"can operate without hand-holding\" to another.",
+          "**Leniency and severity.** Some people rarely give a 5 on principle. Others hand out 4s to be kind. Neither habit is wrong on its own, but together they make scores non-comparable.",
+          "**Halo effects.** A great answer on one competency quietly inflates the scores on every other competency.",
+          "**Recency in the debrief.** Whoever speaks first, or loudest, drags everyone's stated scores toward theirs."
+        ]
+      },
+      {
+        "p": "None of these are solved by a better form. They're solved by a shared understanding of what the numbers stand for, built before the interviews and reinforced after."
+      },
+      {
+        "h": "Define each rating level in behavioral terms"
+      },
+      {
+        "p": "A scale from 1 to 4 means nothing until you say what each number looks like. \"Above average\" is not a definition; it's an opinion waiting to vary. Instead, anchor each level to observable evidence for that specific competency."
+      },
+      {
+        "p": "Take a competency like \"handling ambiguity.\" Instead of a bare 1 to 4, write what you'd actually expect to hear:"
+      },
+      {
+        "ul": [
+          "**1:** Waited for direction, described situations where someone else scoped the problem.",
+          "**2:** Made progress once the problem was defined, but needed the definition handed to them.",
+          "**3:** Framed an unclear problem themselves, chose a reasonable path, adjusted as they learned.",
+          "**4:** Did all of that and brought others along, turned ambiguity into a plan the team could run with."
+        ]
+      },
+      {
+        "p": "Now a 3 is a description, not a vibe. Two interviewers who heard the same story are far more likely to land on the same number, and when they don't, they can point at the anchor and say exactly where they differ."
+      },
+      {
+        "note": "Anchor your rating levels to what a candidate did, not to how impressive they felt. \"Framed an unclear problem themselves\" is checkable. \"Seemed sharp\" is not.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Run a calibration session before the role opens"
+      },
+      {
+        "p": "The cheapest way to align a panel is to score the same candidate together, once, with no stakes. Take a recorded interview or a written work sample and have everyone rate it independently, then compare."
+      },
+      {
+        "p": "The point isn't to force agreement. It's to surface where your definitions diverge. Ask the people who scored a 2 and the people who scored a 4 to explain what evidence they weighted. You'll usually find one of two things: either they heard different things (an attention problem) or they valued the same thing differently (a definition problem). Both are fixable, and both are invisible until you make people say their reasoning out loud."
+      },
+      {
+        "quote": "A scorecard doesn't make interviewers agree. A shared definition of what each score means does."
+      },
+      {
+        "p": "Do this once when you design the role, and again whenever a new interviewer joins the panel. Thirty minutes of calibration on a fake decision saves hours of arguing over a real one."
+      },
+      {
+        "h": "Score before you talk, always"
+      },
+      {
+        "p": "The single highest-leverage rule in a debrief: **everyone submits their scores independently before anyone shares an opinion.** Written down, ideally in the system, before the room starts talking."
+      },
+      {
+        "p": "This protects the disagreement, which is the valuable part. When the strongest voice speaks first, quieter interviewers unconsciously revise toward them, and you lose the signal that two thoughtful people saw the candidate differently. Locked-in independent scores mean the debrief starts from real divergence, and divergence is exactly what you want to investigate."
+      },
+      {
+        "h": "Separate evidence from judgment"
+      },
+      {
+        "p": "Train interviewers to write down what the candidate said or did, not just the rating. \"Scored 2 on ownership\" tells the panel nothing. \"Scored 2 on ownership; when the launch slipped, described how their manager reprioritized, couldn't name a decision they personally made\" tells the panel everything."
+      },
+      {
+        "p": "Evidence is what makes calibration possible after the fact. When two scores clash, you compare the evidence, not the conclusions. Often the person with the lower score simply asked a follow-up the other didn't, and once that comes out, the higher scorer agrees. That's not losing an argument; that's calibration working in real time."
+      },
+      {
+        "h": "Watch the numbers over time"
+      },
+      {
+        "p": "Calibration isn't a one-off. Over a few hiring cycles, patterns show up that no single interview reveals:"
+      },
+      {
+        "ul": [
+          "An interviewer whose average score sits a full point above everyone else's is probably lenient, not blessed with better candidates.",
+          "An interviewer who never gives a 1 or a 4 is compressing the scale and adding little signal.",
+          "A competency where everyone always scores the same is either not being tested well or not worth testing.",
+          "Wide, persistent disagreement on one competency usually means the definition is still fuzzy."
+        ]
+      },
+      {
+        "p": "You don't need a data team for this. A simple view of scores by interviewer and by competency, which a shared pipeline gives you for free, is enough to spot the outliers and re-anchor them."
+      },
+      {
+        "h": "What calibration can and can't do"
+      },
+      {
+        "p": "Be honest about the limits. Calibration makes scores **comparable**, so a 4 from one person means roughly what a 4 from another means. It does not make them **correct**. A perfectly calibrated panel can still agree on the wrong bar for the role, or share the same blind spot. Alignment is not accuracy."
+      },
+      {
+        "p": "That's why calibration works best paired with the rest of a structured process: clear must-have competencies from the intake, questions that actually test them, and evidence written down as you go. AI can help keep the inputs consistent, ranking every applicant against the same role definition and surfacing the reasons, so your panel spends its calibrated judgment on the shortlist instead of the pile. But the standard itself is still yours to set, and yours to keep honest."
+      },
+      {
+        "p": "Start small. Define your rating levels in plain, behavioral language. Run one calibration session on a real example. Make everyone score before they talk. Do those three things and your next debrief will argue about the candidate, not about what the numbers were supposed to mean."
+      }
+    ]
+  },
+  {
     "slug": "how-to-measure-quality-of-hire-without-a-data-team",
     "title": "How to measure quality of hire without a data team",
     "category": "recruiting-ops",
