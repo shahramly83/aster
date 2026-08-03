@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing, AccessibilityInfo } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../AuthContext";
 import { Feather } from "../components/ui";
@@ -20,10 +22,18 @@ import { space } from "../theme";
 // inherited. Brand blue appears exactly twice: the wordmark, and the rule under
 // whichever field has focus. The button is near-black, because a saturated
 // button on a pale ground is the loudest thing a screen can do.
+// One flat off-white was restraint taken too far: correct, and lifeless. The
+// ground is now a slow diagonal from cool to warm, with a single soft brand
+// bloom behind the wordmark. Both are far below the threshold where you would
+// call it a gradient; they only stop the screen reading as a blank sheet.
 const PAGE = "#F7F6F3";
+const PAGE_TOP = "#EEF1FC";     // barely blue
+const PAGE_MID = "#F7F6F3";
+const PAGE_BOT = "#F4EFE7";     // barely warm
 const INK = "#12131F";        // 17.1:1
-const INK_BODY = "#5C5E6B";   //  6.0:1
-const INK_LABEL = "#6A6C7A";  //  4.8:1
+const INK_BODY = "#535563";   //  5.0:1 measured over the bloom, where it is lightest.
+                              //  #5C5E6B was 6.0:1 on the flat ground but only 4.3:1 here
+const INK_LABEL = "#5F6170";  //  4.5:1 over the bloom
 const INK_FAINT = "#6E7080";  //  4.5:1, the floor for AA; lighter tones measured 3.0 and failed
 const RULE = "#DEDCD6";
 const ACCENT = "#0B2AE0";     //  8.0:1
@@ -127,6 +137,31 @@ export default function SignInScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: PAGE }}>
       <StatusBar style="dark" />
+
+      <LinearGradient
+        colors={[PAGE_TOP, PAGE_MID, PAGE_BOT]}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      {/* A soft bloom of brand colour up behind the wordmark. 0.14 at the centre
+          falling to nothing: enough to feel, not enough to notice. */}
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="bloom" cx="20%" cy="10%" rx="88%" ry="52%">
+            <Stop offset="0" stopColor={ACCENT} stopOpacity="0.48" />
+            <Stop offset="1" stopColor={ACCENT} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id="warm" cx="88%" cy="92%" rx="70%" ry="42%">
+            <Stop offset="0" stopColor="#F0B27A" stopOpacity="0.34" />
+            <Stop offset="1" stopColor="#F0B27A" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#bloom)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#warm)" />
+      </Svg>
+
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={[styles.page, kb > 0 && { paddingBottom: kb + space(4) }]}>
 
