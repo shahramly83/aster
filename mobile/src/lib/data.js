@@ -968,7 +968,10 @@ export async function fnReason(data, error) {
 // Turns whatever the server said into something worth reading.
 function inviteMessage(reason) {
   if (/already a member|already|exists|duplicate/i.test(reason)) return "That person is already on your team or has been invited.";
-  if (/seat|limit/i.test(reason)) return "Seat limit reached. Upgrade on the web app to add more.";
+  // No "upgrade on the web" here. App Store guideline 3.1.1 forbids steering
+  // people to buy outside the app, and pointing at the web billing page is
+  // exactly what it describes. The message says what happened, not where to pay.
+  if (/seat|limit/i.test(reason)) return "Seat limit reached for this workspace.";
   if (/unauthorized/i.test(reason)) return "Your session expired. Sign in again.";
   if (/not_allowed|forbidden|permission|42501/i.test(reason)) return "Only workspace admins can invite teammates.";
   if (/domain/i.test(reason)) return "Invite someone on your own company domain.";
