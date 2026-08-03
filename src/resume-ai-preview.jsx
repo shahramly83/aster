@@ -27901,9 +27901,20 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHiredView, companyId, base.length]);
 
+  // Fetching the signed URL is a round trip, and the button used to sit there
+  // looking untouched while it happened, which reads as a dead click. Track which
+  // row is working so it can say so.
+  const [dlBusy, setDlBusy] = useState(null);      // candidateId being prepared
+  const [dlErr, setDlErr] = useState(null);        // candidateId whose link failed
   const dlSigned = async (candidateId) => {
-    const url = await dbSignedOfferUrl(candidateId);
-    if (url && typeof window !== "undefined") window.open(url, "_blank", "noopener");
+    if (dlBusy) return;                            // one at a time; a second click did nothing visible before
+    setDlBusy(candidateId); setDlErr(null);
+    try {
+      const url = await dbSignedOfferUrl(candidateId);
+      if (url && typeof window !== "undefined") window.open(url, "_blank", "noopener");
+      else setDlErr(candidateId);                  // silence here looked identical to success
+    } catch { setDlErr(candidateId); }
+    setDlBusy(null);
   };
 
   // Month options for the Hired view, derived from when each hire happened.
@@ -28069,8 +28080,13 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
                         <td className="px-4 py-3 text-sm tnum whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{fmtDay(hiredOffers[c.id]?.startDate) || "—"}</td>
                         <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           {hiredOffers[c.id]?.hasSignedPdf ? (
-                            <button onClick={() => dlSigned(c.id)} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line)", color: "var(--brand)" }}>
-                              <Icon name="doc" className="w-3.5 h-3.5" /> Download
+                            <button onClick={() => dlSigned(c.id)} disabled={dlBusy === c.id}
+                              aria-busy={dlBusy === c.id}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line)", color: "var(--brand)" }}>
+                              {dlBusy === c.id
+                                ? <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full animate-spin shrink-0" style={{ border: "2px solid var(--brand-soft)", borderTopColor: "var(--brand)" }} />
+                                : <Icon name={dlErr === c.id ? "info" : "doc"} className="w-3.5 h-3.5" />}
+                              {dlBusy === c.id ? "Preparing…" : dlErr === c.id ? "Try again" : "Download"}
                             </button>
                           ) : <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>}
                         </td>
