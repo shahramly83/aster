@@ -720,6 +720,28 @@ export async function dbListCreditSpend(companyId, limit = 50) {
   return data || [];
 }
 
+// Every credit ever spent by this workspace, for the CSV export. Paged rather
+// than one big select: PostgREST caps a response at 1000 rows, so a plain query
+// would quietly return the first 1000 and look complete. Same failure the
+// 50-row list already had, just further out.
+export async function dbExportCreditSpend(companyId) {
+  if (!hasSupabase || !companyId) return [];
+  const PAGE = 1000;
+  const all = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("credit_spend_log")
+      .select("kind, quantity, pool, label, detail, created_at")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) { console.error("dbExportCreditSpend", error.message); break; }
+    all.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return all;
+}
+
 // Remove a teammate from a job's interviewer pool. Admin-gated.
 export async function dbUnassignInterviewer(jobId, profileId) {
   if (!hasSupabase || !jobId || !profileId) return "Not connected to a live workspace.";

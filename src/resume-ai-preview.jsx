@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, dbListAcceptedOffers, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, dbListAcceptedOffers, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend, dbExportCreditSpend } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -10696,8 +10696,10 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
     .map((j) => ({ label: j.title, value: isAllTime ? applicantCountFor(j.id) : (APPLICANTS_BY_JOB[j.id] || []).filter(appIsInRange).length }))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value);
-  // Top 5 roles by applicant count (View all shows the rest on the Jobs screen).
-  const roleSegments = roleCounts.slice(0, 5).map((r, i) => ({ ...r, color: donutColors[i % donutColors.length] }));
+  // Top 3 roles by applicant count (View all shows the rest on the Jobs screen).
+  // The total under the ring is the sum of what is shown, so the arcs always add
+  // up to the number in the middle; it is not a count of every open role.
+  const roleSegments = roleCounts.slice(0, 3).map((r, i) => ({ ...r, color: donutColors[i % donutColors.length] }));
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source: distribution of where applicants came from.
@@ -10956,7 +10958,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
               <div className={cardClass}>
                 {sectionHead(
-                  "Top Roles",
+                  "Top 3 positions",
                   roleTotal > 0 ? (
                     <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
                   ) : null
@@ -20625,6 +20627,9 @@ const CREDIT_KIND_LABELS = {
   interview_questions: "Interview questions",
 };
 
+// How many recent entries the billing card shows. The full history is the CSV.
+const SPEND_PAGE = 50;
+
 function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyId = null, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(() => {
     // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
@@ -20683,10 +20688,47 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
   // did I pay", this answers "what did it do".
   const [spend, setSpend] = useState([]);
   const [spendLoading, setSpendLoading] = useState(true);
+  const [spendBusy, setSpendBusy] = useState(false);
+
+  // Everything, not the newest 50: the export is what someone reaches for when
+  // reconciling a charge from two months ago, which is exactly what the list
+  // cannot show them.
+  const exportSpendCsv = async () => {
+    if (spendBusy) return;
+    setSpendBusy(true);
+    try {
+      const rows = await dbExportCreditSpend(companyId);
+      // Quote every field and double any inner quote. A candidate called
+      // O"Brien, or a label with a comma in it, would otherwise shift every
+      // later column by one and corrupt the whole row.
+      const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const header = ["Date", "Type", "Credits", "Pool", "Description", "Detail"];
+      const body = rows.map((r) => [
+        new Date(r.created_at).toISOString(),
+        r.kind, r.quantity, r.pool || "", r.label || "", r.detail || "",
+      ].map(esc).join(","));
+      // The BOM is what makes Excel read this as UTF-8; without it names like
+      // "Nurul Izzati" survive but anything non-Latin does not.
+      // CRLF and the byte-order mark built from char codes rather than escapes:
+      // Excel needs the BOM to read this as UTF-8, and needs CRLF line ends.
+      const NL = String.fromCharCode(13, 10);
+      const BOM = String.fromCharCode(0xFEFF);
+      const csv = BOM + [header.map(esc).join(","), ...body].join(NL);
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `aster-credits-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (e) {
+      console.error("exportSpendCsv", e);
+    }
+    setSpendBusy(false);
+  };
   useEffect(() => {
     let alive = true;
     if (!companyId) { setSpendLoading(false); return undefined; }
-    dbListCreditSpend(companyId, 50)
+    dbListCreditSpend(companyId, SPEND_PAGE)
       .then((rows) => { if (alive) setSpend(rows); })
       .finally(() => { if (alive) setSpendLoading(false); });
     return () => { alive = false; };
@@ -21270,7 +21312,22 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
           <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
             <div className="flex items-center justify-between gap-3 mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Where your credits went</h3>
-              {spend.length > 0 && <span className="text-xs" style={{ color: "var(--ink-3)" }}>{spend.length} {spend.length === 1 ? "entry" : "entries"}</span>}
+              {spend.length > 0 && (
+                <div className="flex items-center gap-3 shrink-0">
+                  {/* "50 entries" read as a total when it was only ever the newest
+                      50. A busy workspace passes that inside a fortnight, so say
+                      which it is and give a way to reach the rest. */}
+                  <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+                    {spend.length >= SPEND_PAGE ? `${SPEND_PAGE} most recent` : `${spend.length} ${spend.length === 1 ? "entry" : "entries"}`}
+                  </span>
+                  <button onClick={exportSpendCsv} disabled={spendBusy}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50"
+                    style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
+                    <Icon name="download" className="w-3.5 h-3.5" />
+                    {spendBusy ? "Preparing…" : "Export CSV"}
+                  </button>
+                </div>
+              )}
             </div>
             {spendLoading ? (
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Loading…</p>
