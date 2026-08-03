@@ -134,6 +134,13 @@ export default function SignInScreen() {
 
   const ready = !!email && !!password;
 
+  // The hero is simply not rendered while the keyboard is up. Wordmark, headline
+  // and subtitle come to roughly 300dp and the keyboard takes about 40% of the
+  // screen, so keeping both puts the password field underneath it. An animated
+  // collapse needs the natural height measured first, and measuring a view that
+  // starts at height 0 inside overflow:hidden returned nothing, which left the
+  // header permanently gone. Unmounting is blunt and it is correct.
+
   return (
     <View style={{ flex: 1, backgroundColor: PAGE }}>
       <StatusBar style="dark" />
@@ -165,21 +172,25 @@ export default function SignInScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={[styles.page, kb > 0 && { paddingBottom: kb + space(4) }]}>
 
-          <Rise delay={0} still={still}>
-            <AsterLogo width={176} color={ACCENT} />
-          </Rise>
+          {kb === 0 && (
+            <>
+              <Rise delay={0} still={still}>
+                <AsterLogo width={176} color={ACCENT} />
+              </Rise>
 
-          {/* Two lines on purpose. One long line would set the type smaller and
-              lose the only piece of scale on the screen. */}
-          <Rise delay={90} still={still} style={{ marginTop: space(9) }}>
-            <Text style={styles.h1}>Welcome</Text>
-            <Text style={styles.h1}>back.</Text>
-            <Text style={styles.sub}>Every role, every candidate, in one place.</Text>
-          </Rise>
+              {/* Two lines on purpose. One long line would set the type smaller
+                  and lose the only piece of scale on the screen. */}
+              <Rise delay={90} still={still} style={{ marginTop: space(9) }}>
+                <Text style={styles.h1}>Welcome</Text>
+                <Text style={styles.h1}>back.</Text>
+                <Text style={styles.sub}>Every role, every candidate, in one place.</Text>
+              </Rise>
+            </>
+          )}
 
           {/* The gap does the work. Pushing the form to the lower third is what
               gives the headline room, and puts the fields under the thumb. */}
-          <View style={{ flex: 1, minHeight: space(6) }} />
+          <View style={{ flex: 1, minHeight: space(4) }} />
 
           <Rise delay={180} still={still}>
             <Field label="WORK EMAIL" inputRef={emailRef} invalid={!!error}>
