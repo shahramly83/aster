@@ -3,7 +3,7 @@
     "name": "Aster",
     "slug": "aster-mobile",
     "scheme": "aster",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
