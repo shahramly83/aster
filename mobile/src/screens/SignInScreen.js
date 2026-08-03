@@ -1,100 +1,37 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing } from "react-native";
+import { View, Text, TextInput, StyleSheet, Platform, Pressable, Keyboard, Animated, Easing, AccessibilityInfo } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import * as Haptics from "expo-haptics";
 import { useAuth } from "../AuthContext";
 import { Feather } from "../components/ui";
 import { AsterLogo } from "../components/Logo";
-import FaceConstellation from "../components/FaceConstellation";
 import { space } from "../theme";
 
-// The screen leads with people, not with the brand: nine faces on slow orbits
-// over a pale ground, with the form sitting underneath on the same page. The old
-// version was edge-to-edge brand blue, which looked confident but said nothing
-// about what the product is for.
-// Two grounds for the same screen. Flip SKIN to compare: "sky" is a pale blue
-// page with dark type, "brand" is the deep brand blue with everything laid over
-// it in white at graded opacities.
-const SKIN = "brand";
-
-const SKINS = {
-  sky: {
-    // A light blue with real weight, not a near-white tint. Deep enough that the
-    // white orbit rings and photo rims read as light against it (1.7:1), still
-    // light enough to carry dark type at 11.1:1.
-    page: "#B2C9EC",
-    ink: "#0E1220",
-    inkDim: "#2E3A50",
-    inkFaint: "#35415A",   // 4.8:1. Every tone here was picked by measuring, not by eye
-    rule: "#6683B4",
-    ruleOn: "#0B2AE0",
-    surfaceOff: "#84A0CF",
-    danger: "#A81B31",
-    errorBg: "#F6DDE1",
-    ring: "#FFFFFF",
-    dotA: "#0B2AE0",
-    dotB: "#7E97FF",
-    logo: "#0B2AE0",
-    ctaBg: "#0B2AE0",
-    ctaTxt: "#FFFFFF",
-    bar: "dark",
-  },
-  // A middle ground: dark enough to carry white type properly, far short of the
-  // full brand blue. White on the pale page measured 1.7:1, which is why the
-  // type could not simply be recoloured.
-  mid: {
-    page: "#33569F",
-    ink: "#FFFFFF",
-    inkDim: "#D2DEF6",
-    inkFaint: "#C0D0F2",
-    rule: "rgba(255,255,255,0.38)",
-    ruleOn: "#FFFFFF",
-    surfaceOff: "rgba(255,255,255,0.16)",
-    danger: "#FFC2C6",
-    errorBg: "rgba(0,0,0,0.24)",
-    ring: "#FFFFFF",
-    dotA: "#FFFFFF",
-    dotB: "#93A7FF",
-    logo: "#FFFFFF",
-    ctaBg: "#FFFFFF",
-    ctaTxt: "#0B2AE0",
-    bar: "light",
-  },
-  brand: {
-    page: "#0B2AE0",
-    ink: "#FFFFFF",
-    inkDim: "#CFDCFF",
-    inkFaint: "#A6BDFF",   // 4.7:1; anything dimmer fails AA on this ground
-    rule: "rgba(255,255,255,0.32)",
-    ruleOn: "#FFFFFF",
-    surfaceOff: "rgba(255,255,255,0.15)",
-    danger: "#FFC2C6",
-    errorBg: "rgba(0,0,0,0.24)",
-    // Rings and dots are the setting the faces sit in, not marks in their own
-    // right. Two physical pixels at ~50% is close to the floor: any fainter and
-    // the rings stop resolving on screen rather than merely looking lighter.
-    ring: "rgba(255,255,255,0.52)",
-    dotA: "rgba(255,255,255,0.58)",
-    dotB: "rgba(138,163,255,0.60)",
-    logo: "#FFFFFF",
-    ctaBg: "#FFFFFF",
-    ctaTxt: "#0B2AE0",
-    bar: "light",
-  },
-};
-
-const S = SKINS[SKIN];
-const PAGE = S.page;
-const INK = S.ink;
-const INK_DIM = S.inkDim;
-const INK_FAINT = S.inkFaint;
-const RULE = S.rule;
-const RULE_ON = S.ruleOn;
-const SURFACE_OFF = S.surfaceOff;
-const DANGER = S.danger;
+// Quiet by design. The previous version put nine stock headshots on a fully
+// saturated blue, ringed with orbits and dots: a lot of work that read as a
+// template, because a collage of stock faces is what templates do. What makes
+// software look expensive is subtraction and typography, so this screen is one
+// wordmark, one very large headline, one line of copy, two ruled fields and a
+// single button. Nothing else.
+//
+// The ground is warm off-white rather than #FFFFFF, and the neutrals carry a
+// slight blue bias toward the brand, so the palette reads as chosen instead of
+// inherited. Brand blue appears exactly twice: the wordmark, and the rule under
+// whichever field has focus. The button is near-black, because a saturated
+// button on a pale ground is the loudest thing a screen can do.
+const PAGE = "#F7F6F3";
+const INK = "#12131F";        // 17.1:1
+const INK_BODY = "#5C5E6B";   //  6.0:1
+const INK_LABEL = "#6A6C7A";  //  4.8:1
+const INK_FAINT = "#6E7080";  //  4.5:1, the floor for AA; lighter tones measured 3.0 and failed
+const RULE = "#DEDCD6";
+const ACCENT = "#0B2AE0";     //  8.0:1
+const CTA = "#12131F";
+const DANGER = "#A81B31";
 
 // Android edge-to-edge doesn't resize the view for the keyboard, so track its
-// height and lift the scroll content above it manually.
+// height and lift the content manually.
 function useKeyboardHeight() {
   const [h, setH] = useState(0);
   useEffect(() => {
@@ -107,45 +44,52 @@ function useKeyboardHeight() {
   return h;
 }
 
-// Blocks arrive in sequence rather than all at once. A single fade of the whole
-// screen reads as a page that loaded; a 70ms cascade reads as a screen being
-// built, which is most of the difference between "clean" and "flat".
-function Rise({ delay = 0, children, style }) {
-  const v = useRef(new Animated.Value(0)).current;
+function useReduceMotion() {
+  const [on, setOn] = useState(false);
   useEffect(() => {
-    Animated.timing(v, { toValue: 1, duration: 520, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [v, delay]);
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => { if (alive) setOn(!!v); });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", (v) => setOn(!!v));
+    return () => { alive = false; sub?.remove?.(); };
+  }, []);
+  return on;
+}
+
+// Three blocks, 90ms apart. Slow enough to read as composed, short enough that
+// someone who just wants to type is never waiting on it.
+function Rise({ delay = 0, still, children, style }) {
+  const v = useRef(new Animated.Value(still ? 1 : 0)).current;
+  useEffect(() => {
+    if (still) { v.setValue(1); return; }
+    Animated.timing(v, { toValue: 1, duration: 560, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [v, delay, still]);
   return (
-    <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }] }]}>
+    <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }]}>
       {children}
     </Animated.View>
   );
 }
 
-// An underlined field. The rule animates to brand blue and thickens on focus, so
-// the active field is unmistakable without drawing a box around it.
-function Field({ label, icon, inputRef, invalid, children }) {
+// A ruled field, not a boxed one. The rule takes the brand colour and thickens on
+// focus, which marks the active field without drawing a container around it.
+function Field({ label, inputRef, invalid, children }) {
   const [focused, setFocused] = useState(false);
   const a = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(a, { toValue: focused ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
+    Animated.timing(a, { toValue: focused ? 1 : 0, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
   }, [focused, a]);
-
   return (
-    <Pressable onPress={() => inputRef?.current?.focus()} style={styles.field}>
-      <Text style={[styles.fieldLabel, focused && { color: RULE_ON }]}>{label}</Text>
+    <Pressable onPress={() => inputRef?.current?.focus()} accessible={false}>
+      <Text style={[styles.label, focused && { color: ACCENT }]}>{label}</Text>
       <View style={styles.fieldRow}>
-        <Feather name={icon} size={17} color={focused ? RULE_ON : INK_FAINT} />
         {children({ onFocus: () => setFocused(true), onBlur: () => setFocused(false) })}
       </View>
       <Animated.View
-        style={[
-          styles.rule,
-          {
-            height: a.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }),
-            backgroundColor: invalid ? DANGER : (focused ? RULE_ON : RULE),
-          },
-        ]}
+        style={{
+          marginTop: 10,
+          height: a.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }),
+          backgroundColor: invalid ? DANGER : (focused ? ACCENT : RULE),
+        }}
       />
     </Pressable>
   );
@@ -154,6 +98,7 @@ function Field({ label, icon, inputRef, invalid, children }) {
 export default function SignInScreen() {
   const { signIn } = useAuth();
   const kb = useKeyboardHeight();
+  const still = useReduceMotion();
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const [email, setEmail] = useState("");
@@ -166,122 +111,120 @@ export default function SignInScreen() {
     if (!email || !password || busy) return;
     Keyboard.dismiss();
     setError(""); setBusy(true);
-    try { await signIn(email, password); }
-    catch (e) { setError(e?.message || "Could not sign in. Check your email and password."); }
-    finally { setBusy(false); }
+    try {
+      await signIn(email, password);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e) {
+      // A wrong password is worth feeling as well as reading.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      setError(e?.message || "Could not sign in. Check your email and password.");
+    }
+    setBusy(false);
   };
 
   const ready = !!email && !!password;
 
-  // The artwork takes whatever height is left after the form, measured rather
-  // than assumed, so the screen fits exactly once on any device and never
-  // scrolls. Below the floor the box clips from the bottom instead of squashing
-  // the arrangement, which keeps the faces circular and evenly spread.
-  const [artH, setArtH] = useState(0);
-  const ART_FLOOR = 210;
-
   return (
     <View style={{ flex: 1, backgroundColor: PAGE }}>
-      <StatusBar style={S.bar} />
+      <StatusBar style="dark" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        {/* Android edge-to-edge doesn't resize for the keyboard, so the padding
-            does it, and the flexible artwork above absorbs the loss. */}
-        <View style={[styles.page, kb > 0 && { paddingBottom: kb }]}>
-          {/* Bleeds the full width; the form below keeps the page margin. */}
-          <View
-            style={styles.art}
-            onLayout={(e) => setArtH(Math.round(e.nativeEvent.layout.height))}
-          >
-            {artH > 0 ? <FaceConstellation height={Math.max(artH, ART_FLOOR)} ring={S.ring} dotA={S.dotA} dotB={S.dotB} /> : null}
-          </View>
+        <View style={[styles.page, kb > 0 && { paddingBottom: kb + space(4) }]}>
 
-          <View style={styles.form}>
-            <Rise delay={220}><AsterLogo width={116} color={S.logo} /></Rise>
-            <Rise delay={290}><Text style={styles.h1}>Welcome back.</Text></Rise>
-            <Rise delay={350}><Text style={styles.sub}>Hiring, all in one tap.</Text></Rise>
+          <Rise delay={0} still={still}>
+            <AsterLogo width={96} color={ACCENT} />
+          </Rise>
 
-            <Rise delay={420} style={{ marginTop: space(6) }}>
-              <Field label="WORK EMAIL" icon="mail" inputRef={emailRef} invalid={!!error}>
+          {/* Two lines on purpose. One long line would set the type smaller and
+              lose the only piece of scale on the screen. */}
+          <Rise delay={90} still={still} style={{ marginTop: space(9) }}>
+            <Text style={styles.h1}>Welcome</Text>
+            <Text style={styles.h1}>back.</Text>
+            <Text style={styles.sub}>Every role, every candidate, in one place.</Text>
+          </Rise>
+
+          {/* The gap does the work. Pushing the form to the lower third is what
+              gives the headline room, and puts the fields under the thumb. */}
+          <View style={{ flex: 1, minHeight: space(6) }} />
+
+          <Rise delay={180} still={still}>
+            <Field label="WORK EMAIL" inputRef={emailRef} invalid={!!error}>
+              {({ onFocus, onBlur }) => (
+                <TextInput
+                  ref={emailRef}
+                  style={styles.input}
+                  placeholder="you@company.com"
+                  placeholderTextColor={INK_FAINT}
+                  autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
+                  textContentType="emailAddress" autoComplete="email"
+                  returnKeyType="next"
+                  selectionColor={ACCENT}
+                  value={email}
+                  onChangeText={(v) => { setEmail(v); if (error) setError(""); }}
+                  onFocus={onFocus} onBlur={onBlur}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  accessibilityLabel="Work email"
+                />
+              )}
+            </Field>
+
+            <View style={{ marginTop: space(7) }}>
+              <Field label="PASSWORD" inputRef={passwordRef} invalid={!!error}>
                 {({ onFocus, onBlur }) => (
-                  <TextInput
-                    ref={emailRef}
-                    style={styles.input}
-                    placeholder="you@company.com"
-                    placeholderTextColor={INK_FAINT}
-                    autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
-                    textContentType="emailAddress" autoComplete="email"
-                    returnKeyType="next"
-                    selectionColor={RULE_ON}
-                    value={email}
-                    onChangeText={(v) => { setEmail(v); if (error) setError(""); }}
-                    onFocus={onFocus} onBlur={onBlur}
-                    onSubmitEditing={() => passwordRef.current?.focus()}
-                    accessibilityLabel="Work email"
-                  />
+                  <>
+                    <TextInput
+                      ref={passwordRef}
+                      style={[styles.input, { flex: 1 }]}
+                      placeholder="••••••••"
+                      placeholderTextColor={INK_FAINT}
+                      secureTextEntry={!show} textContentType="password" autoComplete="password"
+                      returnKeyType="go"
+                      selectionColor={ACCENT}
+                      value={password}
+                      onChangeText={(v) => { setPassword(v); if (error) setError(""); }}
+                      onFocus={onFocus} onBlur={onBlur}
+                      onSubmitEditing={onSubmit}
+                      accessibilityLabel="Password"
+                    />
+                    <Pressable
+                      onPress={() => setShow((s) => !s)}
+                      hitSlop={16}
+                      accessibilityRole="button"
+                      accessibilityLabel={show ? "Hide password" : "Show password"}
+                    >
+                      <Feather name={show ? "eye-off" : "eye"} size={18} color={INK_LABEL} />
+                    </Pressable>
+                  </>
                 )}
               </Field>
+            </View>
+          </Rise>
 
-              <View style={{ marginTop: space(5) }}>
-                <Field label="PASSWORD" icon="lock" inputRef={passwordRef} invalid={!!error}>
-                  {({ onFocus, onBlur }) => (
-                    <>
-                      <TextInput
-                        ref={passwordRef}
-                        style={styles.input}
-                        placeholder="••••••••"
-                        placeholderTextColor={INK_FAINT}
-                        secureTextEntry={!show} textContentType="password" autoComplete="password"
-                        returnKeyType="go"
-                        selectionColor={RULE_ON}
-                        value={password}
-                        onChangeText={(v) => { setPassword(v); if (error) setError(""); }}
-                        onFocus={onFocus}
-                        onBlur={onBlur}
-                        onSubmitEditing={onSubmit}
-                        accessibilityLabel="Password"
-                      />
-                      <Pressable
-                        onPress={() => setShow((s) => !s)}
-                        hitSlop={14}
-                        accessibilityRole="button"
-                        accessibilityLabel={show ? "Hide password" : "Show password"}
-                      >
-                        <Feather name={show ? "eye-off" : "eye"} size={17} color={INK_FAINT} />
-                      </Pressable>
-                    </>
-                  )}
-                </Field>
-              </View>
-            </Rise>
+          {error ? (
+            <View style={styles.errorRow} accessibilityLiveRegion="polite" accessibilityRole="alert">
+              <Feather name="alert-circle" size={15} color={DANGER} style={{ marginTop: 1 }} />
+              <Text style={styles.errorTxt}>{error}</Text>
+            </View>
+          ) : null}
 
-            {error ? (
-              <View style={styles.errorRow} accessibilityLiveRegion="polite" accessibilityRole="alert">
-                <Feather name="alert-circle" size={15} color={DANGER} style={{ marginTop: 1 }} />
-                <Text style={styles.errorTxt}>{error}</Text>
-              </View>
-            ) : null}
-
-            {/* One action, and it looks like the only thing on the screen worth
-                pressing. */}
-            <Rise delay={490}>
-              <Pressable
-                onPress={onSubmit}
-                disabled={!ready || busy}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !ready || busy, busy }}
-                style={({ pressed }) => [
-                  styles.cta,
-                  ready ? styles.ctaOn : styles.ctaOff,
-                  pressed && ready && { opacity: 0.9 },
-                ]}
-              >
-                <Text style={[styles.ctaTxt, !ready && { color: INK_FAINT }]}>
-                  {busy ? "Signing in…" : "Sign in"}
-                </Text>
-                {!busy ? <Feather name="arrow-right" size={18} color={ready ? S.ctaTxt : INK_FAINT} /> : null}
-              </Pressable>
-            </Rise>
-          </View>
+          <Rise delay={260} still={still}>
+            <Pressable
+              onPress={onSubmit}
+              disabled={!ready || busy}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !ready || busy, busy }}
+              // 0.985 rather than the usual 0.95: at this width a deep press
+              // scale looks like the button is falling away from the finger.
+              style={({ pressed }) => [
+                styles.cta,
+                { backgroundColor: ready ? CTA : "#E4E2DC" },
+                pressed && ready && !still && { transform: [{ scale: 0.985 }] },
+              ]}
+            >
+              <Text style={[styles.ctaTxt, !ready && { color: INK_FAINT }]}>
+                {busy ? "Signing in…" : "Sign in"}
+              </Text>
+            </Pressable>
+          </Rise>
         </View>
       </SafeAreaView>
     </View>
@@ -289,35 +232,15 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, paddingHorizontal: space(7), paddingBottom: space(4) },
-  // flexShrink lets the artwork give up height to the keyboard; minHeight 0 is
-  // what actually allows a flex child to shrink below its content.
-  art: { flex: 1, minHeight: 0, overflow: "hidden", marginHorizontal: -space(7) },
-  form: { flexShrink: 0, paddingTop: space(2) },
-  h1: {
-    fontFamily: "PlusJakartaSans_700Bold", fontSize: 29, lineHeight: 35, letterSpacing: -0.8,
-    color: INK, marginTop: space(3),
-  },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 15.5, color: INK_DIM, marginTop: space(2) },
-  field: { paddingBottom: 10 },
-  fieldLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.4, color: INK_DIM, marginBottom: 12 },
-  fieldRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 30 },
+  page: { flex: 1, paddingHorizontal: space(7), paddingTop: space(10), paddingBottom: space(8) },
+  // -1.4 tracking: at 40px the default spacing reads loose and slightly cheap.
+  h1: { fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 40, lineHeight: 44, letterSpacing: -1.4, color: INK },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: INK_BODY, marginTop: space(4), maxWidth: 260 },
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.5, color: INK_LABEL },
+  fieldRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 34, marginTop: space(3) },
   input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 17, color: INK, padding: 0 },
-  rule: { marginTop: 10, borderRadius: 1 },
-  errorRow: {
-    flexDirection: "row", alignItems: "flex-start",
-    backgroundColor: S.errorBg, borderRadius: 14, padding: 12, marginTop: space(6),
-  },
-  errorTxt: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19, color: DANGER, marginLeft: 8, flex: 1 },
-  cta: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    height: 56, borderRadius: 18, marginTop: space(6),
-  },
-  ctaOn: {
-    backgroundColor: S.ctaBg,
-    shadowColor: "#050B3D", shadowOpacity: 0.32, shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 }, elevation: 8,
-  },
-  ctaOff: { backgroundColor: SURFACE_OFF },
-  ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: S.ctaTxt },
+  errorRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: space(5) },
+  errorTxt: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19, color: DANGER, flex: 1 },
+  cta: { height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: space(9) },
+  ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: "#FFFFFF", letterSpacing: 0.1 },
 });

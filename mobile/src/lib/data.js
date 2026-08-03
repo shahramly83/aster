@@ -945,17 +945,44 @@ const ROLE_RANK = { owner: 0, admin: 1, recruiter: 2, interviewer: 3 };
 // Invite a teammate by email + role (admin/interviewer). Routed through the same
 // send-teammate-invite edge function the web uses: it runs the invite_teammate
 // RPC as the caller (so seat + role limits apply) and emails the invitee.
+// An edge function that answers with a non-2xx status arrives here as a generic
+// FunctionsHttpError whose message is the useless "Edge Function returned a
+// non-2xx status code". The reason the function actually gave sits in the JSON
+// body hanging off error.context. Reading it is the difference between telling
+// someone "already a member" and showing them a transport error.
+//
+// App Review rejected the iOS build over exactly this: the reviewer invited an
+// address that was already on the demo workspace, the server correctly answered
+// 409 {"error":"already a member"}, and the app showed the raw string. The web
+// app has read the body for a while; mobile never did.
+export async function fnReason(data, error) {
+  if (data?.error) return String(data.error);
+  if (!error) return "";
+  try {
+    const body = await error.context?.json?.();
+    if (body?.error) return String(body.error);
+  } catch { /* non-JSON body, fall through to the generic message */ }
+  return "";
+}
+
+// Turns whatever the server said into something worth reading.
+function inviteMessage(reason) {
+  if (/already a member|already|exists|duplicate/i.test(reason)) return "That person is already on your team or has been invited.";
+  if (/seat|limit/i.test(reason)) return "Seat limit reached. Upgrade on the web app to add more.";
+  if (/unauthorized/i.test(reason)) return "Your session expired. Sign in again.";
+  if (/not_allowed|forbidden|permission|42501/i.test(reason)) return "Only workspace admins can invite teammates.";
+  if (/domain/i.test(reason)) return "Invite someone on your own company domain.";
+  return reason || "Couldn't send the invite. Try again.";
+}
+
 export async function inviteTeammate({ email, role }) {
   const clean = String(email || "").toLowerCase().trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return { ok: false, error: "Enter a valid email address." };
   const { data, error } = await supabase.functions.invoke("send-teammate-invite", {
     body: { email: clean, role: role === "admin" ? "admin" : "interviewer" },
   });
-  if (error) return { ok: false, error: error.message || "Couldn't send the invite." };
-  if (data?.error) {
-    const map = { seat_limit: "Seat limit reached. Upgrade on the web app to add more.", not_allowed: "Only workspace admins can invite teammates." };
-    return { ok: false, error: map[data.error] || data.error };
-  }
+  const reason = await fnReason(data, error);
+  if (error || reason) return { ok: false, error: inviteMessage(reason) };
   return { ok: true, reactivated: !!data?.reactivated, email: clean };
 }
 
@@ -1201,6 +1228,8 @@ export async function loadApprovers(companyId, { confirmedOnly = false } = {}) {
 export async function addApprover({ email, name = null }) {
   if (!email) return { ok: false, error: "missing email" };
   const { data, error } = await supabase.functions.invoke("approver-invite", { body: { email, name, origin: OFFER_ORIGIN } });
+  const reason = await fnReason(data, error);
+  if (error || reason) { console.warn("addApprover", reason); return { ok: false, error: inviteMessage(reason) }; }
   if (error || data?.error) { console.warn("addApprover", data?.error || error?.message); return { ok: false, error: data?.error || error?.message }; }
   return { ok: true, status: data?.status || "pending", already: !!data?.already };
 }
