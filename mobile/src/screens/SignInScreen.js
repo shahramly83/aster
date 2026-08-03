@@ -131,7 +131,7 @@ export default function SignInScreen() {
         <View style={[styles.page, kb > 0 && { paddingBottom: kb + space(4) }]}>
 
           <Rise delay={0} still={still}>
-            <AsterLogo width={132} color={ACCENT} />
+            <AsterLogo width={176} color={ACCENT} />
           </Rise>
 
           {/* Two lines on purpose. One long line would set the type smaller and
