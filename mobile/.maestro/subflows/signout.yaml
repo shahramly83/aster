@@ -14,8 +14,12 @@ tags:
     commands:
       # The gear sits top-right on every signed-in screen.
       - tapOn: "Settings"
-      - extendedWaitUntil:
-          visible: "Sign out"
+      # Sign out is at the bottom of a scrolling sheet, below the fold on this
+      # screen size, so waiting for it without scrolling waits forever.
+      - scrollUntilVisible:
+          element:
+            text: "Sign out"
+          direction: DOWN
           timeout: 15000
       - tapOn: "Sign out"
       - extendedWaitUntil:

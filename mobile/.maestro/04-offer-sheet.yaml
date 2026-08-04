@@ -22,10 +22,9 @@ tags:
     when:
       notVisible: "No open positions"
     commands:
-      # "View" matched something that never opened a candidate, so this flow was
-      # passing without reaching the screen it claims to test.
+      # "View" is the button on a ROLE card; it opens the job.
+      - tapOn: { text: "View", index: 0 }
       - tapOn: { text: "Open candidate.*", index: 0 }
-      - tapOn: { text: "View profile", index: 0, optional: true }
       # The Decision tab hosts "Make an offer" (manager, once scoring is done).
       - tapOn: { text: "Decision", optional: true }
       - runFlow:

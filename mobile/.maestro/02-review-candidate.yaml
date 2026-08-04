@@ -23,10 +23,9 @@ tags:
     when:
       notVisible: "No open positions"
     commands:
-      # There is no "View" affordance on a candidate card; the card itself is
-      # the target. It now carries a name, so ask for it rather than guessing.
+      # "View" is the button on a ROLE card; it opens the job.
       - tapOn:
-          text: "Open candidate.*"
+          text: "View"
           index: 0
 
       # Job detail: hero stats and the AI Rank bar.
@@ -39,9 +38,8 @@ tags:
 
       # Open the first candidate.
       - tapOn:
-          text: "View profile"
+          text: "Open candidate.*"
           index: 0
-          optional: true
       # Candidate profile sub-tabs.
       - extendedWaitUntil:
           visible: "Profile"
