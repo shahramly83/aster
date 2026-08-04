@@ -14,6 +14,7 @@ import { Avatar, Press, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import { theme, type, space, radius, shadow } from "../theme";
 import SignaturePad from "../components/SignaturePad";
+import Constants from "expo-constants";
 
 const BIOMETRIC_PREF_KEY = "aster.biometric.enabled";
 
@@ -150,7 +151,10 @@ export default function ProfileScreen({ navigation }) {
             <Text style={[type.bodyStrong, { color: theme.danger, marginLeft: 10 }]}>Sign out</Text>
           </Pressable>
 
-          <Text style={styles.version}>Aster · v0.1.0</Text>
+          {/* Read the real version. This said v0.1.0 while the app shipped 1.0.4,
+              so anyone checking which build they were on, including us chasing a
+              bug report, was told something untrue. */}
+          <Text style={styles.version}>Aster · v{Constants.expoConfig?.version || "1.0.0"}</Text>
         </ScrollView>
       </SafeAreaView>
 

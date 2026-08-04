@@ -17,8 +17,11 @@ tags:
 - assertVisible: "PREFERENCES"
 - assertVisible: "Biometric unlock"
 - assertVisible: "Notifications"
-- assertVisible:
-    text: "Aster · v.*"
+- scrollUntilVisible:
+    element:
+      text: "Aster · v.*"
+    direction: DOWN
+    timeout: 10000
 
 # Sign out returns to the sign-in screen.
 - tapOn: "Sign out"
