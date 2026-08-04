@@ -84,7 +84,13 @@ export function HeroBanner({ title, subtitle, icon = "zap", onPress, accent = th
 }
 
 // ---- Circular icon chip -----------------------------------------------------
-export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44, onPress, badge = 0 }) {
+// Every header chip is an icon and nothing else, so without a name it reaches a
+// screen reader as an unlabelled button, and nothing driving the app can find it
+// except by pixel position. The gear, the bell and add-people are on nearly every
+// screen, so that is three unnamed controls almost everywhere.
+const CHIP_LABELS = { settings: "Settings", bell: "Notifications", "user-plus": "Add people", x: "Close", search: "Search" };
+
+export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44, onPress, badge = 0, label }) {
   const chip = (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
       <Feather name={name} size={size * 0.42} color={tint} />
@@ -95,7 +101,19 @@ export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44,
       ) : null}
     </View>
   );
-  if (onPress) return <Press onPress={onPress} scaleTo={0.92}>{chip}</Press>;
+  if (onPress) {
+    const a11y = label || CHIP_LABELS[name] || name;
+    return (
+      <Press
+        onPress={onPress}
+        scaleTo={0.92}
+        accessibilityRole="button"
+        accessibilityLabel={badge > 0 ? `${a11y}, ${badge} unread` : a11y}
+      >
+        {chip}
+      </Press>
+    );
+  }
   return chip;
 }
 

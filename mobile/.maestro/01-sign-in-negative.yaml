@@ -6,8 +6,8 @@ tags:
   - auth
   - negative
 ---
-- clearState
 - launchApp
+- runFlow: subflows/signout.yaml
 - extendedWaitUntil:
     visible: "WORK EMAIL"
     timeout: 30000

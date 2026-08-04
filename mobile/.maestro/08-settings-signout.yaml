@@ -10,8 +10,7 @@ tags:
 - runFlow: subflows/login.yaml
 
 # The gear is an icon-only control in the blue header, left of the bell.
-- tapOn:
-    point: "80%,7%"
+- tapOn: "Settings"
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 15000

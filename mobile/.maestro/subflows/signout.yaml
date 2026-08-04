@@ -1,0 +1,23 @@
+# Get to a signed-out state without clearState.
+#
+# clearState needs CLEAR_APP_USER_DATA, which this device refuses: ColorOS blocks
+# it for any app, and the "Disable permission monitoring" toggle that used to
+# allow it does not exist on this build. Signing out through the UI does the same
+# job and works on any handset.
+appId: com.hireaster.mobile
+tags:
+  - subflow
+---
+- runFlow:
+    when:
+      notVisible: "WORK EMAIL"
+    commands:
+      # The gear sits top-right on every signed-in screen.
+      - tapOn: "Settings"
+      - extendedWaitUntil:
+          visible: "Sign out"
+          timeout: 15000
+      - tapOn: "Sign out"
+      - extendedWaitUntil:
+          visible: "WORK EMAIL"
+          timeout: 20000
