@@ -14,8 +14,8 @@ tags:
 - tapOn:
     text: "Positions"
     optional: true
-- assertVisible:
-    text: "OPEN POSITIONS.*"
+- extendedWaitUntil:
+    visible: "OPEN POSITIONS.*"
     timeout: 20000
 
 - runFlow:
@@ -31,8 +31,8 @@ tags:
             visible: "Make an offer"
           commands:
             - tapOn: "Make an offer"
-            - assertVisible:
-                text: "Make offer"
+            - extendedWaitUntil:
+                visible: "Make offer"
                 timeout: 15000
             - assertVisible: "Compose in Aster"
             - assertVisible: "Upload our letter"

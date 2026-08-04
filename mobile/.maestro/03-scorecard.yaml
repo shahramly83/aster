@@ -14,8 +14,8 @@ tags:
 - tapOn:
     text: "Positions"
     optional: true
-- assertVisible:
-    text: "OPEN POSITIONS.*"
+- extendedWaitUntil:
+    visible: "OPEN POSITIONS.*"
     timeout: 20000
 
 - runFlow:

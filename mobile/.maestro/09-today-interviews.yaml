@@ -13,8 +13,8 @@ tags:
 - tapOn:
     text: "Interviews|Today"
     optional: true
-- assertVisible:
-    text: "UP NEXT|You're all set|Interviews you're on|Your panel interviews"
+- extendedWaitUntil:
+    visible: "UP NEXT|You're all set|Interviews you're on|Your panel interviews"
     timeout: 20000
 
 # The segmented control (accessibilityLabel "<label>, <count>").

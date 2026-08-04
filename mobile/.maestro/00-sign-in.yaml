@@ -10,8 +10,8 @@ tags:
 # The branded splash and font load precede the sign-in screen.
 # The sign-in screen was rebuilt: the old heading "Sign in to your Aster
 # workspace" is now "Welcome / back.", and the field labels are uppercase.
-- assertVisible:
-    text: "Welcome"
+- extendedWaitUntil:
+    visible: "WORK EMAIL"
     timeout: 30000
 - assertVisible: "WORK EMAIL"
 - assertVisible: "PASSWORD"

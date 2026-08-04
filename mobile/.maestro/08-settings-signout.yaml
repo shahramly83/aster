@@ -12,8 +12,8 @@ tags:
 # The gear is an icon-only control in the blue header, left of the bell.
 - tapOn:
     point: "80%,7%"
-- assertVisible:
-    text: "Settings"
+- extendedWaitUntil:
+    visible: "Settings"
     timeout: 15000
 - assertVisible: "PREFERENCES"
 - assertVisible: "Biometric unlock"
@@ -23,6 +23,6 @@ tags:
 
 # Sign out returns to the sign-in screen.
 - tapOn: "Sign out"
-- assertVisible:
-    text: "Welcome"
+- extendedWaitUntil:
+    visible: "WORK EMAIL"
     timeout: 20000

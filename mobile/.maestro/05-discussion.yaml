@@ -11,8 +11,8 @@ tags:
 - tapOn:
     text: "Positions"
     optional: true
-- assertVisible:
-    text: "OPEN POSITIONS.*"
+- extendedWaitUntil:
+    visible: "OPEN POSITIONS.*"
     timeout: 20000
 
 - runFlow:
@@ -25,8 +25,8 @@ tags:
       - tapOn:
           text: "Discuss with Panel"
           optional: true
-      - assertVisible:
-          text: "Private discussion about.*"
+      - extendedWaitUntil:
+          visible: "Private discussion about.*"
           timeout: 20000
       # Compose a message. The composer placeholder mentions @ mentions.
       - tapOn: "Message the panel… use @ to tag"
@@ -37,6 +37,6 @@ tags:
       - tapOn:
           point: "92%,95%"
       # The optimistic bubble appears (Sending… then a timestamp).
-      - assertVisible:
-          text: "Maestro smoke-test note, please ignore."
+      - extendedWaitUntil:
+          visible: "Maestro smoke-test note, please ignore."
           timeout: 15000

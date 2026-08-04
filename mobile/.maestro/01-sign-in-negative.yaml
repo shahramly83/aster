@@ -8,8 +8,8 @@ tags:
 ---
 - clearState
 - launchApp
-- assertVisible:
-    text: "Welcome"
+- extendedWaitUntil:
+    visible: "WORK EMAIL"
     timeout: 30000
 
 # 1) Empty form: the Sign in button is present but disabled (disabled={!email || !password}).
@@ -31,7 +31,7 @@ tags:
 - inputText: "definitely-not-the-password"
 - hideKeyboard
 - tapOn: "Sign in"
-- assertVisible:
-    text: ".*email and password.*|.*Could not sign in.*"
+- extendedWaitUntil:
+    visible: ".*email and password.*|.*Could not sign in.*"
     timeout: 20000
-- assertVisible: "Welcome"
+- assertVisible: "WORK EMAIL"

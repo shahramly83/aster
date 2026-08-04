@@ -11,8 +11,8 @@ tags:
 # The bell is an icon-only control in the blue header (top-right). Tap by position.
 - tapOn:
     point: "88%,7%"
-- assertVisible:
-    text: "Notifications"
+- extendedWaitUntil:
+    visible: "Notifications"
     timeout: 15000
 # Either there are rows, or the caught-up empty state — never a blank screen.
 - assertVisible:

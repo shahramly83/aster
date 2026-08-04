@@ -54,7 +54,18 @@ function Tab({ icon, label, focused, onPress }) {
   // generous enough to hold the full word (no ellipsis).
   const labelW = w.interpolate({ inputRange: [0, 1], outputRange: [0, label.length * 8.7 + 8] });
   return (
-    <Pressable onPress={onPress} style={styles.tap} hitSlop={6}>
+    // An inactive tab draws only an icon, so without a label here it is silent to
+    // a screen reader and invisible to anything driving the app: three of the
+    // four tabs announced nothing at all. The visible pill still belongs to the
+    // active tab only; this is the name, not the rendering.
+    <Pressable
+      onPress={onPress}
+      style={styles.tap}
+      hitSlop={6}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: focused }}
+    >
       <Animated.View style={[styles.item, focused && styles.itemActive]}>
         <Feather name={icon} size={21} color={focused ? theme.white : theme.ink4} />
         <Animated.View style={{ width: labelW, overflow: "hidden" }}>

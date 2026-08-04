@@ -14,8 +14,8 @@ tags:
 - tapOn:
     text: "Positions"
     optional: true
-- assertVisible:
-    text: "OPEN POSITIONS.*"
+- extendedWaitUntil:
+    visible: "OPEN POSITIONS.*"
     timeout: 20000
 
 # Open the first role card. If there are none, the empty state shows instead.
@@ -27,8 +27,8 @@ tags:
           text: "View"
           index: 0
       # Job detail: hero stats and the AI Rank bar.
-      - assertVisible:
-          text: "AI Rank"
+      - extendedWaitUntil:
+          visible: "AI Rank"
           timeout: 20000
       - assertVisible: "TO REVIEW"
 
@@ -38,7 +38,7 @@ tags:
           index: 0
           optional: true
       # Candidate profile sub-tabs.
-      - assertVisible:
-          text: "Profile"
+      - extendedWaitUntil:
+          visible: "Profile"
           timeout: 20000
       - assertVisible: "Interview"

@@ -22,8 +22,8 @@ tags:
       - tapOn:
           text: "AI Rank|AI Insight|Applicant Screening"
           index: 0
-      - assertVisible:
-          text: ".*credits|Out of.*credits"
+      - extendedWaitUntil:
+          visible: ".*credits|Out of.*credits"
           timeout: 10000
       # Balances are read-only on mobile; plan changes are web-only.
       - assertVisible: "Plans are managed from your Aster web dashboard."
