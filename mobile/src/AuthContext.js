@@ -49,6 +49,10 @@ export function AuthProvider({ children }) {
             companyName: row.company_name || null,
             status: row.status || null,
             purgeAfter: row.purge_after || null,
+            // 'suspended' covers both a lapsed trial and an admin suspension, so
+            // status alone cannot tell a payer from a triallist. Undefined until
+            // 0153 ships, which reads as never-paid: the wording we had before.
+            everPaid: row.ever_paid === true,
           });
           setProfile(null);
           setAssignedJobIds([]);

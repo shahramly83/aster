@@ -18,10 +18,36 @@ import { theme, type, space } from "../theme";
 // not even carry a link: the person reading it is usually an interviewer who
 // cannot fix it anyway, so the useful instruction is to talk to whoever runs
 // the workspace.
+// A workspace stops working in three different ways, and they are not the same
+// event. Telling someone eighteen months into a subscription that their trial has
+// finished is worse than telling them nothing: it reads as a system that does not
+// know who they are. `who` is already possessive, so it can carry the fallback.
+const COPY = {
+  trial: {
+    title: "This workspace is paused",
+    lead: (who) => `${who} trial has finished, so Aster is read-only for everyone on the team until it is renewed.`,
+    next: "Renewing is handled by an admin on the Aster website, not in this app. If you are not the admin, let them know.",
+  },
+  churned: {
+    title: "This workspace is no longer active",
+    lead: (who) => `${who} subscription has ended, so Aster is read-only for everyone on the team until it is renewed.`,
+    next: "Renewing is handled by an admin on the Aster website, not in this app. If you are not the admin, let them know.",
+  },
+  // Reachable only by admin_set_company_suspended against a paying customer.
+  // Nothing has ended and nothing needs renewing, so it says neither.
+  suspended: {
+    title: "This workspace is paused",
+    lead: (who) => `${who} access to Aster has been suspended, so it is read-only for everyone on the team.`,
+    next: "An admin can sort this out on the Aster website, not in this app. If you are not the admin, let them know.",
+  },
+};
+
 export default function WorkspaceInactiveScreen() {
   const { workspaceInactive, signOut } = useAuth();
   const name = workspaceInactive?.companyName;
   const churned = workspaceInactive?.status === "churned";
+  const copy = COPY[churned ? "churned" : workspaceInactive?.everPaid ? "suspended" : "trial"];
+  const who = name ? `${name}'s` : "Your";
 
   // The 30-day window before the data is purged. Worth showing precisely,
   // because it is the one fact that changes what someone does today.
@@ -39,20 +65,11 @@ export default function WorkspaceInactiveScreen() {
             <Feather name="pause-circle" size={30} color="#FFFFFF" />
           </View>
 
-          <Text style={styles.h1}>
-            {churned ? "This workspace is no longer active" : "This workspace is paused"}
-          </Text>
+          <Text style={styles.h1}>{copy.title}</Text>
 
-          <Text style={styles.body}>
-            {name ? `${name}'s ` : "Your "}
-            {churned ? "subscription has ended" : "trial has finished"}, so Aster is
-            read-only for everyone on the team until it is renewed.
-          </Text>
+          <Text style={styles.body}>{copy.lead(who)}</Text>
 
-          <Text style={styles.body}>
-            Renewing is handled by an admin on the Aster website, not in this app.
-            If you are not the admin, let them know.
-          </Text>
+          <Text style={styles.body}>{copy.next}</Text>
 
           {daysLeft !== null && (
             <View style={styles.note}>
