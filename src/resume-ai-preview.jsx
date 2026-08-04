@@ -410,6 +410,22 @@ function daysUntil(dateStr) {
   return Math.max(0, Math.round((end - today.getTime()) / 86400000));
 }
 
+// Has this day already gone by? The server suspends a trial with
+//   s.current_period_end < current_date
+// so the last day is still a live trial. daysUntil() returns 0 both for "today"
+// and for any date in the past, and every caller then tested `> 0`, which ended
+// the trial a day early: the billing screen said "No active subscription" while
+// the account was fully entitled, and effectivePlan quietly dropped a Launch
+// trial off Scale for its final day.
+function dayHasPassed(dateStr) {
+  if (!dateStr) return false;
+  const end = new Date(`${dateStr}T00:00:00`).getTime();
+  if (Number.isNaN(end)) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return end < today.getTime();
+}
+
 // created_at → the relative string the UI's recency parser understands
 // ("today" | "Nd ago"). Anything under a day reads as "today".
 function relDaysAgo(iso) {
@@ -20668,7 +20684,7 @@ const CREDIT_KIND_LABELS = {
 // How many recent entries the billing card shows. The full history is the CSV.
 const SPEND_PAGE = 50;
 
-function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyId = null, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyId = null, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, trialActive = false, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(() => {
     // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
     // confirmation from the fresh page load.
@@ -20883,7 +20899,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
   ];
 
   const current = PLANS.find((p) => p.key === plan) || PLANS[0];
-  const onTrial = trialDaysLeft > 0;
+  const onTrial = trialActive;
   const pastDue = !onTrial && subStatus === "past_due";
   // Every tier is paid now (Launch included), so a live subscription is defined by
   // subscriptions.status, not by the tier. A trial has the Scale tier but no card.
@@ -21006,7 +21022,11 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
               <p className="text-2xl font-bold text-neutral-900 font-display">{onTrial ? "Scale (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
                 {onTrial
-                  ? `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`
+                  // "0 days left" is what the old arithmetic produced on the final
+                  // day, right when someone is deciding whether to pay.
+                  ? (trialDaysLeft === 0
+                      ? "Full Scale access, and today is the last day. Subscribe today or the workspace is suspended tomorrow."
+                      : `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`)
                   // An active subscriber always gets an "active" message, even when
                   // the price couldn't be loaded (Stripe prices not configured yet),
                   // so the badge and the copy never contradict each other.
@@ -28946,7 +28966,7 @@ export default function ResumeAIPreview() {
   const [scheduledPlan, setScheduledPlan] = useState(null);
   const [scheduledCycle, setScheduledCycle] = useState(null);
   const [scheduledEffective, setScheduledEffective] = useState(null);
-  const trialActive = trialDaysLeft > 0;
+  const trialActive = subStatus === "trialing" && !dayHasPassed(renewsAt);
   // A live trial grants Scale-level access whatever tier the row carries.
   const effectivePlan = trialActive && plan === "launch" ? "scale" : plan;
   // Shared monthly AI-match run counter (Free is limited; resets in production
@@ -30673,6 +30693,7 @@ export default function ResumeAIPreview() {
             setRange={setDateRange}
             plan={effectivePlan}
             trialDaysLeft={trialActive ? trialDaysLeft : 0}
+            trialActive={trialActive}
             onEndTrial={endTrial}
             hiredIds={hiredIds}
             avatarUrl={avatarUrl}
