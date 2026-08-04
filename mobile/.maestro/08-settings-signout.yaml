@@ -24,5 +24,5 @@ tags:
 # Sign out returns to the sign-in screen.
 - tapOn: "Sign out"
 - assertVisible:
-    text: "Sign in to your Aster workspace"
+    text: "Welcome"
     timeout: 20000

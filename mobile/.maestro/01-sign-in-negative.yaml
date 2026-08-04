@@ -9,7 +9,7 @@ tags:
 - clearState
 - launchApp
 - assertVisible:
-    text: "Sign in to your Aster workspace"
+    text: "Welcome"
     timeout: 30000
 
 # 1) Empty form: the Sign in button is present but disabled (disabled={!email || !password}).
@@ -32,6 +32,6 @@ tags:
 - hideKeyboard
 - tapOn: "Sign in"
 - assertVisible:
-    text: "Could not sign in.*|.*password.*"
+    text: ".*email and password.*|.*Could not sign in.*"
     timeout: 20000
-- assertVisible: "Sign in to your Aster workspace"
+- assertVisible: "Welcome"

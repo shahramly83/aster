@@ -8,11 +8,13 @@ tags:
 - clearState
 - launchApp
 # The branded splash and font load precede the sign-in screen.
+# The sign-in screen was rebuilt: the old heading "Sign in to your Aster
+# workspace" is now "Welcome / back.", and the field labels are uppercase.
 - assertVisible:
-    text: "Sign in to your Aster workspace"
+    text: "Welcome"
     timeout: 30000
-- assertVisible: "Email"
-- assertVisible: "Password"
+- assertVisible: "WORK EMAIL"
+- assertVisible: "PASSWORD"
 # The footer states reset/SSO are web-only (there is no in-app forgot password).
 - assertVisible: "Password reset and SSO are handled on hireaster.com"
 - runFlow: subflows/login.yaml

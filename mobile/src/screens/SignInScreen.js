@@ -127,7 +127,19 @@ export default function SignInScreen() {
     } catch (e) {
       // A wrong password is worth feeling as well as reading.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      setError(e?.message || "Could not sign in. Check your email and password.");
+      // Supabase answers "Invalid login credentials" and "Email not confirmed".
+      // Both are provider wording, and the first does not tell someone which of
+      // the two fields to look at.
+      const raw = String(e?.message || "");
+      setError(
+        /invalid login|invalid credentials/i.test(raw)
+          ? "That email and password don't match. Check both and try again."
+          : /not confirmed|confirm/i.test(raw)
+            ? "Confirm your email first. We sent you a link when you signed up."
+            : /network|fetch|timeout/i.test(raw)
+              ? "Can't reach Aster. Check your connection and try again."
+              : "Could not sign in. Check your email and password."
+      );
     }
     setBusy(false);
   };
@@ -273,6 +285,14 @@ export default function SignInScreen() {
                 {busy ? "Signing in…" : "Sign in"}
               </Text>
             </Pressable>
+
+            {/* There is no in-app forgot-password, so without this line someone
+                who has forgotten theirs has nowhere to go. The redesign dropped
+                it; the Maestro flow asserting it is what caught that. Hidden
+                with the keyboard up, where every dp is spoken for. */}
+            {kb === 0 && (
+              <Text style={styles.foot}>Password reset and SSO are handled on hireaster.com</Text>
+            )}
           </Rise>
         </View>
       </SafeAreaView>
@@ -292,4 +312,5 @@ const styles = StyleSheet.create({
   errorTxt: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19, color: DANGER, flex: 1 },
   cta: { height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: space(9) },
   ctaTxt: { fontFamily: "Inter_700Bold", fontSize: 16.5, color: "#FFFFFF", letterSpacing: 0.1 },
+  foot: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: INK_LABEL, textAlign: "center", marginTop: space(5) },
 });
