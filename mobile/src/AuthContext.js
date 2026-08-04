@@ -28,7 +28,15 @@ export function AuthProvider({ children }) {
 
   const hydrate = useCallback(async () => {
     const s = await loadSession();
-    if (!s) {
+    // A lapsed workspace does NOT make loadSession fail. It selects profiles with
+    // companies embedded, and RLS leaves the profile readable while hiding the
+    // company, so it returns a session whose company came back empty. Checking
+    // only for a null session, as this did, meant the lapsed screen never showed.
+    // companySlug, not company: `company` falls back to the string "Your
+    // workspace" when the embed is empty, so it is never falsy. A real company
+    // always has a slug.
+    const companyMissing = !!s && !s.companySlug;
+    if (!s || companyMissing) {
       // No session resolved. Before treating that as "signed out", ask whether
       // the workspace itself has lapsed: my_deletion_status still answers when
       // the company no longer resolves under RLS, which is exactly the case the
