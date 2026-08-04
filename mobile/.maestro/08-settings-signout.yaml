@@ -11,8 +11,11 @@ tags:
 
 # The gear is an icon-only control in the blue header, left of the bell.
 - tapOn: "Settings"
+# Not "Settings": naming the gear button "Settings" for screen readers means that
+# string is on screen before the sheet opens, so waiting for it would prove
+# nothing. PREFERENCES only exists inside the sheet.
 - extendedWaitUntil:
-    visible: "Settings"
+    visible: "PREFERENCES"
     timeout: 15000
 - assertVisible: "PREFERENCES"
 - assertVisible: "Biometric unlock"
