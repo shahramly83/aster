@@ -172,20 +172,23 @@ export default function SignInScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={[styles.page, kb > 0 && { paddingBottom: kb + space(4) }]}>
 
-          {kb === 0 && (
-            <>
-              <Rise delay={0} still={still}>
-                <AsterLogo width={176} color={ACCENT} />
-              </Rise>
+          {/* The wordmark stays whatever the keyboard does. Hiding the brand the
+              moment someone touches a field made the screen look like it had
+              come apart. It is the headline and subtitle that have to go: they
+              are about 180dp, which is the difference between the password field
+              sitting above the keyboard and behind it. */}
+          <Rise delay={0} still={still}>
+            <AsterLogo width={176} color={ACCENT} />
+          </Rise>
 
-              {/* Two lines on purpose. One long line would set the type smaller
-                  and lose the only piece of scale on the screen. */}
-              <Rise delay={90} still={still} style={{ marginTop: space(9) }}>
-                <Text style={styles.h1}>Welcome</Text>
-                <Text style={styles.h1}>back.</Text>
-                <Text style={styles.sub}>Every role, every candidate, in one place.</Text>
-              </Rise>
-            </>
+          {kb === 0 && (
+            /* Two lines on purpose. One long line would set the type smaller and
+               lose the only piece of scale on the screen. */
+            <Rise delay={90} still={still} style={{ marginTop: space(9) }}>
+              <Text style={styles.h1}>Welcome</Text>
+              <Text style={styles.h1}>back.</Text>
+              <Text style={styles.sub}>Every role, every candidate, in one place.</Text>
+            </Rise>
           )}
 
           {/* The gap does the work. Pushing the form to the lower third is what

@@ -145,19 +145,35 @@ export default function TeamsScreen({ navigation }) {
     });
   };
 
+  // Members and approvers are two separate lists, and the same address can sit in
+  // both: approving offers is a power a teammate can hold, not a different person.
+  // Listing them twice put one human in two sections under two roles.
+  const norm = (e) => String(e || "").trim().toLowerCase();
+  const approverByEmail = new Map((approvers || []).map((a) => [norm(a.email), a]));
+
+  // A teammate who also approves keeps their own row and gains a badge.
+  const members = (rows || []).map((m) => {
+    const ap = approverByEmail.get(norm(m.email));
+    return ap ? { ...m, _isApprover: true, _approverStatus: ap.status } : m;
+  });
+
   // Group members by role, in seniority order, for a sectioned list.
   const groups = [];
   for (const role of ROLE_ORDER) {
-    const members = (rows || []).filter((m) => m.role === role);
-    if (members.length) groups.push({ role, members });
+    const inRole = members.filter((m) => m.role === role);
+    if (inRole.length) groups.push({ role, members: inRole });
   }
   // Roles outside the known set (defensive) fall into one "Members" bucket.
-  const others = (rows || []).filter((m) => !ROLE_ORDER.includes(m.role));
+  const others = members.filter((m) => !ROLE_ORDER.includes(m.role));
   if (others.length) groups.push({ role: "member", members: others });
-  // Offer approvers appear as their own "APPROVER" section (confirmed first).
+
+  // The APPROVER section now holds only people who are approvers and nothing
+  // else, so nobody is listed twice. Confirmed first.
+  const memberEmails = new Set(members.map((m) => norm(m.email)));
+  const apOnly = (approvers || []).filter((a) => !memberEmails.has(norm(a.email)));
   const apItems = [
-    ...(approvers || []).filter((a) => a.status === "confirmed"),
-    ...(approvers || []).filter((a) => a.status !== "confirmed"),
+    ...apOnly.filter((a) => a.status === "confirmed"),
+    ...apOnly.filter((a) => a.status !== "confirmed"),
   ].map((a) => ({ id: a.id, name: a.name || a.email, email: a.email, role: "approver", status: a.status, pending: a.status !== "confirmed", _approver: true }));
   if (apItems.length) groups.push({ role: "approver", members: apItems });
 
@@ -325,6 +341,14 @@ export default function TeamsScreen({ navigation }) {
                     <Feather name={m.icon} size={11} color={m.color} />
                     <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
                   </View>
+                  {/* Approving offers is a second power, not a second person, so
+                      it rides beside the role instead of making another row. */}
+                  {item._isApprover && (
+                    <View style={[styles.roleTag, { backgroundColor: "#DCFCE7", marginLeft: 6 }]}>
+                      <Feather name="check-circle" size={11} color="#166534" />
+                      <Text style={[type.smallStrong, { color: "#166534", marginLeft: 5 }]}>Approver</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1 }} />
                   <View style={[styles.standChip, { backgroundColor: item.pending ? "#FEF3C7" : theme.line2 }]}>
                     <View style={[styles.standDot, { backgroundColor: item.pending ? "#F59E0B" : "#22C55E" }]} />
