@@ -33,7 +33,7 @@ function useDropUp(open, estHeight = 300) {
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
-const ROLE_LABELS = { owner: "Tenant", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer" };
+const ROLE_LABELS = { owner: "Tenant", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer", approver: "Approver" };
 
 // Load the signed-in customer's profile + company into the shape the app's
 // root state uses. Returns null when the user has no company profile (e.g. an
@@ -17466,12 +17466,41 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               }
               // One flat list: the Tenant, active teammates, invited-but-not-yet-joined
               // profiles, and pending email invitations. Kind drives the row's action.
-              const rows = [];
+              let rows = [];
               if (owner || ownerIsYou) rows.push({ id: owner?.id || "me", name: ownerName || "You", email: ownerEmail, role: "owner", kind: "owner" });
               team.forEach((iv) => rows.push({ ...iv, kind: iv.status === "pending" ? "invitedProfile" : "active" }));
               pendingInvites.forEach((inv) => rows.push({ id: inv.id, name: inv.email, email: inv.email, role: inv.role, kind: "invite" }));
               // Approvers join the same list rather than hiding behind a tab.
               approvers.forEach((ap) => rows.push({ id: ap.id, name: ap.name || ap.email, email: ap.email, role: "approver", kind: "approver", status: ap.status }));
+              // The four sources above are concatenated, and the same address can
+              // legitimately appear in more than one: an offer approver who is
+              // also invited as a teammate produced two rows with contradictory
+              // roles, which is what sent us looking here.
+              //
+              // Collapse on the address. The strongest membership wins the row,
+              // and approver becomes a second badge on it rather than a rival
+              // row, because it is a separate power rather than a separate person.
+              const RANK = { owner: 0, active: 1, invitedProfile: 2, invite: 3, approver: 4 };
+              const byEmail = new Map();
+              for (const r of rows) {
+                const key = (r.email || "").trim().toLowerCase() || `row-${r.kind}-${r.id}`;
+                const seen = byEmail.get(key);
+                if (!seen) { byEmail.set(key, { ...r, isApprover: r.kind === "approver", approverStatus: r.kind === "approver" ? r.status : null }); continue; }
+                if (r.kind === "approver") { seen.isApprover = true; seen.approverStatus = r.status; continue; }
+                // An invitation has no name yet, so it carries the address as one.
+                // Losing "Zack" in favour of approval1@onlazy.com would be a step
+                // backwards, so a real name always survives the merge.
+                const realName = (x) => (x.name && x.name.trim() && x.name.trim().toLowerCase() !== (x.email || "").trim().toLowerCase()) ? x.name : null;
+                if (RANK[r.kind] < RANK[seen.kind]) {
+                  byEmail.set(key, { ...r, name: realName(r) || realName(seen) || r.name, isApprover: seen.isApprover, approverStatus: seen.approverStatus });
+                } else if (seen.kind === "approver") {
+                  byEmail.set(key, { ...r, name: realName(r) || realName(seen) || r.name, isApprover: true, approverStatus: seen.approverStatus });
+                } else if (realName(r) && !realName(seen)) {
+                  seen.name = r.name;
+                }
+              }
+              rows = [...byEmail.values()];
+
               const isMember = (k) => k === "owner" || k === "active";
               const shown = rows.filter((r) => {
                 const roleOk = roleFilter === "all"
@@ -17479,7 +17508,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   : roleFilter === "invited"
                     ? !isMember(r.kind) && r.kind !== "approver"
                     : roleFilter === "approver"
-                      ? r.kind === "approver"
+                      ? (r.kind === "approver" || r.isApprover)
                       : (r.role === roleFilter || (r.kind === "owner" && roleFilter === "admin")) && r.kind !== "approver";
                 const qOk = !teamQ || `${r.name} ${r.email}`.toLowerCase().includes(teamQ.toLowerCase());
                 return roleOk && qOk;
@@ -17499,7 +17528,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                     sat off the right edge where nobody would find them. */}
                 <div className="md:hidden">
                   {shown.map((r) => {
-                    const active = r.kind === "owner" || r.kind === "active";
+                    // An approver-only row carries its own confirmed/pending state;
+                    // it was falling through to "Invited" forever.
+                    const active = r.kind === "owner" || r.kind === "active" || (r.kind === "approver" && r.approverStatus === "confirmed");
                     const roleLabel = r.kind === "owner" ? "Tenant" : (ROLE_LABELS[r.role] || "Interviewer");
                     const upcoming = r.kind === "active" ? scheduledCountFor(r) : 0;
                     // Avatar, identity and action are one centred row. The action
@@ -17514,6 +17545,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                           <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email || "—"}</p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-2">
                             <span className="text-[11px] px-2 py-1 rounded-lg font-semibold" style={roleTagStyle(roleLabel)}>{roleLabel}</span>
+                            {/* Being an offer approver is a second power, not a
+                                second person, so it rides alongside the role. */}
+                            {r.isApprover && r.kind !== "approver" && (
+                              <span className="text-[11px] px-2 py-1 rounded-lg font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>Approver</span>
+                            )}
                             <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={active ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? "#16A34A" : "#D97706" }} /> {active ? "Active" : "Invited"}</span>
                             {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
                           </div>
@@ -17537,7 +17573,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   </thead>
                   <tbody>
                     {shown.map((r) => {
-                      const active = r.kind === "owner" || r.kind === "active";
+                      const active = r.kind === "owner" || r.kind === "active" || (r.kind === "approver" && r.approverStatus === "confirmed");
                       const roleLabel = r.kind === "owner" ? "Tenant" : (ROLE_LABELS[r.role] || "Interviewer");
                       const upcoming = r.kind === "active" ? scheduledCountFor(r) : 0;
                       return (
@@ -17552,7 +17588,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm truncate" style={{ color: "var(--ink-2)", maxWidth: 220 }}>{r.email || "—"}</td>
-                          <td className="px-4 py-3"><span className="text-[11px] px-2 py-1 rounded-lg font-semibold whitespace-nowrap" style={roleTagStyle(roleLabel)}>{roleLabel}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span></td>
+                          <td className="px-4 py-3"><span className="text-[11px] px-2 py-1 rounded-lg font-semibold whitespace-nowrap" style={roleTagStyle(roleLabel)}>{roleLabel}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span>{r.isApprover && r.kind !== "approver" && (
+                            <span className="ml-1.5 text-[11px] px-2 py-1 rounded-lg font-semibold whitespace-nowrap" style={{ background: "#DCFCE7", color: "#166534" }}>Approver</span>
+                          )}</td>
                           <td className="px-4 py-3">
                             <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap" style={active ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? "#16A34A" : "#D97706" }} /> {active ? "Active" : "Invited"}</span>
                           </td>
