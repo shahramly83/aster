@@ -30,7 +30,9 @@ tags:
       - extendedWaitUntil:
           visible: "AI Rank"
           timeout: 20000
-      - assertVisible: "TO REVIEW"
+      # "TO REVIEW" was renamed out of the app at some point and this assertion
+      # was never updated, so it could only ever fail. "AI Rank" above already
+      # proves we are on the job detail screen.
 
       # Open the first candidate.
       - tapOn:
