@@ -52,7 +52,6 @@ export const theme = {
   brand: palette.brand,
   brandSoft: palette.brand50,
   brandSoft2: palette.brand100,
-  onBrand: palette.white,
   ink: palette.ink,
   ink2: palette.ink2,
   ink3: palette.ink3,

@@ -197,8 +197,7 @@ export async function shareMeetingLink(companyId, candidateId, jobId, link) {
   const { data, error } = await supabase.functions.invoke("share-meeting-link", {
     body: { candidate_id: candidateId, job_id: jobId || null, meeting_link: clean },
   });
-  if (error) return { ok: false, error: error.message || "Couldn't share the link." };
-  if (data?.error) return { ok: false, error: data.error };
+  if (error || data?.error) return { ok: false, error: await fnErrorText(data, error, "Couldn't share the link.") };
   return { ok: true, candidate: !!data?.candidate, panel: data?.panel || 0 };
 }
 
@@ -249,13 +248,15 @@ export async function createInterviewInvite({ companyId, candidateId, jobId, int
     const { data, error } = await supabase.from("interviews")
       .update({ ...fields, previous_at: existing.previous_at || null }).eq("id", existing.id)
       .select("token").single();
-    if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't update the invite." };
+    // A Postgres message ("new row violates row-level security policy for
+    // table interviews") is for the log, not for the person booking an interview.
+    if (error || !data?.token) { if (error) console.warn("updateInterview", error.message); return { ok: false, error: "Couldn't update the invite. Try again." }; }
     token = data.token;
   } else {
     const { data, error } = await supabase.from("interviews")
       .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, ...fields })
       .select("token").single();
-    if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't create the invite." };
+    if (error || !data?.token) { if (error) console.warn("createInterview", error.message); return { ok: false, error: "Couldn't create the invite. Try again." }; }
     token = data.token;
   }
 
@@ -295,7 +296,8 @@ export async function resendInterviewInvite(token) {
     const { data, error } = await supabase.functions.invoke("send-interview-invite", { body: { token } });
     return { ok: !error && !data?.error, skipped: data?.skipped || null };
   } catch (e) {
-    return { ok: false, error: e?.message };
+    console.warn("sendInterviewInvite", e?.message);
+    return { ok: false, error: "Couldn't send the invite. Try again." };
   }
 }
 
@@ -335,8 +337,8 @@ export async function generateInterviewQuestions({ companyId, candidateId, jobId
   const { data, error } = await supabase.functions.invoke("generate-interview-questions", {
     body: { candidate: { parsed }, jobTitle: jobTitle || "the role" },
   });
-  if (error) return { ok: false, error: error.message || "Couldn't generate questions." };
-  if (data?.error) return { ok: false, error: data.error === "insufficient_credits" ? "Out of AI question credits this cycle." : data.error };
+  if (data?.error === "insufficient_credits") return { ok: false, error: "Out of AI question credits this cycle." };
+  if (error || data?.error) return { ok: false, error: await fnErrorText(data, error, "Couldn't generate questions.") };
   const questions = Array.isArray(data?.questions) ? data.questions : [];
   if (!questions.length) return { ok: false, error: "No questions generated. Try again." };
   await supabase.from("interview_questions").upsert(
@@ -829,7 +831,7 @@ async function saveMatchScores(companyId, jobId, results) {
     ));
     return firstErr ? { ok: false, error: firstErr } : { ok: true };
   }
-  if (error) return { ok: false, error: error.message };
+  if (error) { console.warn("saveMatchScores", error.message); return { ok: false, error: "Couldn't save the scores. Try again." }; }
   return { ok: true };
 }
 
@@ -881,7 +883,7 @@ export async function runAiRank({ companyId, jobId, job }) {
 
   const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units, perUnit: 10 } });
   if (data?.error === "limit_reached") return { ok: false, reason: "limit", available: Number(data.available) || 0, needed: units };
-  if (error || data?.error || !Array.isArray(data?.ranked)) return { ok: false, error: data?.error || error?.message || "rank failed" };
+  if (error || data?.error || !Array.isArray(data?.ranked)) return { ok: false, error: await fnErrorText(data, error, "AI Rank didn't run. No credits were used.") };
 
   // Keep each existing "Why" stable; only write a rationale for a candidate that
   // doesn't have one yet (a new applicant). Score (0..100 from the fn) → 0..1.
@@ -963,6 +965,20 @@ export async function fnReason(data, error) {
     if (body?.error) return String(body.error);
   } catch { /* non-JSON body, fall through to the generic message */ }
   return "";
+}
+
+// What a failed edge-function call should SAY. Never error.message: on any
+// non-2xx that is Supabase's transport string, "Edge Function returned a non-2xx
+// status code", which is what App Review saw and rejected the app over.
+//
+// Prefer the server's own reason when it reads like a sentence. A bare code such
+// as insufficient_credits is for us, not for the person holding the phone, so
+// those fall through to the caller's wording.
+export async function fnErrorText(data, error, fallback) {
+  const reason = await fnReason(data, error);
+  if (!reason) return fallback;
+  const looksLikeACode = !/\s/.test(reason) || /^[a-z0-9_]+$/i.test(reason);
+  return looksLikeACode ? fallback : reason;
 }
 
 // Turns whatever the server said into something worth reading.
@@ -1270,7 +1286,8 @@ async function createOffer(companyId, { candidateId, jobId = null, terms = null 
         .select("token, id").single();
       return e2 ? { error: e2.message } : d2;
     }
-    return { error: error.message };
+    console.warn("loadOffer", error.message);
+    return { error: "Couldn't load the offer. Try again." };
   }
   return data;
 }
@@ -1415,15 +1432,16 @@ export async function sendOffer({ companyId, candidateId, candidateName, jobId =
       const { data, error } = await supabase.functions.invoke("offer-approval-submit", {
         body: { offerToken: token, approvers: valid, message, terms: sendTerms, mode: null, origin: OFFER_ORIGIN },
       });
-      if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't submit for approval.", staged: true };
+      if (error || data?.error) return { ok: false, error: await fnErrorText(data, error, "Couldn't submit for approval."), staged: true };
     } else if (emailSent) {
       const { data, error } = await supabase.functions.invoke("aster-sign-send", {
         body: { token, message, origin: OFFER_ORIGIN },
       });
-      if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Offer created, but emailing the candidate failed.", staged: true };
+      if (error || data?.error) return { ok: false, error: await fnErrorText(data, error, "Offer created, but emailing the candidate failed."), staged: true };
     }
   } catch (e) {
-    return { ok: false, error: e?.message || "Offer created, but sending failed.", staged: true };
+    console.warn("sendOffer", e?.message);
+    return { ok: false, error: "Offer created, but sending failed.", staged: true };
   }
 
   supabase.rpc("log_activity", {
@@ -1632,7 +1650,7 @@ export async function createPoll({ companyId, candidateId, candidateName, jobId,
     .from("interview_polls")
     .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, created_by: createdBy })
     .select("id").single();
-  if (error || !poll) return { ok: false, error: error?.message || "Couldn't create the poll." };
+  if (error || !poll) { if (error) console.warn("createPoll", error.message); return { ok: false, error: "Couldn't create the poll. Try again." }; }
   const rows = clean.map((s) => ({ poll_id: poll.id, company_id: companyId, slot_ts: s.start, slot_end: s.end || null }));
   const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
   if (se) return { ok: false, error: se.message };
@@ -1705,7 +1723,8 @@ export async function rescheduleInterview(companyId, candidateId) {
     reschedule_note: null, reschedule_at: new Date().toISOString(),
     previous_at: data.scheduled_at || data.previous_at || null, // remember the original time
   }).eq("id", data.id);
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (error) { console.warn("rescheduleInterview", error.message); return { ok: false, error: "Couldn't reschedule. Try again." }; }
+  return { ok: true };
 }
 
 // HM confirms a slot from a candidate-proposed (round 2) poll. The candidate
@@ -1716,7 +1735,7 @@ export async function confirmPollSlot({ token, pollId, startIso }) {
   if (!token) return { ok: false, error: "This interview can't be confirmed (no booking link)." };
   if (!startIso) return { ok: false, error: "Pick a time to confirm." };
   const { data, error } = await supabase.functions.invoke("confirm-booking", { body: { token, start: startIso } });
-  if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't confirm the time." };
+  if (error || data?.error) return { ok: false, error: await fnErrorText(data, error, "Couldn't confirm the time.") };
   if (pollId) await closePoll(pollId, startIso).catch(() => {});
   return { ok: true };
 }

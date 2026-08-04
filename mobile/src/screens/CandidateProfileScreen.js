@@ -2141,7 +2141,6 @@ const styles = StyleSheet.create({
   resultMedallion: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   resultChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8, backgroundColor: theme.card },
   resultChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
-  stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   resultFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: space(4), borderTopWidth: 1, borderTopColor: theme.line, backgroundColor: theme.bg },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
   raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
