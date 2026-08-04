@@ -142,7 +142,7 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
           <View style={styles.handle} />
           <View style={styles.head}>
             <Text style={[type.h3, { color: theme.ink }]}>{heading}</Text>
-            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}><Feather name="x" size={20} color={theme.ink3} /></Pressable>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close"><Feather name="x" size={20} color={theme.ink3} /></Pressable>
           </View>
 
           {/* Live selection summary */}

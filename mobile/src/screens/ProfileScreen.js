@@ -272,7 +272,7 @@ function OfferLetterSheet({ visible, onClose, onSaved }) {
               Every offer starts from this
             </Text>
           </View>
-          <Pressable onPress={onClose} hitSlop={10} style={{ padding: 6 }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="Close">
             <Feather name="x" size={22} color={theme.ink3} />
           </Pressable>
         </View>

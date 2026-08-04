@@ -286,7 +286,7 @@ function CreditModal({ item, credits, trialEndsAt = null, onClose }) {
             <View style={[styles.mIcon, { backgroundColor: out ? "#FFE7EA" : theme.brand + "14" }]}>
               <Feather name="zap" size={22} color={out ? "#F2526B" : theme.brand} />
             </View>
-            <Pressable onPress={onClose} hitSlop={8} style={styles.mClose}><Feather name="x" size={18} color={theme.ink3} /></Pressable>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.mClose} accessibilityRole="button" accessibilityLabel="Close"><Feather name="x" size={18} color={theme.ink3} /></Pressable>
           </View>
 
           <Text style={styles.mTitle}>{out ? `Out of ${item.label} credits` : `${item.label} credits`}</Text>

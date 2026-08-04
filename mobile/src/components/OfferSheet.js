@@ -266,7 +266,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               <Text style={[type.h3, { color: theme.ink }]}>Make offer</Text>
               {candidateName ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>To {candidateName}</Text> : null}
             </View>
-            <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+            <Pressable onPress={close} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close"><Feather name="x" size={22} color={theme.ink3} /></Pressable>
           </View>
 
           <ScrollView ref={scrollRef} style={{ maxHeight: kb > 0 ? 300 : 460 }} contentContainerStyle={{ paddingBottom: space(3) }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>

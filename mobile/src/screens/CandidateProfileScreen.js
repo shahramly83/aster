@@ -1823,7 +1823,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <View style={styles.pickHandle} />
             <View style={styles.pickHead}>
               <Text style={[type.h3, { color: theme.ink }]}>Interviewers</Text>
-              <Pressable onPress={closePicker} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+              <Pressable onPress={closePicker} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close"><Feather name="x" size={22} color={theme.ink3} /></Pressable>
             </View>
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
             {team.length === 0 ? (
