@@ -109,6 +109,10 @@ export function AuthProvider({ children }) {
         setProfile(null);
         setAssignedJobIds([]);
         setLocked(false);
+        // Clear this too, or Sign out appears to do nothing: Root checks
+        // workspaceInactive before the signed-out branch, so leaving it set keeps
+        // the lapsed screen mounted with no way past it.
+        setWorkspaceInactive(null);
       }
     });
     return () => {
