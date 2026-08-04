@@ -37,6 +37,7 @@ import FloatingTabBar from "./src/components/FloatingTabBar";
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 import SignInScreen from "./src/screens/SignInScreen";
+import WorkspaceInactiveScreen from "./src/screens/WorkspaceInactiveScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import TodayScreen from "./src/screens/TodayScreen";
 import ScorecardScreen from "./src/screens/ScorecardScreen";
@@ -86,12 +87,17 @@ function InterviewerTabs() {
 }
 
 function Root() {
-  const { booting, signedIn, locked, profile } = useAuth();
+  const { booting, signedIn, locked, profile, workspaceInactive } = useAuth();
   if (booting) return (
     <View style={{ flex: 1, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" }}>
       <Loader tint="#fff" label="Loading Aster…" />
     </View>
   );
+  // Checked before the signed-out branch: when a workspace lapses, RLS stops
+  // resolving it and the session looks absent, so this would otherwise show the
+  // sign-in screen to someone whose credentials are fine. They would type them
+  // in, get back in, and land on a blank app.
+  if (workspaceInactive) return <WorkspaceInactiveScreen />;
   if (!signedIn) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>

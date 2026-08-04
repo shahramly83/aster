@@ -21,9 +21,34 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null); // interviewer session (company, role, tz)
   const [assignedJobIds, setAssignedJobIds] = useState([]);
   const [locked, setLocked] = useState(false);
+  // Set when the workspace is suspended, churned or soft-deleted. In that state
+  // RLS stops resolving the company, so without this the app loads to blank
+  // screens with nothing explaining why.
+  const [workspaceInactive, setWorkspaceInactive] = useState(null);
 
   const hydrate = useCallback(async () => {
     const s = await loadSession();
+    if (!s) {
+      // No session resolved. Before treating that as "signed out", ask whether
+      // the workspace itself has lapsed: my_deletion_status still answers when
+      // the company no longer resolves under RLS, which is exactly the case the
+      // blank app was hiding.
+      try {
+        const { data } = await supabase.rpc("my_deletion_status");
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row?.deleted_at) {
+          setWorkspaceInactive({
+            companyName: row.company_name || null,
+            status: row.status || null,
+            purgeAfter: row.purge_after || null,
+          });
+          setProfile(null);
+          setAssignedJobIds([]);
+          return;
+        }
+      } catch { /* RPC missing or offline: fall through to the normal path */ }
+    }
+    setWorkspaceInactive(null);
     if (s) {
       // Resolve the panel assignments BEFORE exposing the profile. An
       // interviewer's Open Positions are scoped to assignedJobIds, so if profile
@@ -124,6 +149,7 @@ export function AuthProvider({ children }) {
     manager: isManagerRole(profile?.role),
     assignedJobIds,
     locked,
+    workspaceInactive,
     signIn,
     signOut,
     unlock,
