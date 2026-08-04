@@ -23,9 +23,12 @@ tags:
     when:
       notVisible: "No open positions"
     commands:
+      # There is no "View" affordance on a candidate card; the card itself is
+      # the target. It now carries a name, so ask for it rather than guessing.
       - tapOn:
-          text: "View"
+          text: "Open candidate.*"
           index: 0
+
       # Job detail: hero stats and the AI Rank bar.
       - extendedWaitUntil:
           visible: "AI Rank"

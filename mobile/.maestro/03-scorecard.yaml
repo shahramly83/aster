@@ -22,7 +22,9 @@ tags:
     when:
       notVisible: "No open positions"
     commands:
-      - tapOn: { text: "View", index: 0 }
+      # "View" matched something that never opened a candidate, so this flow was
+      # passing without reaching the screen it claims to test.
+      - tapOn: { text: "Open candidate.*", index: 0 }
       - tapOn: { text: "View profile", index: 0, optional: true }
       # Reach the scorecard: either the "Add my scorecard" CTA or the Scorecards tab.
       - tapOn: { text: "Scorecards", optional: true }

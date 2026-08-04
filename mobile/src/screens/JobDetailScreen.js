@@ -513,7 +513,16 @@ function HeroStat({ label, value, small }) {
 function CandidateCard({ item, starred, onPress, onStar }) {
   const sc = stageColor(item.stage);
   return (
-    <Press onPress={onPress} style={{ marginBottom: space(3) }}>
+    // The whole card is the touch target and it carried no name, so a screen
+    // reader announced a button with no indication of whose it was. The label is
+    // also what lets a test open a specific candidate rather than guess at a
+    // position on screen.
+    <Press
+      onPress={onPress}
+      style={{ marginBottom: space(3) }}
+      accessibilityRole="button"
+      accessibilityLabel={`Open candidate ${item?.name || ""}`.trim()}
+    >
       <View style={styles.card}>
         <View style={[styles.rail, { backgroundColor: sc }]} />
         <View style={{ flexDirection: "row", alignItems: "center" }}>

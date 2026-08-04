@@ -19,7 +19,8 @@ tags:
     when:
       notVisible: "No open positions"
     commands:
-      - tapOn: { text: "View", index: 0 }
+      # No "View" affordance exists on a candidate card; the card is the target.
+      - tapOn: { text: "Open candidate.*", index: 0 }
       - tapOn: { text: "View profile", index: 0, optional: true }
       # "Discuss with Panel" opens the discussion thread.
       - tapOn:
