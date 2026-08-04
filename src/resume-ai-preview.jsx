@@ -21879,10 +21879,20 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
   const churned = info?.status === "churned";
   const purge = info?.purge_after ? new Date(info.purge_after) : null;
   const daysLeft = purge ? Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000)) : null;
-  const dateStr = purge ? purge.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
+  // fmtDay, like every other date in the app. This screen was missed in the
+  // "29 July 2026" pass and still read "September 3, 2026".
+  const dateStr = purge ? fmtDay(purge.toISOString().slice(0, 10)) : "";
   const name = info?.company_name
     ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{info.company_name}</span>
     : "Your workspace";
+
+  // A locked-out workspace cannot read its own companies row, so the currency
+  // comes from the RPC (0152). Without it this screen quoted USD to a customer
+  // who has only ever been billed in ringgit.
+  const cur = ["usd", "myr", "sgd"].includes(info?.preferred_currency) ? info.preferred_currency : "myr";
+  const priceInCur = (p) => (p?.currencies && p.currencies[cur] != null)
+    ? { amount: p.currencies[cur], currency: cur }
+    : { amount: p.amount, currency: p.currency };
 
   const restore = async () => {
     setBusy(true); setErr("");
@@ -21938,7 +21948,7 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
                   >
                     <span className="block">{p.name}</span>
                     <span className="block text-xs font-normal opacity-80">
-                      {price ? `${formatMoney(price.amount, price.currency)}/mo` : prices == null ? "…" : "unavailable"}
+                      {price ? `${formatMoney(priceInCur(price).amount, priceInCur(price).currency)}/mo` : prices == null ? "…" : "unavailable"}
                     </span>
                   </button>
                 );
