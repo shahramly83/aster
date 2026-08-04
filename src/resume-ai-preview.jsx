@@ -410,20 +410,17 @@ function daysUntil(dateStr) {
   return Math.max(0, Math.round((end - today.getTime()) / 86400000));
 }
 
-// Has this day already gone by? The server suspends a trial with
-//   s.current_period_end < current_date
-// so the last day is still a live trial. daysUntil() returns 0 both for "today"
-// and for any date in the past, and every caller then tested `> 0`, which ended
-// the trial a day early: the billing screen said "No active subscription" while
-// the account was fully entitled, and effectivePlan quietly dropped a Launch
-// trial off Scale for its final day.
+// Has this end date been reached? A trial is created with an end date 14 days
+// out, so it must stop working ON that date: 21 July to 4 August inclusive is
+// fifteen days, not fourteen. The server sweep uses <= current_date to match
+// (migration 0151), and this is the same question asked client-side.
 function dayHasPassed(dateStr) {
   if (!dateStr) return false;
   const end = new Date(`${dateStr}T00:00:00`).getTime();
   if (Number.isNaN(end)) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return end < today.getTime();
+  return end <= today.getTime();
 }
 
 // created_at → the relative string the UI's recency parser understands
