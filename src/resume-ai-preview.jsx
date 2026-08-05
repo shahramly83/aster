@@ -877,6 +877,7 @@ const BRAND_STYLES = `
   --ink: #0F1B33;
   --ink-2: #4A5568;
   --ink-3: #6B7280;
+  --ink-4: #8A90A0;   /* used 29x and never defined: colour silently inherited */
   --brand: #0B2AE0;
   --brand-2: #3550EE;
   --brand-0: #5570F5;
@@ -9648,11 +9649,11 @@ function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick, min
   return (
     <div className="px-1">
       <div className="flex items-center justify-between mb-2">
-        <button onClick={onPrevMonth} className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-700">
+        <button type="button" onClick={onPrevMonth} aria-label="Previous month" className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-700">
           <Icon name="chevronLeft" className="w-4 h-4" />
         </button>
         <span className="text-sm font-medium text-neutral-900">{MONTHS[m]} {year}</span>
-        <button onClick={onNextMonth} className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-700">
+        <button type="button" onClick={onNextMonth} aria-label="Next month" className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-700">
           <Icon name="chevronRight" className="w-4 h-4" />
         </button>
       </div>
@@ -16829,7 +16830,7 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
         <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Assigned to you</h2>
         {assigned.length === 0 ? (
           <div className="rounded-2xl bg-white border border-dashed px-6 py-12 text-center mt-3" style={{ borderColor: "var(--line-strong)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No any position assigned yet</p>
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No positions assigned yet</p>
           </div>
         ) : (
           // The card used to carry a title and "1 applicant", which is nothing to
@@ -19506,8 +19507,11 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         // the body — pull the function's real error out of error.context.
         let msg = data?.error || null;
         if (!msg && error) {
-          msg = error.message;
           try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* body not JSON */ }
+          // Never fall through to error.message: on a non-2xx supabase-js sets it
+          // to "Edge Function returned a non-2xx status code", which is exactly
+          // the string App Review quoted back at us.
+          if (!msg) msg = "something went wrong at our end. Please try again.";
         }
         if (msg) {
           // Surface the real reason instead of blaming the URL (which is valid).
@@ -20752,7 +20756,14 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
       // Quote every field and double any inner quote. A candidate called
       // O"Brien, or a label with a comma in it, would otherwise shift every
       // later column by one and corrupt the whole row.
-      const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const esc = (v) => {
+        let t = String(v ?? "");
+        // Excel treats a leading = + - or @ as a formula, and label/detail carry
+        // candidate names and job titles parsed straight out of an uploaded file.
+        // A single quote in front makes Excel keep it as text.
+        if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+        return `"${t.replace(/"/g, '""')}"`;
+      };
       const header = ["Date", "Type", "Credits", "Pool", "Description", "Detail"];
       const body = rows.map((r) => [
         new Date(r.created_at).toISOString(),
@@ -23073,7 +23084,7 @@ function OfferSignatureCard({ savedSig, savedName, savedTitle, resetSignal = 0, 
         {savedSig && !savedSig.startsWith("typed:") && (!drawn || drawn === savedSig) && (
           <div className="mb-2 rounded-lg px-4 py-2 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff" }}>
             <img src={savedSig} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
-            <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current — draw below to replace</span>
+            <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current, draw below to replace</span>
           </div>
         )}
         <SignaturePad onChange={(d) => setDrawn(d)} />
@@ -26310,7 +26321,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     setAddBusy(false);
     if (!res.ok) { setAddMsg({ type: "err", text: res.error || "Couldn't send the invite." }); return; }
     setNewName(""); setNewEmail(""); setAddOpen(false);
-    setAddMsg({ type: "ok", text: "Invite sent. Add them below to include them in this offer — it'll hold at their step until they confirm." });
+    setAddMsg({ type: "ok", text: "Invite sent. Add them below to include them in this offer. It'll hold at their step until they confirm." });
     onReloadApprovers && onReloadApprovers();
   };
   // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
@@ -29451,7 +29462,7 @@ export default function ResumeAIPreview() {
       setScheduledCycle(sess.scheduledCycle || null);
       setScheduledEffective(sess.scheduledEffective || null);
       activitiesSeenRef.current = sess.activitiesSeenAt || null;
-      if (sess.calendarProvider) setProvider(sess.calendarProvider);
+      if (sess.calendarProvider) setDefaultProvider(sess.calendarProvider);
       if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); }
     }
@@ -29851,7 +29862,7 @@ export default function ResumeAIPreview() {
         setScheduledCycle(sess.scheduledCycle || null);
         setScheduledEffective(sess.scheduledEffective || null);
         activitiesSeenRef.current = sess.activitiesSeenAt || null;
-        if (sess.calendarProvider) setProvider(sess.calendarProvider);
+        if (sess.calendarProvider) setDefaultProvider(sess.calendarProvider);
         if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
         if (sess.companyId) {
           setCompanyId(sess.companyId);
