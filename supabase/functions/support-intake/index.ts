@@ -36,7 +36,10 @@ Deno.serve(async (req) => {
   if (!(await rateLimit(`support:${ip}`, 6, 300, 3))) return json({ error: "rate_limited" }, 429);
 
   try {
-    const { name, email, subject, body, website } = await req.json();
+    // `booking` is present only for a 1:1 slot request from /contact-sales:
+    // { day: 'YYYY-MM-DD', slot: '2:30 PM', phone, company, message }. Everything
+    // else files a plain ticket exactly as before.
+    const { name, email, subject, body, website, booking } = await req.json();
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -49,6 +52,24 @@ Deno.serve(async (req) => {
       p_name: name, p_email: email, p_subject: subject, p_body: body ?? null, p_website: website ?? null,
     });
     if (error) return json({ error: error.message || "could not file ticket" }, 400);
+
+    // A booking is also stored as a record, so the admin calendar has the slot as
+    // data rather than as prose inside the ticket body. Best effort on purpose:
+    // the ticket and its confirmation email are what the visitor is promised, so
+    // a failure here must never fail their request. It is logged, not surfaced.
+    if (booking?.day && booking?.slot && id && id !== "T-0") {
+      const { error: bookingErr } = await admin.from("sales_bookings").insert({
+        ticket_id: id,
+        day: booking.day,
+        slot: booking.slot,
+        name: name ?? "",
+        email: email ?? "",
+        phone: booking.phone ?? null,
+        company: booking.company ?? null,
+        message: booking.message ?? null,
+      });
+      if (bookingErr) console.error("sales_bookings insert failed:", bookingErr.message);
+    }
 
     // Honeypot tripped (id 'T-0') → pretend success, send nothing.
     if (id && id !== "T-0" && email) {

@@ -9,15 +9,25 @@
 //  - Card/payment details are never stored or displayed (no digits anywhere).
 //  - Role-based access: Super Admin, Support Admin, Billing Admin, enforced in
 //    the nav AND in each screen (defense in depth), plus an audit trail.
-// All data below is mock data for the preview.
+// Every screen reads live data through is_admin()-gated RPCs and RLS. The only
+// mock left is ADMIN_ACCOUNTS, used solely for the demo sign-in when Supabase
+// keys are absent (hasSupabase === false); it is unreachable in production.
 // ============================================================================
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase, hasSupabase } from "./lib/supabase";
+// The one limits table the customer app enforces against, so the allowances
+// shown here cannot drift from the ones actually applied.
+import { PLAN_LIMITS } from "./lib/plan";
 
 const ADMIN_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 :root{
---bg:#FAFAFB;--card:#FFFFFF;--line:#ECECEF;--line-strong:#DEDEE3;
+--bg:#FAFAFB;--page:#E7E8EE;--canvas:#FFFFFF;--card:#FFFFFF;--line:#ECECEF;--line-strong:#DEDEE3;
+/* Bento palette: soft tints carrying ink-dark text, so every card clears 4.5:1. */
+--t-blue:#DCE8F8;--t-lav:#E7E4FB;--t-peach:#FBDFD0;--t-mint:#DCEFE3;--t-sand:#F6EBD8;
+/* Same light blue the customer dashboard runs on, and a brand-blue pill so the
+   console never introduces a black the product does not use. */
+--c-active:#2B49F0;--c-trial:#A78BFA;--c-risk:#F2775A;--pill:#0B2AE0;--app-bg:#F2F6FF;
 --ink:#12132A;--ink-2:#56566A;--ink-3:#6E6E7C;
 --brand:#0B2AE0;--brand-2:#3550EE;--brand-0:#5570F5;--brand-soft:#EAEEFE;
 --adm:#FFFFFF;--adm-2:#F7F9FC;--adm-line:#ECECEF;--adm-ink:#4A5568;--adm-ink-2:#6B7280;
@@ -33,6 +43,23 @@ const ADMIN_STYLES = `
 .adm-nav-item:hover{background:#F7F9FC;}
 .adm ::-webkit-scrollbar{width:10px;height:10px}.adm ::-webkit-scrollbar-thumb{background:#d9d9e3;border-radius:8px;border:2px solid transparent;background-clip:content-box}
 .adm-side ::-webkit-scrollbar-thumb{background:#d9d9e3}
+.adm-page{background:var(--app-bg);}
+.adm button,.adm [role="button"],.adm select,.adm summary{cursor:pointer;}
+.adm-tab{transition:background-color .2s ease,color .2s ease;}
+.adm-tab:hover:not([aria-current="page"]){background:#F2F2F7;}
+.adm-bento{transition:box-shadow .2s ease,transform .2s ease;}
+.adm-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+/* Native number spinners are grey OS chrome that clashes with everything here,
+   and the rates are typed, not nudged. Type=number is kept for the numeric
+   keypad and validation. */
+.adm input[type=number]::-webkit-outer-spin-button,
+.adm input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;appearance:none;margin:0;}
+.adm input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+.adm-pop{animation:admPop .16s ease-out;}
+@keyframes admPop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.adm-stack>*+*{margin-left:-10px;}
+.adm :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:10px;}
+@media (prefers-reduced-motion:reduce){.adm *{animation-duration:.01ms !important;transition-duration:.01ms !important;}}
 `;
 
 // ---------------------------------------------------------------------------
@@ -68,6 +95,8 @@ const PATHS = {
   bell: "M6 8a6 6 0 0 1 12 0c0 7 2 8 2 8H4s2-1 2-8M10.3 21a2 2 0 0 0 3.4 0",
   spark: "M12 3l1.9 5.6L20 10l-6.1 1.4L12 17l-1.9-5.6L4 10l6.1-1.4L12 3Z",
   external: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
+  jobs: "M3 8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8Zm6-1V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 12h18",
+  menu: "M4 7h16M4 12h16M4 17h16",
 };
 // The real Aster app-icon mark (blue rounded square + white burst), used in the
 // admin header/login in place of the old "A" letter badge. The SVG rounds its
@@ -79,6 +108,53 @@ function Icon({ name, className = "w-5 h-5" }) {
       {filled ? <circle cx="12" cy="12" r="4" /> : <path d={PATHS[name] || PATHS.dot} />}
     </svg>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Audit presentation
+// ---------------------------------------------------------------------------
+// What kind of action a log line describes, so the eye can sort them without
+// reading. Matched on the action text the database writes.
+const AUDIT_CLASS = [
+  { test: /suspend|deactivat|block|remove/i,        tone: "var(--c-risk)", label: "Access removed" },
+  { test: /restor|reactivat|unblock/i,              tone: "var(--ok)",     label: "Access restored" },
+  { test: /plan|subscription|currency|credit|cost/i, tone: "var(--brand)",  label: "Billing" },
+  { test: /password|reset/i,                        tone: "var(--warn)",   label: "Credentials" },
+  { test: /flag|template|booking|date/i,            tone: "var(--c-trial)", label: "Configuration" },
+];
+const auditTone = (action) => (AUDIT_CLASS.find((c) => c.test.test(action || "")) || { tone: "var(--ink-3)" }).tone;
+
+// The database writes the raw tier ("Changed plan to scale"), which reads as a
+// typo next to a properly capitalised company name. Capitalise the tier and
+// nothing else, so the wording stays whatever the audit row actually says.
+const auditText = (action) =>
+  String(action || "").replace(/\b(launch|scale|elite|enterprise)\b/gi, (m) => m[0].toUpperCase() + m.slice(1).toLowerCase());
+
+// Collapse a run of identical actions into one line with a count. Seven test
+// clicks on the same button should read as one entry, not seven.
+function collapseAudit(rows) {
+  const out = [];
+  for (const r of rows) {
+    const prev = out[out.length - 1];
+    if (prev && prev.action === r.action && prev.target === r.target && prev.actor === r.actor) {
+      prev.count += 1;
+      continue;
+    }
+    out.push({ ...r, count: 1 });
+  }
+  return out;
+}
+
+// Today / Yesterday / an actual date, for grouping the full log.
+function dayBucket(iso) {
+  if (!iso) return "Just now";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Just now";
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
 // ---------------------------------------------------------------------------
@@ -98,9 +174,11 @@ const SECTIONS = [
   { key: "subscriptions", label: "Subscriptions",    icon: "card",      roles: ["super", "billing"] },
   { key: "usage",         label: "Usage monitoring", icon: "chart",     roles: ["super", "support", "billing"] },
   { key: "support",       label: "Support logs",     icon: "headset",   roles: ["super", "support"] },
+  { key: "ai_costs",      label: "AI costs",         icon: "spark",     roles: ["super", "billing"] },
   { key: "rates",         label: "Currency rates",   icon: "card",      roles: ["super", "billing"] },
   { key: "flags",         label: "Feature flags",    icon: "flag",      roles: ["super"] },
-  { key: "booking",       label: "Booking dates",    icon: "calendar",  roles: ["super", "support"] },
+  { key: "bookings",      label: "Bookings",         icon: "calendar",  roles: ["super", "support"] },
+  { key: "booking",       label: "Blocked dates",    icon: "ban",       roles: ["super", "support"] },
   { key: "email_templates", label: "Email templates", icon: "mail",     roles: ["super", "support"] },
   { key: "audit",         label: "Audit logs",       icon: "audit",     roles: ["super", "billing"] },
 ];
@@ -116,6 +194,8 @@ const PERMS = {
   "booking.block":       ["super", "support"],
   "support.resolve":     ["super", "support"],
   "template.edit":       ["super", "support"],
+  "aicost.edit":         ["super", "billing"],
+  "booking.manage":      ["super", "support"],
 };
 const can = (role, action) => (PERMS[action] || []).includes(role);
 const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.roles || []).includes(role);
@@ -126,7 +206,6 @@ const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.role
 // Candidate PII is masked wherever it could surface. Company (customer) users
 // are account holders and shown normally; candidates are applicants and are not.
 const maskName = (n) => (n || "").split(" ").map((p) => (p.length <= 1 ? p : p[0] + "•".repeat(Math.max(1, p.length - 1)))).join(" ");
-const money = (n) => "$" + n.toLocaleString("en-US");
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 // ---------------------------------------------------------------------------
@@ -181,17 +260,84 @@ const StatusBadge = ({ value }) => <Badge tone={STATUS_TONE[value] || "ink"} dot
 function Card({ children, className = "", pad = "p-5 sm:p-6" }) {
   return <div className={`rounded-2xl adm-shadow ${pad} ${className}`} style={{ background: "#fff", border: "1px solid var(--line)" }}>{children}</div>;
 }
-function StatCard({ icon, label, value, sub, tone = "brand" }) {
-  const t = TONE[tone] || TONE.brand;
+// ---------------------------------------------------------------------------
+// Bento primitives
+// ---------------------------------------------------------------------------
+// The dashboard's building block: a soft white card. Rounder and shadow-led
+// rather than border-led, so tinted cards can nest inside without fighting it.
+function Tile({ children, className = "", pad = "p-5 sm:p-6", style }) {
+  return <div className={`adm-bento rounded-[24px] ${pad} ${className}`} style={{ background: "#fff", boxShadow: "0 1px 2px rgba(18,19,42,.04), 0 18px 40px -28px rgba(18,19,42,.28)", ...style }}>{children}</div>;
+}
+function TileHead({ title, right }) {
   return (
-    <Card pad="p-5">
-      <div className="flex items-start justify-between">
-        <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.bg, color: t.fg }}><Icon name={icon} className="w-5 h-5" /></span>
-      </div>
-      <p className="mt-4 text-2xl font-bold adm-display tnum text-neutral-900">{value}</p>
-      <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{label}</p>
-      {sub && <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>{sub}</p>}
-    </Card>
+    <div className="flex items-center justify-between gap-3 mb-5">
+      <h3 className="text-lg font-bold adm-display text-neutral-900 truncate">{title}</h3>
+      {right}
+    </div>
+  );
+}
+// The pill "See all" affordance sitting in each card header.
+function SeeAll({ children = "See all", onClick }) {
+  return (
+    <button onClick={onClick} className="text-xs font-semibold px-3.5 py-2 rounded-full shrink-0 transition-colors hover:bg-neutral-100" style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>{children}</button>
+  );
+}
+// Initials avatar. Candidate faces never appear in the admin portal, so every
+// avatar here is a generated monogram for a company or an admin.
+function Monogram({ label, size = 32, tint, soft = false, bg, fg, ring = true }) {
+  const text = (label || "?").split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span className="rounded-full inline-flex items-center justify-center font-bold shrink-0"
+      style={{
+        width: size, height: size, fontSize: Math.round(size * 0.36),
+        background: bg || (soft ? "var(--brand-soft)" : (tint || "linear-gradient(135deg,#5570F5,#0B2AE0)")),
+        color: fg || (soft ? "var(--brand)" : "#fff"),
+        border: ring ? "2px solid #fff" : "none",
+      }}>{text}</span>
+  );
+}
+
+// Three concentric arcs, one per workspace status. Percentages are also printed
+// in the legend, so the chart never carries meaning by colour alone.
+function StatusDonut({ slices }) {
+  const R = [86, 66, 46];
+  const SW = 15;
+  return (
+    <svg viewBox="0 0 200 200" className="w-full max-w-[220px] h-auto" role="img"
+      aria-label={slices.map((s) => `${s.label} ${s.pct}%`).join(", ")}>
+      {slices.map((s, i) => {
+        const c = 2 * Math.PI * R[i];
+        return (
+          <g key={s.label} transform="rotate(-90 100 100)">
+            <circle cx="100" cy="100" r={R[i]} fill="none" stroke="#EFEFF5" strokeWidth={SW} />
+            <circle cx="100" cy="100" r={R[i]} fill="none" stroke={s.color} strokeWidth={SW} strokeLinecap="round"
+              strokeDasharray={`${(c * s.pct) / 100} ${c}`} style={{ transition: "stroke-dasharray .4s ease" }} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// Paired bars per plan: how many workspaces are paying vs not yet paying.
+// Same unit on both series, so the comparison is honest.
+function PlanColumns({ rows }) {
+  const max = Math.max(1, ...rows.map((r) => Math.max(r.a, r.b)));
+  return (
+    <div className="flex items-end justify-between gap-3 sm:gap-4 h-[170px]">
+      {rows.map((r) => (
+        <div key={r.label} className="flex-1 flex flex-col items-center gap-2 h-full">
+          <div className="flex-1 w-full flex items-end justify-center gap-1.5">
+            {[{ v: r.a, fill: "var(--c-risk)" }, { v: r.b, fill: "#BFD4EC" }].map((s, i) => (
+              <div key={i} className="relative w-full max-w-[22px] h-full flex items-end">
+                <div className="w-full rounded-full" style={{ height: `${s.v ? Math.max(9, (s.v / max) * 100) : 4}%`, background: s.v ? s.fill : "#EFEFF5" }} title={`${r.label}: ${s.v}`} />
+              </div>
+            ))}
+          </div>
+          <span className="text-[11px] font-medium" style={{ color: "var(--ink-3)" }}>{r.label}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 function SectionHead({ title, desc, children }) {
@@ -260,253 +406,1299 @@ function NoAccess({ role }) {
     </div>
   );
 }
-function Bar({ value, max, tone = "brand" }) {
-  const p = Math.min(100, pct(value, max));
-  const over = p >= 90;
-  const t = TONE[over ? "warn" : tone];
-  return (
-    <div className="flex items-center gap-2.5 min-w-[120px]">
-      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-        <div className="h-full rounded-full" style={{ width: p + "%", background: t.fg }} />
-      </div>
-      <span className="text-xs tnum shrink-0" style={{ color: "var(--ink-3)" }}>{value}/{max}</span>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Screens
 // ---------------------------------------------------------------------------
 // List price per plan, so MRR is computed from the plan a company is on rather than
 // a stored field the admin RPCs don't return (which read back as $NaN). Enterprise is
 // custom-priced, so it is excluded from the self-serve MRR figure.
-const PLAN_MRR = { Launch: 19, Scale: 129, Elite: 299 };
+// Recurring revenue in ringgit, from the same Stripe prices the pricing page
+// quotes (get-plan-prices), not a hardcoded list price. Amounts arrive in sen.
+// A yearly subscription contributes a twelfth of its price each month, and
+// Enterprise is custom-priced so it is left out of the self-serve figure.
+function monthlyRevenueMYR(companies, prices) {
+  if (!prices) return null;
+  let sen = 0, counted = 0;
+  for (const c of companies) {
+    if (c.status !== "active") continue;
+    const plan = String(c.plan || "").toLowerCase();
+    if (!plan || plan === "enterprise") continue;
+    const p = prices[`${plan}|${c.cycle === "yearly" ? "yearly" : "monthly"}`] || prices[`${plan}|monthly`];
+    const amount = p?.currencies?.myr ?? (String(p?.currency || "").toLowerCase() === "myr" ? p.amount : null);
+    if (amount == null) continue;
+    sen += p.interval === "year" ? amount / 12 : amount;
+    counted++;
+  }
+  return { myr: sen / 100, counted };
+}
+const ringgit = (n) => "RM " + Math.round(n).toLocaleString("en-MY");
+// Sub-ringgit figures (a single AI call) need the sen, a monthly total does not.
+const ringgit2 = (n) => "RM " + n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function Dashboard({ role, companies, tickets, audit, go }) {
-  const active = companies.filter((c) => c.status === "active").length;
-  const trials = companies.filter((c) => c.status === "trial").length;
-  // Only active (paying) subscriptions contribute. A yearly plan still bills a
-  // month's worth per month, so the list price is the right per-month figure.
-  const mrr = companies
-    .filter((c) => c.status === "active")
-    .reduce((s, c) => s + (PLAN_MRR[c.plan] || 0), 0);
-  const byPlan = companies.reduce((m, c) => { m[c.plan] = (m[c.plan] || 0) + 1; return m; }, {});
-  const openTix = tickets.filter((t) => t.status === "open").length;
-  const canRevenue = role === "billing" || role === "super";
+// The five AI actions the app charges a credit for, in the order they appear on
+// screen. Keys match credit_spend_log.kind and the ai_unit_costs rows.
+// 'YYYY-MM' -> 'July 2026'. The period key is what the RPC filters on.
+const monthLabel = (p) => {
+  const [y, m] = String(p || "").split("-").map(Number);
+  if (!y || !m) return p;
+  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+};
+// The current month plus the previous eleven, newest first.
+const recentPeriods = (n = 12) => {
+  const now = new Date();
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+};
+
+// `limit` names the PLAN_LIMITS field each credit kind draws down, so a monthly
+// allowance can be shown beside the usage.
+const AI_KINDS = [
+  { key: "resume_screen",       label: "Resume screening",    limit: "resumeUploads" },
+  { key: "applicant_screen",    label: "Applicant screening", limit: "parseApplicant" },
+  { key: "ai_rank",             label: "AI rank",             limit: "aiRunsPerMonth" },
+  { key: "ai_insight",          label: "AI insight",          limit: "aiInsightsPerMonth" },
+  { key: "interview_questions", label: "Interview questions", limit: "interviewQuestionsPerMonth" },
+];
+
+// The monthly allowance for one kind on one plan. Falls back to Launch, matching
+// the customer app's fail-closed lookup.
+const allowanceFor = (plan, kind) => {
+  const tier = PLAN_LIMITS[String(plan || "").toLowerCase()] || PLAN_LIMITS.launch;
+  return tier[AI_KINDS.find((k) => k.key === kind)?.limit];
+};
+
+// Usage against allowance. Over 100% is legitimate: purchased top-up credits are
+// not capped by the plan, so the bar flags it rather than treating it as an error.
+function UsageCell({ used, allowance }) {
+  const unlimited = !Number.isFinite(allowance);
+  const share = unlimited ? 0 : Math.min(100, pct(used, allowance || 1));
+  const over = !unlimited && used > allowance;
   return (
-    <div>
-      <SectionHead title="Overview" desc="Platform health across all customer workspaces." />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard icon="building" label="Companies" value={companies.length} sub={`${active} active · ${trials} on trial`} tone="brand" />
-        <StatCard icon="users" label="Total users" value={companies.reduce((s, c) => s + (c.seats || 0), 0)} sub="People across all workspaces" tone="info" />
-        <StatCard icon="jobs" label="Open jobs" value={companies.reduce((s, c) => s + (c.activeJobs || 0), 0)} sub="Live roles across all workspaces" tone="brand" />
-        {canRevenue
-          ? <StatCard icon="card" label="Monthly recurring revenue" value={money(mrr)} sub="Active self-serve plans" tone="ok" />
-          : <StatCard icon="chart" label="Candidates" value={companies.reduce((s, c) => s + (c.candidates || 0), 0)} sub="Across all workspaces" tone="ok" />}
-        <StatCard icon="headset" label="Open support tickets" value={openTix} sub={`${tickets.length} total this week`} tone="warn" />
+    <div className="min-w-[76px]">
+      <span className="tnum text-sm" style={{ color: used ? "var(--ink)" : "var(--ink-3)" }}>
+        {used.toLocaleString()}
+        <span style={{ color: "var(--ink-3)" }}> / {unlimited ? "∞" : allowance.toLocaleString()}</span>
+      </span>
+      {!unlimited && (
+        <div className="h-1 rounded-full mt-1.5 overflow-hidden" style={{ background: "#EEF2FB" }}>
+          <div className="h-full rounded-full" style={{ width: `${over ? 100 : share}%`, background: over ? "var(--c-risk)" : "#A9C0F5" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// What one workspace's AI ran up this month, in ringgit. Cost is modelled, not
+// measured: nothing records model spend, so this is usage x the rate an admin
+// set under AI costs. Returns 0 while the rates are still zero.
+function aiCostFor(usageRow, rates) {
+  if (!usageRow || !rates) return 0;
+  return AI_KINDS.reduce((sum, k) => sum + (usageRow[k.key] || 0) * (rates[k.key] || 0), 0) / 100;
+}
+
+// Plan tiers, in upgrade order, with the tint each one carries in the charts.
+const PLAN_ORDER = ["Launch", "Scale", "Elite", "Enterprise"];
+
+// The three attention cards at the top of the console. Each one is a real
+// query over live admin data, and each links to the screen that fixes it.
+const ATTENTION_CARDS = [
+  {
+    key: "suspended", tint: "var(--t-peach)", flag: "Needs action", flagTone: "var(--c-risk)",
+    title: ["Suspended", "workspaces"], to: "companies", icon: "ban",
+    pick: (d) => d.companies.filter((c) => c.status === "suspended"),
+    of: (d) => d.companies.length, unit: "workspaces",
+  },
+  {
+    key: "tickets", tint: "var(--t-blue)", flag: "Open", flagTone: "#1D4ED8",
+    title: ["Support", "tickets"], to: "support", icon: "headset",
+    pick: (d) => d.tickets.filter((t) => t.status === "open"),
+    of: (d) => d.tickets.length, unit: "tickets",
+  },
+  {
+    key: "trials", tint: "var(--t-lav)", flag: "Converting", flagTone: "#6D3BD4",
+    title: ["Workspaces", "on trial"], to: "companies", icon: "spark",
+    pick: (d) => d.companies.filter((c) => c.status === "trial"),
+    of: (d) => d.companies.length, unit: "workspaces",
+  },
+];
+
+function AttentionCard({ card, data, go, allowed }) {
+  const items = card.pick(data);
+  const total = card.of(data);
+  const names = items.slice(0, 3).map((x) => x.name || x.company || x.subject || "—");
+  return (
+    <div className="rounded-[20px] p-4 sm:p-5 flex flex-col" style={{ background: card.tint }}>
+      <span className="inline-flex items-center gap-1.5 self-start text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/70" style={{ color: card.flagTone }}>
+        <Icon name={card.icon} className="w-3 h-3" /> {card.flag}
+      </span>
+      <h4 className="text-[22px] sm:text-2xl font-bold adm-display leading-[1.15] mt-4" style={{ color: "var(--ink)" }}>
+        {card.title[0]}<br />{card.title[1]}
+      </h4>
+      <div className="flex items-center gap-0 adm-stack mt-4 min-h-[32px]">
+        {names.length === 0
+          ? <span className="text-xs" style={{ color: "var(--ink-2)" }}>Nothing here right now</span>
+          : names.map((n, i) => <Monogram key={i} label={n} size={30} bg="rgba(255,255,255,.85)" fg={card.flagTone} />)}
+        {items.length > 3 && <span className="rounded-full inline-flex items-center justify-center text-[10px] font-bold" style={{ width: 30, height: 30, background: "rgba(255,255,255,.85)", color: card.flagTone, border: "2px solid #fff" }}>+{items.length - 3}</span>}
       </div>
-
-      {/* Plan mix: how many companies sit on each tier, with a share bar. */}
-      <Card className="mt-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold adm-display text-neutral-900">Plan mix</h3>
-          <button onClick={() => go("subscriptions")} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>Subscriptions <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>
+      <div className="mt-auto pt-5">
+        <div className="h-1.5 rounded-full overflow-hidden bg-white/60">
+          <div className="h-full rounded-full" style={{ width: `${pct(items.length, total || 1)}%`, background: card.flagTone }} />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { k: "Launch", tint: "#6E7BF2" }, { k: "Scale", tint: "#0B2AE0" },
-            { k: "Elite", tint: "#7C3AED" }, { k: "Enterprise", tint: "#0E7490" },
-          ].map(({ k, tint }) => {
-            const n = byPlan[k] || 0;
-            const pctv = companies.length ? Math.round((n / companies.length) * 100) : 0;
-            return (
-              <div key={k}>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{k}</span>
-                  <span className="text-2xl font-bold tnum adm-display" style={{ color: "var(--ink)" }}>{n}</span>
-                </div>
-                <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "var(--adm-2)" }}>
-                  <div className="h-full rounded-full" style={{ width: `${pctv}%`, background: tint }} />
-                </div>
-                {k !== "Enterprise" && <p className="text-[11px] mt-1.5 tnum" style={{ color: "var(--ink-3)" }}>{money(PLAN_MRR[k])}/mo each</p>}
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between mt-2">
+          <button onClick={() => go(card.to)} disabled={!allowed(card.to)}
+            className="text-[11px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: "var(--ink-2)" }}>
+            {allowed(card.to) ? "Open" : "No access"}
+          </button>
+          <span className="text-xs font-bold tnum" style={{ color: "var(--ink)" }}>{items.length}/{total}</span>
         </div>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-3 mt-4">
-        <div className="lg:col-span-2">
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold adm-display text-neutral-900">Recent admin activity</h3>
-              {sectionAllowed(role, "audit") && <button onClick={() => go("audit")} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>Audit log <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>}
-            </div>
-            {audit.length === 0 ? (
-              <p className="text-sm py-6 text-center" style={{ color: "var(--ink-3)" }}>No admin actions yet. Changes you make here will show up in this list.</p>
-            ) : (
-              <ul className="space-y-3">
-                {audit.slice(0, 5).map((a) => (
-                  <li key={a.id} className="flex items-start gap-3">
-                    <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white grad text-[11px] font-bold">{a.actor.split(" ").map((x) => x[0]).join("")}</span>
-                    <div className="min-w-0">
-                      <p className="text-sm text-neutral-900"><span className="font-medium">{a.actor}</span> · {a.action} <span style={{ color: "var(--ink-2)" }}>{a.target}</span></p>
-                      <p className="text-xs" style={{ color: "var(--ink-3)" }}>{a.at}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
-        <Card>
-          <h3 className="font-semibold adm-display text-neutral-900 mb-4">Attention</h3>
-          <ul className="space-y-3 text-sm">
-            {companies.filter((c) => c.status === "suspended").map((c) => (
-              <li key={c.id} className="flex items-center gap-2.5"><span style={{ color: "var(--danger)" }}><Icon name="warning" className="w-4 h-4" /></span><span className="text-neutral-900">{c.name}</span><Badge tone="danger">suspended</Badge></li>
-            ))}
-            {companies.filter((c) => c.status === "trial").map((c) => (
-              <li key={c.id} className="flex items-center gap-2.5"><span style={{ color: "var(--warn)" }}><Icon name="dot" className="w-4 h-4" /></span><span className="text-neutral-900">{c.name}</span><Badge tone="info">trial</Badge></li>
-            ))}
-          </ul>
-        </Card>
       </div>
     </div>
   );
 }
 
-function Companies({ role, companies, setCompanies, audit, onAction }) {
-  const [q, setQ] = useState("");
-  const [busy, setBusy] = useState(null);
-  const rows = companies.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
-  const setStatus = async (c, status, action) => {
-    setBusy(c.id);
-    setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status } : x));   // optimistic
-    const err = await onAction("admin_set_company_status", { p_company: c.id, p_suspend: status === "suspended" }, action, c.name);
-    if (err) setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status: c.status } : x));   // rollback
-    setBusy(null);
+function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
+  const active = companies.filter((c) => c.status === "active").length;
+  const trials = companies.filter((c) => c.status === "trial").length;
+  const suspended = companies.filter((c) => c.status === "suspended").length;
+  // Only active (paying) subscriptions contribute. A yearly plan still bills a
+  // month's worth per month, so the list price is the right per-month figure.
+  const revenue = monthlyRevenueMYR(companies, planPrices);
+
+  const canRevenue = role === "billing" || role === "super";
+  const seats = companies.reduce((s, c) => s + (c.seats || 0), 0);
+  const jobs = companies.reduce((s, c) => s + (c.activeJobs || 0), 0);
+  const cands = companies.reduce((s, c) => s + (c.candidates || 0), 0);
+  const interviews = companies.reduce((s, c) => s + (c.interviews || 0), 0);
+  const hired = companies.reduce((s, c) => s + (c.hired || 0), 0);
+  const upcoming = companies.reduce((s, c) => s + (c.upcoming || 0), 0);
+
+  const slices = [
+    { label: "Active", pct: pct(active, companies.length), color: "var(--c-active)", n: active },
+    { label: "On trial", pct: pct(trials, companies.length), color: "var(--c-trial)", n: trials },
+    { label: "Suspended", pct: pct(suspended, companies.length), color: "var(--c-risk)", n: suspended },
+  ];
+  const planRows = PLAN_ORDER.map((p) => {
+    const inPlan = companies.filter((c) => c.plan === p);
+    return { label: p, a: inPlan.filter((c) => c.status === "active").length, b: inPlan.filter((c) => c.status !== "active").length };
+  });
+  const ranked = [...companies].sort((a, b) => (b.seats || 0) - (a.seats || 0)).slice(0, 4);
+  const maxSeats = Math.max(1, ...ranked.map((c) => c.seats || 0));
+
+  return (
+    <div>
+      {/* Row 1: attention cards + status donut */}
+      <div className="grid gap-4 xl:grid-cols-5">
+        <Tile className="xl:col-span-3">
+          <TileHead title="Needs attention" right={<SeeAll onClick={() => go("companies")} />} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {ATTENTION_CARDS.map((card) => (
+              <AttentionCard key={card.key} card={card} data={{ companies, tickets }} go={go} allowed={(k) => sectionAllowed(role, k)} />
+            ))}
+          </div>
+        </Tile>
+
+        <Tile className="xl:col-span-2">
+          <TileHead title="Workspace status" right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Total {companies.length}</span>} />
+          {companies.length === 0 ? (
+            <p className="text-sm py-12 text-center" style={{ color: "var(--ink-3)" }}>No workspaces yet, so there is nothing to chart.</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              <ul className="space-y-4 shrink-0">
+                {slices.map((s) => (
+                  <li key={s.label}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
+                      <span className="text-sm" style={{ color: "var(--ink-2)" }}>{s.label}</span>
+                    </div>
+                    <p className="text-[26px] font-bold adm-display tnum leading-tight" style={{ color: "var(--ink)" }}>{s.pct}%</p>
+                    <p className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>{s.n} of {companies.length}</p>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex-1 flex justify-center"><StatusDonut slices={slices} /></div>
+            </div>
+          )}
+        </Tile>
+      </div>
+
+      {/* Row 2: the plain totals strip */}
+      <div className="grid gap-4 mt-4 sm:grid-cols-2 xl:grid-cols-3">
+        {[
+          { l: "Workspaces", v: companies.length, s: `${active} active · ${trials} on trial`, t: "var(--t-blue)", i: "building" },
+          { l: "Company users", v: users.length || seats, s: "Across every workspace", t: "var(--t-lav)", i: "users" },
+          { l: "Open jobs", v: jobs, s: "Live roles right now", t: "var(--t-mint)", i: "jobs" },
+          { l: "Candidates", v: cands, s: "Counted only, never readable here", t: "var(--t-sand)", i: "lock" },
+          { l: "Interviews", v: interviews, s: upcoming ? `${upcoming} still ahead` : "None scheduled ahead", t: "var(--t-blue)", i: "calendar" },
+          { l: "Hired", v: hired, s: interviews ? `${pct(hired, interviews)}% of interviews` : "No interviews yet", t: "var(--t-mint)", i: "check" },
+        ].map((x) => (
+          <Tile key={x.l} pad="p-5">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl inline-flex items-center justify-center shrink-0" style={{ background: x.t, color: "var(--ink)" }}><Icon name={x.i} className="w-[18px] h-[18px]" /></span>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold adm-display tnum leading-none" style={{ color: "var(--ink)" }}>{Number(x.v).toLocaleString()}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>{x.l}</p>
+              </div>
+            </div>
+            <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>{x.s}</p>
+          </Tile>
+        ))}
+      </div>
+
+      {/* Row 3: rank, plan chart, activity feed */}
+      <div className="grid gap-4 mt-4 xl:grid-cols-3">
+        <Tile>
+          <TileHead title="Top workspaces" right={<SeeAll onClick={() => go("companies")} />} />
+          {ranked.length === 0 ? (
+            <p className="text-sm py-8 text-center" style={{ color: "var(--ink-3)" }}>No workspaces yet.</p>
+          ) : (
+            <ul className="space-y-4">
+              {ranked.map((c) => (
+                <li key={c.id} className="flex items-center gap-3">
+                  <Monogram label={c.name} size={38} soft />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-neutral-900 truncate">{c.name}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.plan} · {c.activeJobs} open {c.activeJobs === 1 ? "job" : "jobs"}</p>
+                    <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "#EEF2FB" }}>
+                      <div className="h-full rounded-full" style={{ width: `${pct(c.seats || 0, maxSeats)}%`, background: "#A9C0F5" }} />
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold tnum shrink-0" style={{ color: "var(--ink-2)" }}>{c.seats} seats</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        <Tile>
+          <TileHead title="Plan mix" right={sectionAllowed(role, "subscriptions") && <SeeAll onClick={() => go("subscriptions")} />} />
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            {[{ l: "Paying", c: "var(--c-risk)" }, { l: "Trial or suspended", c: "#BFD4EC" }].map((x) => (
+              <span key={x.l} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: x.c }} /> {x.l}
+              </span>
+            ))}
+          </div>
+          {companies.length === 0
+            ? <p className="text-sm py-12 text-center" style={{ color: "var(--ink-3)" }}>No workspaces yet.</p>
+            : <PlanColumns rows={planRows} />}
+          {canRevenue && (
+            <div className="flex items-end justify-between mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+              <div>
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Monthly recurring revenue</p>
+                <p className="text-2xl font-bold adm-display tnum" style={{ color: "var(--ink)" }}>
+                  {revenue ? ringgit(revenue.myr) : "—"}
+                </p>
+              </div>
+              <span className="text-[11px] tnum text-right" style={{ color: "var(--ink-3)" }}>
+                {revenue ? `${revenue.counted} paying` : "Loading prices…"}
+              </span>
+            </div>
+          )}
+        </Tile>
+
+        {/* Only the roles the audit_log policy admits: a Support admin would
+            otherwise get an empty card that reads as "nothing happened". */}
+        <Tile className={sectionAllowed(role, "audit") ? "" : "hidden"}>
+          <TileHead title="Admin activity" right={sectionAllowed(role, "audit") && <SeeAll onClick={() => go("audit")} />} />
+          {audit.length === 0 ? (
+            <div className="py-10 text-center">
+              <span className="w-11 h-11 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-mint)", color: "#166534" }}><Icon name="check" className="w-5 h-5" /></span>
+              <p className="text-sm mt-3" style={{ color: "var(--ink-3)" }}>No admin actions this session.</p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Anything you change here shows up in this feed.</p>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {collapseAudit(audit).slice(0, 5).map((a) => (
+                <li key={a.id} className="flex items-start gap-2.5 py-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0" style={{ background: auditTone(a.action) }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-snug" style={{ color: "var(--ink-2)" }}>
+                      {auditText(a.action)}
+                      {a.target && <><span style={{ color: "var(--ink-3)" }}> · </span><span className="font-semibold text-neutral-900">{a.target}</span></>}
+                      {a.count > 1 && <span className="tnum text-[11px] font-bold ml-1.5 px-1.5 py-0.5 rounded-full" style={{ background: "var(--app-bg)", color: "var(--ink-3)" }}>×{a.count}</span>}
+                    </p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }} title={a.when || ""}>
+                      {a.actor !== "—" ? `${a.actor} · ` : ""}{a.at}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+      </div>
+    </div>
+  );
+}
+
+// Restoring a suspended workspace has to answer "back onto which plan?", so it
+// opens this rather than flipping status silently. Plans are pickable cards
+// rather than a dropdown: four options, each with its price, is quicker to read
+// than a select and matches the rest of the console.
+function StatusDialog({ company, mode, planPrices, onClose, onConfirm }) {
+  const [plan, setPlan] = useState(company.plan);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const restoring = mode === "restore";
+  const changingPlan = restoring && plan !== company.plan;
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, busy]);
+
+  // Monthly price for the picker, in the same ringgit the pricing page quotes.
+  const priceOf = (name) => {
+    const p = planPrices?.[`${name.toLowerCase()}|monthly`];
+    const sen = p?.currencies?.myr ?? (String(p?.currency || "").toLowerCase() === "myr" ? p.amount : null);
+    return sen == null ? null : ringgit(sen / 100) + "/mo";
   };
+
+  const go = async () => {
+    setBusy(true); setErr("");
+    const problem = await onConfirm(company, restoring ? "active" : "suspended", restoring ? plan : null);
+    setBusy(false);
+    if (problem) setErr(problem); else onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }}
+      onClick={() => !busy && onClose()} role="dialog" aria-modal="true" aria-label={`${restoring ? "Restore" : "Suspend"} ${company.name}`}>
+      <div className="adm-pop w-full sm:max-w-lg rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+        style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+
+        <div className="p-6 sm:p-7">
+          <div className="flex items-start gap-4">
+            <span className="w-12 h-12 rounded-2xl inline-flex items-center justify-center shrink-0"
+              style={{ background: restoring ? "var(--t-mint)" : "var(--danger-soft)", color: restoring ? "#166534" : "var(--danger)" }}>
+              <Icon name={restoring ? "refresh" : "ban"} className="w-5 h-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-bold adm-display text-neutral-900 leading-snug">
+                {restoring ? "Restore" : "Suspend"} {company.name}?
+              </h2>
+              <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
+                {restoring
+                  ? "The team gets access back straight away. Pick the plan it returns on."
+                  : `All ${company.seats} ${company.seats === 1 ? "person" : "people"} lose access until you restore it. Nothing is deleted.`}
+              </p>
+            </div>
+            <button onClick={onClose} disabled={busy} aria-label="Close"
+              className="w-9 h-9 rounded-full grid place-items-center shrink-0 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+
+          {restoring ? (
+            <fieldset className="mt-6">
+              <legend className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: "var(--ink-3)" }}>Plan on restore</legend>
+              {/* Enterprise is sold and priced by hand, so it is not something
+                  to assign from here. It only appears when the workspace is
+                  already on it, so restoring cannot silently downgrade them. */}
+              <div className="grid grid-cols-2 gap-2">
+                {PLAN_ORDER.filter((p) => p !== "Enterprise" || company.plan === "Enterprise").map((p) => {
+                  const on = plan === p;
+                  const price = priceOf(p);
+                  return (
+                    <button key={p} type="button" onClick={() => setPlan(p)} aria-pressed={on}
+                      className="text-left rounded-2xl px-4 py-3 transition-colors"
+                      style={{
+                        background: on ? "var(--brand-soft)" : "#fff",
+                        border: `1.5px solid ${on ? "var(--brand)" : "var(--line-strong)"}`,
+                      }}>
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{p}</span>
+                        {on && <Icon name="check" className="w-4 h-4" />}
+                      </span>
+                      <span className="block text-[11px] mt-0.5 tnum" style={{ color: "var(--ink-3)" }}>
+                        {p === company.plan ? "Current plan" : price || (p === "Enterprise" ? "Custom priced" : "—")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {changingPlan && (
+                <p className="flex items-center gap-2 text-xs mt-3 rounded-xl px-3 py-2.5" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
+                  <Icon name="warning" className="w-4 h-4 shrink-0" />
+                  This also moves them from {company.plan} to {plan}.
+                </p>
+              )}
+            </fieldset>
+          ) : (
+            <ul className="mt-6 space-y-2">
+              {[
+                `${company.activeJobs} open ${company.activeJobs === 1 ? "job" : "jobs"} stop accepting applications`,
+                "Everyone is signed out and cannot sign back in",
+                "Candidate data, jobs and billing history are kept",
+              ].map((line) => (
+                <li key={line} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--ink-2)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ background: "var(--ink-3)" }} />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {err && (
+            <p className="flex items-start gap-2 text-sm mt-4 rounded-xl px-3 py-2.5" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
+              <Icon name="warning" className="w-4 h-4 shrink-0 mt-0.5" /> {err}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 sm:px-7 py-4" style={{ background: "var(--app-bg)" }}>
+          <button onClick={onClose} disabled={busy}
+            className="h-11 px-5 rounded-xl text-sm font-semibold bg-white transition-colors hover:bg-neutral-50"
+            style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+          <button onClick={go} disabled={busy} autoFocus
+            className="h-11 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 inline-flex items-center justify-center gap-2"
+            style={{ background: restoring ? "var(--brand)" : "var(--danger)" }}>
+            {busy && <Icon name="refresh" className="w-4 h-4" />}
+            {busy ? "Working…" : restoring ? `Restore on ${plan}` : "Suspend workspace"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, audit, onAction }) {
+  const [q, setQ] = useState("");
+  const [dialog, setDialog] = useState(null);   // { company, mode }
+  const rows = companies.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+  const costOf = (id) => aiCostFor(usage.find((u) => u.companyId === id), aiCosts);
+  const priced = aiCosts && Object.values(aiCosts).some((v) => v > 0);
+
+  // Confirmed from the dialog. Status first, then the plan when it changed, so a
+  // failed plan change cannot leave a workspace suspended-but-reported-restored.
+  const apply = async (c, status, plan) => {
+    setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status, plan: plan || x.plan } : x));   // optimistic
+    const err = await onAction("admin_set_company_status", { p_company: c.id, p_suspend: status === "suspended" },
+      status === "suspended" ? "Suspended company" : "Restored company", c.name);
+    if (err) {
+      setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status: c.status, plan: c.plan } : x));
+      return err;
+    }
+    if (plan && plan !== c.plan) {
+      const planErr = await onAction("admin_change_plan", { p_company: c.id, p_plan: plan.toLowerCase() },
+        "Changed subscription plan", `${c.name} → ${plan}`);
+      if (planErr) {
+        setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, plan: c.plan } : x));
+        return `Restored, but the plan change failed: ${planErr}`;
+      }
+    }
+    return null;
+  };
+
   return (
     <div>
       <SectionHead title="Companies" desc="Every customer workspace on the platform.">
         <label className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies" className="pl-9 pr-3 py-2 rounded-xl text-sm w-56" style={{ border: "1px solid var(--line)", background: "#fff" }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies" className="pl-9 pr-3 h-11 rounded-xl text-sm w-56" style={{ border: "1px solid var(--line)", background: "#fff" }} />
         </label>
       </SectionHead>
       <PrivacyNote>Candidate records are counted here but their resumes and personal data are <strong>not accessible</strong> from the admin portal.</PrivacyNote>
-      <TableShell head={["Company", "Plan", "Status", "Seats", "Active jobs", "Candidates", "Region", "Actions"]}>
-        {rows.map((c) => (
-          <tr key={c.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
-            <Td><div className="font-semibold text-neutral-900">{c.name}</div><div className="text-xs" style={{ color: "var(--ink-3)" }}>Owner: {c.owner}</div></Td>
-            <Td><Badge tone={c.plan === "Enterprise" ? "brand" : "ink"}>{c.plan}</Badge></Td>
-            <Td><StatusBadge value={c.status} /></Td>
-            <Td className="tnum">{c.seats}</Td>
-            <Td className="tnum">{c.activeJobs}</Td>
-            <Td><span className="inline-flex items-center gap-1.5 tnum"><span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>{c.candidates.toLocaleString()}</span></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{c.region}</Td>
-            <Td>
-              {c.status === "suspended"
-                ? <ActionBtn icon="refresh" disabled={!can(role, "company.restore")} onClick={() => setStatus(c, "active", "Restored company")}>Restore</ActionBtn>
-                : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "company.suspend")} onClick={() => setStatus(c, "suspended", "Suspended company")}>Suspend</ActionBtn>}
-            </Td>
-          </tr>
-        ))}
+      <TableShell head={["Company", "Plan", "Status", "Seats", "Active jobs", "Candidates", "AI this month", "Actions"]}>
+        {rows.map((c) => {
+          const u = usage.find((x) => x.companyId === c.id);
+          const cost = costOf(c.id);
+          return (
+            <tr key={c.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+              <Td>
+                <div className="font-semibold text-neutral-900">{c.name}</div>
+                <div className="text-xs" style={{ color: "var(--ink-3)" }}>{c.owner || "No owner on record"}</div>
+              </Td>
+              <Td><Badge tone={c.plan === "Enterprise" ? "brand" : "ink"}>{c.plan}</Badge></Td>
+              <Td><StatusBadge value={c.status} /></Td>
+              <Td className="tnum">{c.seats}</Td>
+              <Td className="tnum">{c.activeJobs}</Td>
+              <Td><span className="inline-flex items-center gap-1.5 tnum"><span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>{c.candidates.toLocaleString()}</span></Td>
+              <Td>
+                <div className="tnum font-semibold" style={{ color: "var(--ink)" }}>
+                  {priced ? ringgit2(cost) : "—"}
+                </div>
+                <div className="text-xs tnum" style={{ color: "var(--ink-3)" }}>
+                  {u ? `${u.total.toLocaleString()} AI ${u.total === 1 ? "action" : "actions"}` : "no usage"}
+                </div>
+              </Td>
+              <Td>
+                {c.status === "suspended"
+                  ? <ActionBtn icon="refresh" disabled={!can(role, "company.restore")} onClick={() => setDialog({ company: c, mode: "restore" })}>Restore</ActionBtn>
+                  : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "company.suspend")} onClick={() => setDialog({ company: c, mode: "suspend" })}>Suspend</ActionBtn>}
+              </Td>
+            </tr>
+          );
+        })}
       </TableShell>
+      {!priced && (
+        <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>
+          AI cost shows a dash until the per-action rates are set under AI costs.
+        </p>
+      )}
+      {dialog && <StatusDialog company={dialog.company} mode={dialog.mode} planPrices={planPrices} onClose={() => setDialog(null)} onConfirm={apply} />}
+    </div>
+  );
+}
+// Blocking or unblocking a person's access, and sending them a reset email, are
+// both things you want to be sure about before they happen. One dialog covers
+// all three, naming the consequence rather than just the verb.
+function UserActionDialog({ user, company, mode, onClose, onConfirm }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const meta = {
+    block:   { icon: "ban",     tint: "var(--danger-soft)", fg: "var(--danger)", title: "Block access for", cta: "Block access", btn: "var(--danger)",
+               body: "They are signed out and cannot sign back in until you unblock them. Their account, assignments and history are kept.",
+               points: ["Cannot sign in to the workspace", "Stays on the team list, marked suspended", "Nothing is deleted"] },
+    unblock: { icon: "refresh", tint: "var(--t-mint)",      fg: "#166534",       title: "Restore access for", cta: "Unblock", btn: "var(--brand)",
+               body: "They can sign in again immediately, with the same role and assignments they had before.",
+               points: ["Can sign in straight away", "Role and assignments unchanged"] },
+    reset:   { icon: "mail",    tint: "var(--brand-soft)",  fg: "var(--brand)",  title: "Send a password reset to", cta: "Send reset email", btn: "var(--brand)",
+               body: "Aster emails them a reset link. Nobody here sees or sets the password, and their current one keeps working until they use the link.",
+               points: ["Sent to the address below", "Link expires on its own", "Their session is not ended"] },
+  }[mode];
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, busy]);
+
+  const go = async () => {
+    setBusy(true); setErr("");
+    const problem = await onConfirm(user, mode);
+    setBusy(false);
+    if (problem) setErr(problem); else onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }}
+      onClick={() => !busy && onClose()} role="dialog" aria-modal="true">
+      <div className="adm-pop w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+        style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 sm:p-7">
+          <span className="w-12 h-12 rounded-2xl inline-flex items-center justify-center" style={{ background: meta.tint, color: meta.fg }}>
+            <Icon name={meta.icon} className="w-5 h-5" />
+          </span>
+          <h2 className="text-lg font-bold adm-display text-neutral-900 mt-4 leading-snug">{meta.title} {user.name}?</h2>
+          <p className="text-xs mt-1 tnum" style={{ color: "var(--ink-3)" }}>{user.email} · {company} · {user.role}</p>
+          <p className="text-sm mt-3" style={{ color: "var(--ink-2)" }}>{meta.body}</p>
+          <ul className="mt-3 space-y-1.5">
+            {meta.points.map((p) => (
+              <li key={p} className="flex items-start gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
+                <span className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ background: "var(--ink-3)" }} />{p}
+              </li>
+            ))}
+          </ul>
+          {err && (
+            <p className="flex items-start gap-2 text-sm mt-4 rounded-xl px-3 py-2.5" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
+              <Icon name="warning" className="w-4 h-4 shrink-0 mt-0.5" /> {err}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 sm:px-7 py-4" style={{ background: "var(--app-bg)" }}>
+          <button onClick={onClose} disabled={busy} className="h-11 px-5 rounded-xl text-sm font-semibold bg-white"
+            style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+          <button onClick={go} disabled={busy} autoFocus
+            className="h-11 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+            style={{ background: meta.btn }}>{busy ? "Working…" : meta.cta}</button>
+        </div>
+      </div>
     </div>
   );
 }
 
 function Users({ role, companies, users, setUsers, audit, onAction }) {
   const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
-  const setStatus = async (u, status, action) => {
-    setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status } : x));       // optimistic
-    const err = await onAction("admin_set_user_status", { p_profile: u.id, p_active: status === "active" }, action, u.email);
-    if (err) setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status: u.status } : x));   // rollback
+  const [q, setQ] = useState("");
+  const [company, setCompany] = useState("all");
+  const [userRole, setUserRole] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [dialog, setDialog] = useState(null);      // { user, mode }
+  const [toast, setToast] = useState("");
+
+  const roles = [...new Set(users.map((u) => u.role).filter(Boolean))].sort();
+  const term = q.trim().toLowerCase();
+  const rows = users.filter((u) =>
+    (!term || `${u.name} ${u.email}`.toLowerCase().includes(term)) &&
+    (company === "all" || u.companyId === company) &&
+    (userRole === "all" || u.role === userRole) &&
+    (status === "all" || u.status === status));
+
+  // One place for all three actions, so each reports its own failure.
+  const run = async (u, mode) => {
+    if (mode === "reset") {
+      const err = await onAction("__reset_password__", { email: u.email }, "Sent password reset", u.email);
+      if (err) return err;
+      setToast(`Reset email sent to ${u.email}.`);
+      return null;
+    }
+    const next = mode === "block" ? "suspended" : "active";
+    setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status: next } : x));   // optimistic
+    const err = await onAction("admin_set_user_status", { p_profile: u.id, p_active: next === "active" },
+      mode === "block" ? "Blocked user access" : "Restored user access", u.email);
+    if (err) {
+      setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status: u.status } : x));   // rollback
+      return err;
+    }
+    setToast(mode === "block" ? `${u.name} can no longer sign in.` : `${u.name} can sign in again.`);
+    return null;
   };
-  const resetPassword = async (u) => {
-    await onAction("__reset_password__", { email: u.email }, "Reset user password", u.email);
-  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const select = "h-11 rounded-xl px-3 pr-8 text-sm bg-white appearance-none";
+  const selectStyle = { border: "1px solid var(--line)", color: "var(--ink-2)" };
+
   return (
     <div>
       <SectionHead title="User management" desc="Company user accounts (recruiters, admins, interviewers). These are customer team members, not candidates." />
       <PrivacyNote>These are <strong>company users</strong>, separate from admin accounts and from candidates. Candidate/applicant records are never listed here.</PrivacyNote>
-      <TableShell head={["User", "Company", "Role", "Status", "Last active", "Actions"]}>
-        {users.map((u) => (
-          <tr key={u.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
-            <Td><div className="font-semibold text-neutral-900">{u.name}</div><div className="text-xs" style={{ color: "var(--ink-3)" }}>{u.email}</div></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{cName(u.companyId)}</Td>
-            <Td><Badge tone={u.role === "Owner" ? "brand" : "ink"}>{u.role}</Badge></Td>
-            <Td><StatusBadge value={u.status} /></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{u.lastActive}</Td>
-            <Td>
-              <div className="flex gap-2">
-                <ActionBtn icon="key" disabled={!can(role, "user.reset")} onClick={() => resetPassword(u)}>Reset password</ActionBtn>
-                {u.status === "suspended"
-                  ? <ActionBtn icon="refresh" disabled={!can(role, "user.deactivate")} onClick={() => setStatus(u, "active", "Reactivated user")}>Reactivate</ActionBtn>
-                  : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "user.deactivate")} onClick={() => setStatus(u, "suspended", "Deactivated user")}>Deactivate</ActionBtn>}
-              </div>
-            </Td>
-          </tr>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <label className="relative flex-1 min-w-[220px]">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email"
+            className="w-full pl-9 pr-3 h-11 rounded-xl text-sm bg-white" style={{ border: "1px solid var(--line)" }} />
+        </label>
+        {[
+          { v: company, set: setCompany, all: "All companies", opts: companies.map((c) => [c.id, c.name]) },
+          { v: userRole, set: setUserRole, all: "All roles", opts: roles.map((r) => [r, r]) },
+          { v: status, set: setStatus, all: "All statuses", opts: [["active", "Active"], ["suspended", "Blocked"], ["invited", "Invited"]] },
+        ].map((f, i) => (
+          <div key={i} className="relative">
+            <select value={f.v} onChange={(e) => f.set(e.target.value)} className={select} style={selectStyle}>
+              <option value="all">{f.all}</option>
+              {f.opts.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+            </select>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--ink-3)" }}><Icon name="chevronDown" className="w-3.5 h-3.5" /></span>
+          </div>
         ))}
-      </TableShell>
+        {(term || company !== "all" || userRole !== "all" || status !== "all") && (
+          <button onClick={() => { setQ(""); setCompany("all"); setUserRole("all"); setStatus("all"); }}
+            className="h-11 px-4 rounded-xl text-sm font-semibold" style={{ color: "var(--brand)" }}>Clear</button>
+        )}
+        <span className="text-xs tnum ml-auto" style={{ color: "var(--ink-3)" }}>{rows.length} of {users.length}</span>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <p className="text-sm" style={{ color: "var(--ink-3)" }}>No users match those filters.</p>
+        </div>
+      ) : (
+        <TableShell head={["User", "Company", "Role", "Access", "Last active", "Actions"]}>
+          {rows.map((u) => (
+            <tr key={u.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+              <Td><div className="font-semibold text-neutral-900">{u.name}</div><div className="text-xs" style={{ color: "var(--ink-3)" }}>{u.email}</div></Td>
+              <Td style={{ color: "var(--ink-2)" }}>{cName(u.companyId)}</Td>
+              <Td><Badge tone={u.role === "Owner" ? "brand" : "ink"}>{u.role}</Badge></Td>
+              <Td>{u.status === "suspended" ? <Badge tone="danger" dot>blocked</Badge> : <StatusBadge value={u.status} />}</Td>
+              <Td>
+                {u.lastActive
+                  ? <span style={{ color: "var(--ink-2)" }}>{u.lastActive}</span>
+                  : <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+                      {u.joined ? `Joined ${u.joined}, not seen since` : "Never signed in"}
+                    </span>}
+              </Td>
+              <Td>
+                <div className="flex gap-2">
+                  <ActionBtn icon="mail" disabled={!can(role, "user.reset")} onClick={() => setDialog({ user: u, mode: "reset" })}>Reset password</ActionBtn>
+                  {u.status === "suspended"
+                    ? <ActionBtn icon="refresh" disabled={!can(role, "user.deactivate")} onClick={() => setDialog({ user: u, mode: "unblock" })}>Unblock</ActionBtn>
+                    : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "user.deactivate")} onClick={() => setDialog({ user: u, mode: "block" })}>Block access</ActionBtn>}
+                </div>
+              </Td>
+            </tr>
+          ))}
+        </TableShell>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 adm-pop flex items-center gap-2.5 px-4 py-3 rounded-2xl text-sm font-medium text-white"
+          role="status" aria-live="polite" style={{ background: "var(--pill)", boxShadow: "0 20px 50px -20px rgba(15,27,51,.6)" }}>
+          <Icon name="check" className="w-4 h-4" /> {toast}
+        </div>
+      )}
+      {dialog && (
+        <UserActionDialog user={dialog.user} company={cName(dialog.user.companyId)} mode={dialog.mode}
+          onClose={() => setDialog(null)} onConfirm={run} />
+      )}
+    </div>
+  );
+}
+// Monthly price of a plan in ringgit, from the live Stripe prices. A yearly
+// subscription contributes a twelfth of its price per month.
+function planMonthlyMYR(plan, cycle, planPrices) {
+  const key = String(plan || "").toLowerCase();
+  if (!planPrices || !key || key === "enterprise") return null;
+  const p = planPrices[`${key}|${cycle === "yearly" ? "yearly" : "monthly"}`] || planPrices[`${key}|monthly`];
+  const sen = p?.currencies?.myr ?? (String(p?.currency || "").toLowerCase() === "myr" ? p.amount : null);
+  if (sen == null) return null;
+  return (p.interval === "year" ? sen / 12 : sen) / 100;
+}
+
+// Upgrade and downgrade are different decisions with different consequences, so
+// they get one flow that names which is happening and spells out the effect.
+// Direction comes from the plan order, not from the button that opened it.
+function PlanChangeDialog({ sub, company, planPrices, onClose, onConfirm }) {
+  const [plan, setPlan] = useState(sub.plan);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, busy]);
+
+  const rank = (p) => PLAN_ORDER.indexOf(p);
+  const direction = plan === sub.plan ? "same" : rank(plan) > rank(sub.plan) ? "up" : "down";
+  const nowPrice = planMonthlyMYR(sub.plan, sub.cycle, planPrices);
+  const nextPrice = planMonthlyMYR(plan, sub.cycle, planPrices);
+  const delta = nowPrice != null && nextPrice != null ? nextPrice - nowPrice : null;
+
+  // What actually tightens on a downgrade, from the limits the app enforces.
+  const limitDrops = (() => {
+    if (direction !== "down") return [];
+    const from = PLAN_LIMITS[sub.plan.toLowerCase()] || {};
+    const to = PLAN_LIMITS[plan.toLowerCase()] || {};
+    const named = [
+      { f: "maxJobs", l: "Active jobs" },
+      { f: "parseApplicant", l: "Applicant screenings" },
+      { f: "resumeUploads", l: "Resume screenings" },
+      { f: "aiRunsPerMonth", l: "AI rank" },
+      { f: "aiInsightsPerMonth", l: "AI insight" },
+      { f: "interviewQuestionsPerMonth", l: "Interview questions" },
+    ];
+    const fmt = (v) => (Number.isFinite(v) ? v.toLocaleString() : "∞");
+    return named.filter(({ f }) => (to[f] ?? 0) < (from[f] ?? 0)).map(({ f, l }) => `${l}: ${fmt(from[f])} → ${fmt(to[f])}`);
+  })();
+
+  const go = async () => {
+    setBusy(true); setErr("");
+    const problem = await onConfirm(sub, plan);
+    setBusy(false);
+    if (problem) setErr(problem); else onClose();
+  };
+
+  const verb = direction === "up" ? "Upgrade" : direction === "down" ? "Downgrade" : "Change plan";
+  const tone = direction === "down" ? "var(--warn)" : "var(--brand)";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }}
+      onClick={() => !busy && onClose()} role="dialog" aria-modal="true" aria-label={`Change plan for ${company}`}>
+      <div className="adm-pop w-full sm:max-w-lg rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+        style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+
+        <div className="p-6 sm:p-7">
+          <div className="flex items-start gap-4">
+            <span className="w-12 h-12 rounded-2xl inline-flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="card" className="w-5 h-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-bold adm-display text-neutral-900 leading-snug">Change plan</h2>
+              <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
+                {company} is on <strong>{sub.plan}</strong>, billed {sub.cycle}
+                {nowPrice != null && <> at <span className="tnum">{ringgit(nowPrice)}/mo</span></>}.
+              </p>
+            </div>
+            <button onClick={onClose} disabled={busy} aria-label="Close"
+              className="w-9 h-9 rounded-full grid place-items-center shrink-0 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+
+          <fieldset className="mt-6">
+            <legend className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: "var(--ink-3)" }}>Move to</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Enterprise is negotiated by hand, so it is only offered to a
+                  workspace already on it. */}
+              {PLAN_ORDER.filter((p) => p !== "Enterprise" || sub.plan === "Enterprise").map((p) => {
+                const on = plan === p;
+                const price = planMonthlyMYR(p, sub.cycle, planPrices);
+                const dir = p === sub.plan ? null : rank(p) > rank(sub.plan) ? "Upgrade" : "Downgrade";
+                return (
+                  <button key={p} type="button" onClick={() => setPlan(p)} aria-pressed={on}
+                    className="text-left rounded-2xl px-4 py-3 transition-colors"
+                    style={{ background: on ? "var(--brand-soft)" : "#fff", border: `1.5px solid ${on ? "var(--brand)" : "var(--line-strong)"}` }}>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{p}</span>
+                      {on && <Icon name="check" className="w-4 h-4" />}
+                    </span>
+                    <span className="block text-[11px] mt-0.5 tnum" style={{ color: "var(--ink-3)" }}>
+                      {p === sub.plan ? "Current plan" : price != null ? `${ringgit(price)}/mo · ${dir}` : p === "Enterprise" ? "Custom priced" : dir}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {direction !== "same" && (
+            <div className="mt-4 rounded-2xl px-4 py-3" style={{ background: "var(--app-bg)" }}>
+              <p className="text-sm font-semibold" style={{ color: tone }}>
+                {verb} to {plan}
+                {delta != null && delta !== 0 && (
+                  <span className="tnum font-normal" style={{ color: "var(--ink-2)" }}>
+                    {" "}· {delta > 0 ? "+" : "−"}{ringgit(Math.abs(delta))}/mo
+                  </span>
+                )}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>
+                {direction === "up"
+                  ? "Higher allowances apply immediately. Billing follows on the next invoice from the payment processor."
+                  : "Lower allowances apply immediately. Work already done is kept, but new AI actions stop once the smaller allowance is used up."}
+              </p>
+              {limitDrops.length > 0 && (
+                <ul className="mt-2.5 space-y-1">
+                  {limitDrops.map((l) => (
+                    <li key={l} className="flex items-start gap-2 text-xs tnum" style={{ color: "var(--warn)" }}>
+                      <Icon name="warning" className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {l}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {err && (
+            <p className="flex items-start gap-2 text-sm mt-4 rounded-xl px-3 py-2.5" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
+              <Icon name="warning" className="w-4 h-4 shrink-0 mt-0.5" /> {err}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 sm:px-7 py-4" style={{ background: "var(--app-bg)" }}>
+          <button onClick={onClose} disabled={busy}
+            className="h-11 px-5 rounded-xl text-sm font-semibold bg-white transition-colors hover:bg-neutral-50"
+            style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+          <button onClick={go} disabled={busy || direction === "same"} autoFocus
+            className="h-11 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+            style={{ background: direction === "down" ? "var(--warn)" : "var(--brand)" }}>
+            {busy ? "Working…" : direction === "same" ? "Pick a different plan" : `${verb} to ${plan}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function Subscriptions({ role, companies, subs, setSubs, audit, onAction }) {
+function MarginPanel({ companies, usage, aiCosts, planPrices }) {
+  // What each workspace pays us against what its AI cost this month. Enterprise
+  // is custom-priced with no Stripe figure, so its revenue is unknown rather
+  // than guessed, and it is left out of the totals.
+  const margins = companies.map((c) => {
+    const cost = aiCostFor(usage.find((u) => u.companyId === c.id), aiCosts);
+    const rev = c.status === "active" ? planMonthlyMYR(c.plan, c.cycle, planPrices) : 0;
+    return { ...c, cost, rev, margin: rev == null ? null : rev - cost, known: rev != null };
+  });
+  const knownMargins = margins.filter((m) => m.known);
+  const losing = knownMargins.filter((m) => m.margin < 0).sort((a, b) => a.margin - b.margin);
+  const worst = [...knownMargins].sort((a, b) => a.margin - b.margin).slice(0, 6);
+  const netMargin = knownMargins.reduce((s, m) => s + m.margin, 0);
+  const costed = aiCosts && Object.values(aiCosts).some((v) => v > 0);
+  // Every figure is meaningless at a zero rate, so say that instead of showing it.
+  if (!costed) return null;
+  return (
+      <Tile className="mt-4">
+        <TileHead
+          title="Margin by workspace"
+          right={<span className="text-xs tnum" style={{ color: netMargin < 0 ? "var(--c-risk)" : "var(--ink-3)" }}>
+            Net {ringgit2(netMargin)}/mo
+          </span>} />
+        {losing.length > 0 && (
+          <div className="flex items-start gap-2.5 rounded-2xl px-4 py-3 mb-4" style={{ background: "var(--danger-soft)" }}>
+            <span style={{ color: "var(--danger)" }} className="shrink-0 mt-0.5"><Icon name="warning" className="w-4 h-4" /></span>
+            <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+              <strong style={{ color: "var(--danger)" }}>{losing.length} {losing.length === 1 ? "workspace costs" : "workspaces cost"} more than they pay.</strong>{" "}
+              {losing.slice(0, 3).map((m) => m.name).join(", ")}{losing.length > 3 ? " and others" : ""}.
+            </p>
+          </div>
+        )}
+        <ul className="divide-y" style={{ borderColor: "var(--line)" }}>
+          {worst.map((m) => (
+            <li key={m.id} className="flex flex-wrap items-center gap-3 py-2.5 first:pt-0">
+              <span className="font-semibold text-neutral-900 min-w-0 flex-1 truncate">{m.name}</span>
+              <span className="text-xs tnum" style={{ color: "var(--ink-3)" }}>
+                pays {ringgit2(m.rev)} · costs {ringgit2(m.cost)}
+              </span>
+              <span className="text-sm font-bold tnum w-24 text-right" style={{ color: m.margin < 0 ? "var(--c-risk)" : "var(--ok)" }}>
+                {m.margin < 0 ? "−" : ""}{ringgit2(Math.abs(m.margin))}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {margins.some((m) => !m.known) && (
+          <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+            {margins.filter((m) => !m.known).length} Enterprise {margins.filter((m) => !m.known).length === 1 ? "workspace is" : "workspaces are"} custom-priced,
+            so their revenue is unknown and they are left out of the net figure. Their AI cost still shows on Usage monitoring.
+          </p>
+        )}
+      </Tile>
+  );
+}
+
+function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCosts, audit, onAction }) {
   const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
-  const total = subs.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0);
+  const [dialog, setDialog] = useState(null);
+  const allowed = can(role, "subscription.change");
+
+  const mrrOf = (s) => (s.status === "active" ? planMonthlyMYR(s.plan, s.cycle, planPrices) : null);
+  const total = subs.reduce((a, s) => a + (mrrOf(s) || 0), 0);
+
   const change = async (sub, plan) => {
     setSubs((ss) => ss.map((x) => x.companyId === sub.companyId ? { ...x, plan } : x));   // optimistic
-    const err = await onAction("admin_change_plan", { p_company: sub.companyId, p_plan: ADMIN_PLAN_KEY[plan] || plan.toLowerCase() }, "Changed subscription plan", plan);
-    if (err) setSubs((ss) => ss.map((x) => x.companyId === sub.companyId ? { ...x, plan: sub.plan } : x));   // rollback
+    const err = await onAction("admin_change_plan", { p_company: sub.companyId, p_plan: plan.toLowerCase() },
+      "Changed subscription plan", `${cName(sub.companyId)} → ${plan}`);
+    if (err) {
+      setSubs((ss) => ss.map((x) => x.companyId === sub.companyId ? { ...x, plan: sub.plan } : x));   // rollback
+      return err;
+    }
+    return null;
   };
+
   return (
     <div>
       <SectionHead title="Subscriptions" desc="Plans, billing status and revenue by workspace.">
-        <div className="text-right"><p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p><p className="text-lg font-bold adm-display tnum" style={{ color: "var(--ok)" }}>{money(total)}</p></div>
+        <div className="text-right">
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p>
+          <p className="text-lg font-bold adm-display tnum" style={{ color: "var(--ok)" }}>
+            {planPrices ? ringgit(total) : "—"}
+          </p>
+        </div>
       </SectionHead>
       <PrivacyNote>Aster does <strong>not store or display card details</strong>. Payment methods are held by the payment processor; only plan and status are shown here.</PrivacyNote>
-      <TableShell head={["Company", "Plan", "Cycle", "Status", "MRR", "Renews", "Payment method", "Actions"]}>
-        {subs.map((s) => (
-          <tr key={s.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
-            <Td className="font-semibold text-neutral-900">{cName(s.companyId)}</Td>
-            <Td><Badge tone={s.plan === "Enterprise" ? "brand" : "ink"}>{s.plan}</Badge></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{s.cycle}</Td>
-            <Td><StatusBadge value={s.status} /></Td>
-            <Td className="tnum">{money(s.mrr)}</Td>
-            <Td style={{ color: "var(--ink-2)" }}>{s.renews}</Td>
-            <Td><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> On file (processor)</span></Td>
-            <Td>
-              {s.plan !== "Enterprise"
-                ? <ActionBtn icon="arrowUpRight" disabled={!can(role, "subscription.change")} onClick={() => change(s, "Enterprise")}>Upgrade</ActionBtn>
-                : <ActionBtn disabled={!can(role, "subscription.change")} icon="refresh" onClick={() => change(s, "Scale")}>Change plan</ActionBtn>}
-            </Td>
-          </tr>
-        ))}
+      <TableShell head={["Company", "Plan", "Cycle", "Status", "Monthly", "Renews", "Payment method", "Actions"]}>
+        {subs.map((s) => {
+          const monthly = planMonthlyMYR(s.plan, s.cycle, planPrices);
+          return (
+            <tr key={s.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+              <Td className="font-semibold text-neutral-900">{cName(s.companyId)}</Td>
+              <Td><Badge tone={s.plan === "Enterprise" ? "brand" : "ink"}>{s.plan}</Badge></Td>
+              <Td style={{ color: "var(--ink-2)" }}>{s.cycle}</Td>
+              <Td><StatusBadge value={s.status} /></Td>
+              <Td className="tnum">
+                {monthly == null
+                  ? <span style={{ color: "var(--ink-3)" }}>{s.plan === "Enterprise" ? "Custom" : "—"}</span>
+                  : <>
+                      <span style={{ color: s.status === "active" ? "var(--ink)" : "var(--ink-3)" }}>{ringgit(monthly)}</span>
+                      {s.status !== "active" && <div className="text-[11px]" style={{ color: "var(--ink-3)" }}>not billing yet</div>}
+                    </>}
+              </Td>
+              <Td style={{ color: "var(--ink-2)" }}>{s.renews}</Td>
+              <Td><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> On file (processor)</span></Td>
+              <Td>
+                <ActionBtn icon="refresh" disabled={!allowed} onClick={() => setDialog(s)}>Change plan</ActionBtn>
+              </Td>
+            </tr>
+          );
+        })}
       </TableShell>
+      {!planPrices && (
+        <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>Prices are still loading from Stripe.</p>
+      )}
+      <MarginPanel companies={companies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} />
+      {dialog && (
+        <PlanChangeDialog sub={dialog} company={cName(dialog.companyId)} planPrices={planPrices}
+          onClose={() => setDialog(null)} onConfirm={change} />
+      )}
+    </div>
+  );
+}
+function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
+  const [sort, setSort] = useState("cost");
+  const priced = aiCosts && Object.values(aiCosts).some((v) => v > 0);
+
+  const rows = usage.map((u) => ({ ...u, cost: aiCostFor(u, aiCosts) }));
+  rows.sort((a, b) => (sort === "cost" ? b.cost - a.cost || b.total - a.total : b.total - a.total));
+
+  const totals = AI_KINDS.reduce((m, k) => ({ ...m, [k.key]: rows.reduce((s, r) => s + (r[k.key] || 0), 0) }), {});
+  const grandActions = rows.reduce((s, r) => s + r.total, 0);
+  const grandCost = rows.reduce((s, r) => s + r.cost, 0);
+  const active = rows.filter((r) => r.total > 0).length;
+  const maxCost = Math.max(1, ...rows.map((r) => r.cost));
+
+  return (
+    <div>
+      <SectionHead title="Usage monitoring" desc="AI actions per workspace and what they cost, by month.">
+        <label className="relative">
+          <select value={period} onChange={(e) => onPeriod(e.target.value)}
+            className="appearance-none h-11 pl-4 pr-9 rounded-xl text-sm font-medium bg-white" style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+            {periods.map((p) => <option key={p} value={p}>{monthLabel(p)}</option>)}
+          </select>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--ink-3)" }}><Icon name="chevronDown" className="w-3.5 h-3.5" /></span>
+        </label>
+      </SectionHead>
+      <PrivacyNote>Usage is <strong>aggregate only</strong>. Individual candidate data and resumes are never exposed through monitoring.</PrivacyNote>
+
+      {/* Month at a glance */}
+      <div className="grid gap-3 sm:grid-cols-3 mb-4">
+        <Tile pad="p-5">
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>AI cost this month</p>
+          <p className="text-3xl font-bold adm-display tnum mt-1" style={{ color: "var(--ink)" }}>{priced ? ringgit2(grandCost) : "—"}</p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>
+            {priced ? "Usage times the rates you set" : "Set the rates under AI costs"}
+          </p>
+        </Tile>
+        <Tile pad="p-5">
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>AI actions</p>
+          <p className="text-3xl font-bold adm-display tnum mt-1" style={{ color: "var(--ink)" }}>{grandActions.toLocaleString()}</p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>{active} of {rows.length} workspaces active</p>
+        </Tile>
+        <Tile pad="p-5">
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>Cost per action</p>
+          <p className="text-3xl font-bold adm-display tnum mt-1" style={{ color: "var(--ink)" }}>
+            {priced && grandActions ? ringgit2(grandCost / grandActions) : "—"}
+          </p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>Blended across all action types</p>
+        </Tile>
+      </div>
+
+      {/* Where the actions went */}
+      <Tile className="mb-4">
+        <TileHead title="By action type" right={<span className="text-xs" style={{ color: "var(--ink-3)" }}>{monthLabel(period)}</span>} />
+        <div className="grid gap-3 sm:grid-cols-5">
+          {AI_KINDS.map((k) => {
+            const n = totals[k.key] || 0;
+            const share = pct(n, grandActions || 1);
+            return (
+              <div key={k.key} className="rounded-2xl p-4" style={{ background: "var(--app-bg)" }}>
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>{k.label}</p>
+                <p className="text-xl font-bold adm-display tnum mt-1" style={{ color: "var(--ink)" }}>{n.toLocaleString()}</p>
+                <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "#fff" }}>
+                  <div className="h-full rounded-full" style={{ width: `${share}%`, background: "#A9C0F5" }} />
+                </div>
+                <p className="text-[11px] mt-1.5 tnum" style={{ color: "var(--ink-3)" }}>
+                  {share}%{priced && ` · ${ringgit2((n * (aiCosts[k.key] || 0)) / 100)}`}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Tile>
+
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="text-sm font-bold" style={{ color: "var(--ink-2)" }}>Per workspace</h3>
+        <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
+          {[{ k: "cost", l: "By cost" }, { k: "actions", l: "By actions" }].map((s) => (
+            <button key={s.k} onClick={() => setSort(s.k)} aria-pressed={sort === s.k}
+              className="h-8 px-3.5 rounded-full text-xs font-semibold"
+              style={{ background: sort === s.k ? "#fff" : "transparent", color: sort === s.k ? "var(--brand)" : "var(--ink-2)" }}>{s.l}</button>
+          ))}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <p className="text-sm" style={{ color: "var(--ink-3)" }}>No workspaces to report on.</p>
+        </div>
+      ) : (
+        <TableShell head={["Workspace", "Plan", ...AI_KINDS.map((k) => k.label), "Actions", "Cost"]}>
+          {rows.map((u) => (
+            <tr key={u.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+              <Td className="font-semibold text-neutral-900">{u.name}</Td>
+              <Td><Badge tone={u.plan === "Enterprise" ? "brand" : "ink"}>{u.plan}</Badge></Td>
+              {AI_KINDS.map((k) => (
+                <Td key={k.key}><UsageCell used={u[k.key] || 0} allowance={allowanceFor(u.plan, k.key)} /></Td>
+              ))}
+              <Td className="tnum font-semibold">{u.total.toLocaleString()}</Td>
+              <Td>
+                <div className="flex items-center gap-2 min-w-[120px]">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#EEF2FB" }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct(u.cost, maxCost)}%`, background: "#A9C0F5" }} />
+                  </div>
+                  <span className="text-xs tnum font-semibold shrink-0" style={{ color: "var(--ink)" }}>{priced ? ringgit2(u.cost) : "—"}</span>
+                </div>
+              </Td>
+            </tr>
+          ))}
+        </TableShell>
+      )}
+      <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>
+        Each figure is usage against that plan's monthly allowance. A bar can pass its
+        allowance because purchased top-up credits are not capped by the plan.
+      </p>
+      {!priced && (
+        <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
+          Costs read as a dash until an admin sets the per-action rates under AI costs.
+          {role === "support" && " Your role can see usage but not edit the rates."}
+        </p>
+      )}
     </div>
   );
 }
 
-function Usage({ role, companies, usage }) {
-  const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
+// Rates editor. Sen per AI action, so a fraction of a sen per call is expressible.
+function AiCosts({ role, rates, setRates, usage, audit }) {
+  const editable = can(role, "aicost.edit");
+  // Only what the admin has typed is held in state. Everything else reads
+  // straight from `rates`, which arrives after this screen first renders: a
+  // copy taken at mount would show zeros forever and let a Save overwrite a
+  // real rate with 0.
+  const [edits, setEdits] = useState({});
+  const [saving, setSaving] = useState("");
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  const loaded = rates != null;
+  const shown = (kind) => edits[kind] ?? (loaded ? String(rates[kind] ?? 0) : "");
+  const dirty = (kind) => edits[kind] != null && Number(edits[kind]) !== Number(rates?.[kind] ?? 0);
+
+  const monthTotals = AI_KINDS.reduce((m, k) => ({ ...m, [k.key]: usage.reduce((s, u) => s + (u[k.key] || 0), 0) }), {});
+  const projected = AI_KINDS.reduce((s, k) => s + (monthTotals[k.key] || 0) * (Number(shown(k.key)) || 0), 0) / 100;
+
+  const save = async (kind) => {
+    const v = Number(shown(kind));
+    setErr(""); setMsg("");
+    if (!Number.isFinite(v) || v < 0) { setErr("Enter a rate of zero or more."); return; }
+    setSaving(kind);
+    if (hasSupabase) {
+      const { error } = await supabase.rpc("set_ai_unit_cost", { p_kind: kind, p_cost_sen: v });
+      if (error) { setSaving(""); setErr(error.message || "Could not save."); return; }
+    }
+    setSaving("");
+    setRates((r) => ({ ...(r || {}), [kind]: v }));
+    // Drop the edit so the field falls back to the stored rate from here on.
+    setEdits((e) => { const next = { ...e }; delete next[kind]; return next; });
+    audit("Set AI unit cost", `${kind} = ${v} sen`);
+    setMsg("Saved. Every cost figure in the console now uses this rate.");
+  };
+
   return (
     <div>
-      <SectionHead title="Usage monitoring" desc="Aggregate consumption against plan limits. No candidate content is shown." />
-      <PrivacyNote>Usage is <strong>aggregate only</strong>. Individual candidate data and resumes are never exposed through monitoring.</PrivacyNote>
-      <TableShell head={["Company", "Resume screening", "AI match runs", "Active jobs", "API calls (30d)"]}>
-        {usage.map((u) => (
-          <tr key={u.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
-            <Td className="font-semibold text-neutral-900">{cName(u.companyId)}</Td>
-            <Td><Bar value={u.resumeParsing[0]} max={u.resumeParsing[1]} /></Td>
-            <Td><Bar value={u.aiRuns[0]} max={u.aiRuns[1]} tone="info" /></Td>
-            <Td><Bar value={u.activeJobs[0]} max={u.activeJobs[1]} tone="ok" /></Td>
-            <Td className="tnum" style={{ color: "var(--ink-2)" }}>{u.apiCalls.toLocaleString()}</Td>
-          </tr>
-        ))}
-      </TableShell>
+      <SectionHead title="AI costs" desc="What one AI action costs us, in sen. Usage times these rates is the cost shown on Companies and Usage monitoring." />
+      <PrivacyNote>
+        Nothing records model spend, so these figures are a <strong>stated rate, not a measurement</strong>. Set them from your provider invoice and revisit when model pricing changes.
+      </PrivacyNote>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2 grid gap-3">
+          {AI_KINDS.map((k) => {
+            const used = monthTotals[k.key] || 0;
+            const changed = dirty(k.key);
+            return (
+              <Tile key={k.key} pad="p-4 sm:p-5">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex-1 min-w-[180px]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-neutral-900">{k.label}</p>
+                      {/* Usage with a zero rate is the usual reason a cost reads
+                          RM 0.00, so say so where the rate is set. */}
+                      {loaded && used > 0 && !Number(shown(k.key)) && (
+                        <Badge tone="warn">rate not set</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs mt-0.5 tnum" style={{ color: "var(--ink-3)" }}>
+                      {used.toLocaleString()} this month · <code className="px-1 rounded" style={{ background: "var(--app-bg)" }}>{k.key}</code>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <input type="number" step="0.0001" min="0" value={shown(k.key)} disabled={!editable || !loaded}
+                        onChange={(e) => setEdits((d) => ({ ...d, [k.key]: e.target.value }))}
+                        placeholder={loaded ? "" : "…"}
+                        aria-label={`${k.label} cost in sen`}
+                        className="w-28 h-10 rounded-xl pl-3 pr-10 text-sm text-right bg-white disabled:opacity-60" style={{ border: "1px solid var(--line-strong)" }} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: "var(--ink-3)" }}>sen</span>
+                    </div>
+                    <button onClick={() => save(k.key)} disabled={!editable || saving === k.key || !changed}
+                      className="h-10 px-4 rounded-xl text-sm font-semibold text-white disabled:opacity-40" style={{ background: "var(--brand)" }}>
+                      {saving === k.key ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                  <div className="w-full sm:w-auto text-right tnum" style={{ minWidth: 110 }}>
+                    <p className="text-xs" style={{ color: "var(--ink-3)" }}>This month</p>
+                    <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{ringgit2((used * (Number(shown(k.key)) || 0)) / 100)}</p>
+                  </div>
+                </div>
+              </Tile>
+            );
+          })}
+          {err && <p className="text-sm" style={{ color: "var(--danger)" }}>{err}</p>}
+          {msg && <p className="text-sm" style={{ color: "var(--ok)" }}>{msg}</p>}
+          {!editable && <p className="text-xs" style={{ color: "var(--ink-3)" }}>Your role can view these rates but not change them.</p>}
+        </div>
+
+        <Tile>
+          <TileHead title="This month" />
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>Total AI cost at the rates above</p>
+          <p className="text-4xl font-bold adm-display tnum mt-1" style={{ color: "var(--ink)" }}>{ringgit2(projected)}</p>
+          <ul className="mt-5 space-y-2.5">
+            {AI_KINDS.map((k) => {
+              const line = ((monthTotals[k.key] || 0) * (Number(shown(k.key)) || 0)) / 100;
+              return (
+                <li key={k.key} className="flex items-center justify-between text-sm">
+                  <span className="truncate" style={{ color: "var(--ink-2)" }}>{k.label}</span>
+                  <span className="tnum shrink-0 ml-2" style={{ color: "var(--ink)" }}>{ringgit2(line)}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[11px] mt-4 pt-4" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>
+            Updates live as you type, before you save.
+          </p>
+        </Tile>
+      </div>
+    </div>
+  );
+}
+// One ticket as a card. Bodies run to hundreds of words (the marketing chat
+// pastes a whole transcript), so the preview is clamped to three lines and
+// opens on demand rather than stretching the page.
+function TicketCard({ t, company, canReply, onReply, onResolve }) {
+  const [open, setOpen] = useState(false);
+  const body = (t.note || "").trim();
+  const long = body.length > 180;
+  const tone = TONE[STATUS_TONE[t.priority] || "ink"];
+  return (
+    <div className="rounded-[20px] p-4 sm:p-5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+      <div className="flex flex-wrap items-start gap-3">
+        <span className="w-2.5 h-2.5 rounded-full mt-2 shrink-0" style={{ background: tone.fg }} title={`${t.priority} priority`} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-bold text-neutral-900">{t.subject}</h3>
+            <StatusBadge value={t.status} />
+            <Badge tone={STATUS_TONE[t.priority]}>{t.priority}</Badge>
+          </div>
+          <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--ink-3)" }}>
+            <span className="tnum font-semibold">{t.id}</span>
+            <span aria-hidden="true">·</span><span>{company}</span>
+            <span aria-hidden="true">·</span><span>{t.channel}</span>
+            <span aria-hidden="true">·</span><span>{t.updated}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {t.email && <ActionBtn icon="mail" disabled={!canReply} onClick={() => onReply(t)}>Reply</ActionBtn>}
+          {t.status !== "resolved" && <ActionBtn icon="check" disabled={!canReply} onClick={() => onResolve(t)}>Resolve</ActionBtn>}
+        </div>
+      </div>
+
+      {body && (
+        <div className="mt-3 rounded-2xl px-4 py-3" style={{ background: "var(--app-bg)" }}>
+          <p className={`text-sm whitespace-pre-wrap break-words ${open ? "" : "adm-clamp"}`} style={{ color: "var(--ink-2)" }}>{body}</p>
+          {long && (
+            <button onClick={() => setOpen((v) => !v)} className="text-xs font-semibold mt-2" style={{ color: "var(--brand)" }}
+              aria-expanded={open}>{open ? "Show less" : "Show full message"}</button>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 mt-3">
+        <Monogram label={t.requester} size={26} soft />
+        <span className="text-xs min-w-0 truncate" style={{ color: "var(--ink-2)" }}>
+          {t.requester}{t.email && <span style={{ color: "var(--ink-3)" }}> · {t.email}</span>}
+        </span>
+      </div>
     </div>
   );
 }
@@ -516,31 +1708,42 @@ function Support({ role, companies, tickets, onResolve, onReply }) {
   // mock company id, so fall back to a lookup.
   const cName = (t) => t.company || companies.find((c) => c.id === t.companyId)?.name || "—";
   const [replyTo, setReplyTo] = useState(null); // ticket currently being replied to
+  const [filter, setFilter] = useState("open");
   const canReply = can(role, "support.resolve");
+  const counts = {
+    open: tickets.filter((t) => t.status !== "resolved").length,
+    resolved: tickets.filter((t) => t.status === "resolved").length,
+    all: tickets.length,
+  };
+  const rows = tickets.filter((t) => filter === "all" || (filter === "open" ? t.status !== "resolved" : t.status === "resolved"));
+
   return (
     <div>
-      <SectionHead title="Support logs" desc="Customer support tickets and interactions." />
+      <SectionHead title="Support logs" desc="Customer support tickets and interactions.">
+        <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
+          {[{ k: "open", l: "Open" }, { k: "resolved", l: "Resolved" }, { k: "all", l: "All" }].map((f) => (
+            <button key={f.k} onClick={() => setFilter(f.k)} aria-pressed={filter === f.k}
+              className="h-9 px-4 rounded-full text-xs font-semibold transition-colors"
+              style={{ background: filter === f.k ? "#fff" : "transparent", color: filter === f.k ? "var(--brand)" : "var(--ink-2)", boxShadow: filter === f.k ? "0 1px 2px rgba(18,19,42,.10)" : "none" }}>
+              {f.l} <span className="tnum">{counts[f.k]}</span>
+            </button>
+          ))}
+        </div>
+      </SectionHead>
       <PrivacyNote>Where a ticket mentions a candidate, their name is <strong>masked</strong> (e.g. {maskName("Nurul Huda")}). Resumes are never attached or viewable.</PrivacyNote>
-      <TableShell head={["Ticket", "Company", "Subject", "Requester", "Channel", "Priority", "Status", "Actions"]}>
-        {tickets.map((t) => (
-          <tr key={t.id} className="adm-row align-top" style={{ borderBottom: "1px solid var(--line)" }}>
-            <Td className="font-semibold text-neutral-900 tnum">{t.id}<div className="text-xs font-normal mt-0.5" style={{ color: "var(--ink-3)" }}>{t.updated}</div></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{cName(t)}</Td>
-            <Td><div className="text-neutral-900">{t.subject}</div><div className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{t.note}</div></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{t.requester}{t.email && <div className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{t.email}</div>}</Td>
-            <Td style={{ color: "var(--ink-2)" }}>{t.channel}</Td>
-            <Td><Badge tone={STATUS_TONE[t.priority]}>{t.priority}</Badge></Td>
-            <Td><StatusBadge value={t.status} /></Td>
-            <Td>
-              <div className="flex items-center gap-1.5">
-                {/* Reply emails the requester; only offered when we have their email. */}
-                {t.email && <ActionBtn icon="mail" disabled={!canReply} onClick={() => setReplyTo(t)}>Reply</ActionBtn>}
-                {t.status !== "resolved" && <ActionBtn icon="check" disabled={!canReply} onClick={() => onResolve(t)}>Resolve</ActionBtn>}
-              </div>
-            </Td>
-          </tr>
-        ))}
-      </TableShell>
+      {rows.length === 0 ? (
+        <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <span className="w-12 h-12 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-mint)", color: "#166534" }}><Icon name="check" className="w-6 h-6" /></span>
+          <p className="text-sm mt-3" style={{ color: "var(--ink-2)" }}>No {filter === "all" ? "" : filter} tickets right now.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {rows.map((t) => (
+            <TicketCard key={t.id} t={t} company={cName(t)} canReply={canReply}
+              onReply={setReplyTo} onResolve={onResolve} />
+          ))}
+        </div>
+      )}
       {replyTo && <ReplyComposer ticket={replyTo} cName={cName(replyTo)} onClose={() => setReplyTo(null)} onSend={onReply} />}
     </div>
   );
@@ -659,6 +1862,22 @@ const PLATFORM_TOKEN_SAMPLES = {
 };
 const fillPlatformTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => PLATFORM_TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
+// Toolbar for the template editor. Email clients ignore stylesheets, so every
+// tag carries inline styles, and the button matches the one already used in the
+// teammate invite rather than inventing a second look.
+const HTML_TOOLS = [
+  { label: "B",       title: "Bold",       before: "<strong>", after: "</strong>" },
+  { label: "I",       title: "Italic",     before: "<em>", after: "</em>" },
+  { label: "P",       title: "Paragraph",  before: "<p>", after: "</p>" },
+  { label: "H",       title: "Heading",    before: '<h2 style="font-size:18px;margin:18px 0 8px;">', after: "</h2>" },
+  { label: "Link",    title: "Link",       before: '<a href="https://hireaster.com">', after: "</a>" },
+  { label: "Button",  title: "Call to action button",
+    before: '<p style="margin:22px 0 6px;"><a href="{{cta_link}}" style="display:inline-block;padding:11px 22px;border-radius:10px;background:#0B2AE0;color:#ffffff;font-weight:700;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;">',
+    after: "</a></p>" },
+  { label: "List",    title: "Bulleted list", before: "<ul>\n  <li>", after: "</li>\n</ul>" },
+  { label: "Small",   title: "Fine print",  before: '<p style="font-size:13px;color:#8B8699;">', after: "</p>" },
+];
+
 // Currency rates: the FX multiplier per currency (USD = 1) that prices credit
 // top-ups (USD base × rate × plan discount). Reads currency_rates, writes via the
 // admin-only set_currency_rate RPC. Plan prices are set in Stripe, not here.
@@ -698,8 +1917,6 @@ function CurrencyRates({ role, audit }) {
     setMsg(`${cur.toUpperCase()} rate saved. New credit purchases price at this rate.`);
   };
 
-  const sym = { usd: "$", myr: "RM", sgd: "S$" };
-  const preview = (usd) => `${sym.usd}${usd.toFixed(2)} · RM${(usd * rates.myr).toFixed(2)} · S$${(usd * rates.sgd).toFixed(2)}`;
 
   return (
     <div>
@@ -730,13 +1947,6 @@ function CurrencyRates({ role, audit }) {
       </div>
       {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
       {msg && <p className="text-sm mt-3" style={{ color: "#16A34A" }}>{msg}</p>}
-      <Card className="mt-4" pad="p-4 sm:p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)" }}>Resulting credit prices (before plan discount)</p>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm"><span style={{ color: "var(--ink-2)" }}>Resume / Applicant screening</span><span className="tnum font-medium" style={{ color: "var(--ink)" }}>{preview(1)}</span></div>
-          <div className="flex items-center justify-between text-sm"><span style={{ color: "var(--ink-2)" }}>AI Rank / AI Insight</span><span className="tnum font-medium" style={{ color: "var(--ink)" }}>{preview(0.4)}</span></div>
-        </div>
-      </Card>
     </div>
   );
 }
@@ -749,7 +1959,6 @@ function EmailTemplatesAdmin({ role, audit }) {
   const [selected, setSelected] = useState(null);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -770,7 +1979,25 @@ function EmailTemplatesAdmin({ role, audit }) {
     return () => { active = false; };
   }, []);
 
-  const openTpl = (key) => { const t = templates[key]; setSelected(key); setSubject(t.subject); setBody(t.body); setMsg(""); setErr(""); setShowPreview(false); };
+  const openTpl = (key) => { const t = templates[key]; setSelected(key); setSubject(t.subject); setBody(t.body); setMsg(""); setErr(""); };
+
+  // Wrap the selection (or drop a snippet at the caret) and keep the caret where
+  // the writer expects it, so the toolbar feels like an editor rather than an
+  // append-to-the-end button.
+  const bodyRef = useRef(null);
+  const wrap = (before, after = "") => {
+    const el = bodyRef.current;
+    if (!el || !editable) return;
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? body.length;
+    setBody(body.slice(0, start) + before + body.slice(start, end) + after + body.slice(end));
+    setMsg("");
+    requestAnimationFrame(() => {
+      el.focus();
+      el.selectionStart = start + before.length;
+      el.selectionEnd = end + before.length;
+    });
+  };
   const dirty = def && (subject !== templates[selected].subject || body !== templates[selected].body);
 
   const save = async () => {
@@ -823,35 +2050,50 @@ function EmailTemplatesAdmin({ role, audit }) {
           className="w-full rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 mb-4 disabled:opacity-60"
           style={{ border: "1px solid var(--line)", background: "#fff", "--tw-ring-color": "var(--brand)" }} />
 
-        <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-semibold" style={{ color: "var(--ink-3)" }}>Body (HTML)</label>
-          <button onClick={() => setShowPreview((s) => !s)} className="text-xs font-semibold" style={{ color: "var(--brand)" }}>{showPreview ? "Edit HTML" : "Preview"}</button>
-        </div>
-
-        {showPreview ? (
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
-            <p className="text-xs px-3 py-2" style={{ background: "#F7F7FB", color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>Subject: <span className="font-semibold text-neutral-800">{fillPlatformTokens(subject)}</span></p>
-            <iframe title="Email preview" sandbox="" srcDoc={previewDoc} className="w-full" style={{ height: 240, border: 0, background: "#fff" }} />
-            <p className="text-[11px] px-3 py-2" style={{ color: "var(--ink-3)" }}>Aster's logo header and footer are added automatically around this body.</p>
-          </div>
-        ) : (
-          <>
-            <textarea value={body} onChange={(e) => { setBody(e.target.value); setMsg(""); }} rows={12} disabled={!editable}
-              className="w-full rounded-xl px-3.5 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 font-mono leading-relaxed resize-y disabled:opacity-60"
-              style={{ border: "1px solid var(--line)", background: "#fff", "--tw-ring-color": "var(--brand)" }} />
+        {/* Editor left, live preview right. Editing raw HTML blind was the old
+            failure mode: you saved, sent a test, then found the markup wrong. */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="min-w-0">
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--ink-3)" }}>Body (HTML)</label>
+            <div className="flex flex-wrap gap-1 p-1.5 rounded-t-xl" style={{ background: "var(--app-bg)", border: "1px solid var(--line)", borderBottom: "none" }}>
+              {HTML_TOOLS.map((t) => (
+                <button key={t.label} onClick={() => wrap(t.before, t.after)} disabled={!editable} title={t.title}
+                  className="h-8 min-w-8 px-2 rounded-lg text-xs font-semibold bg-white disabled:opacity-40 transition-colors hover:bg-neutral-100"
+                  style={{ border: "1px solid var(--line)", color: "var(--ink-2)", fontStyle: t.label === "I" ? "italic" : undefined, fontWeight: t.label === "B" ? 800 : 600 }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <textarea ref={bodyRef} value={body} onChange={(e) => { setBody(e.target.value); setMsg(""); }} rows={16} disabled={!editable}
+              spellCheck={false}
+              className="w-full rounded-b-xl px-3.5 py-3 text-[13px] text-neutral-900 focus:outline-none font-mono leading-relaxed resize-y disabled:opacity-60"
+              style={{ border: "1px solid var(--line)", background: "#fff" }} />
             <div className="mt-3">
-              <p className="text-[11px] mb-1.5" style={{ color: "var(--ink-3)" }}>Placeholders (filled when the email sends):</p>
+              <p className="text-[11px] mb-1.5" style={{ color: "var(--ink-3)" }}>Placeholders, inserted where the cursor is:</p>
               <div className="flex flex-wrap gap-1.5">
                 {(def.tokens || []).map((tok) => (
-                  <button key={tok} onClick={() => { if (editable) setBody((b) => `${b}{{${tok}}}`); }} disabled={!editable}
+                  <button key={tok} onClick={() => wrap(`{{${tok}}}`)} disabled={!editable}
                     className="text-[11px] font-mono rounded-full px-2 py-0.5 disabled:opacity-50" style={{ border: "1px solid var(--line-strong)", color: "var(--brand)", background: "var(--brand-soft)" }}>
                     {`{{${tok}}}`}
                   </button>
                 ))}
               </div>
             </div>
-          </>
-        )}
+          </div>
+
+          <div className="min-w-0">
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--ink-3)" }}>Live preview</label>
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+              <p className="text-xs px-3 py-2 truncate" style={{ background: "var(--app-bg)", color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>
+                Subject: <span className="font-semibold text-neutral-800">{fillPlatformTokens(subject)}</span>
+              </p>
+              <iframe title="Email preview" sandbox="" srcDoc={previewDoc} className="w-full" style={{ height: 420, border: 0, background: "#fff" }} />
+            </div>
+            <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>
+              Placeholders show sample values here. Aster's logo header and footer are added around this body when it sends.
+            </p>
+          </div>
+        </div>
 
         <div className="mt-5 flex items-center gap-2">
           <button onClick={save} disabled={!editable || !dirty || saving} className="text-sm font-semibold px-4 py-2 rounded-lg text-white grad disabled:opacity-40">{saving ? "Saving…" : "Save template"}</button>
@@ -866,20 +2108,48 @@ function EmailTemplatesAdmin({ role, audit }) {
 function Audit({ audit }) {
   return (
     <div>
-      <SectionHead title="Audit logs" desc="An immutable record of every administrative action." />
-      <PrivacyNote>The audit log is <strong>append-only</strong>. It records who did what, when, and from where, including blocked attempts.</PrivacyNote>
-      <TableShell head={["Actor", "Role", "Action", "Target", "When", "IP"]}>
-        {audit.map((a) => (
-          <tr key={a.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
-            <Td className="font-semibold text-neutral-900">{a.actor}</Td>
-            <Td><Badge tone={a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"}>{ROLE_META[a.role]?.short || a.role}</Badge></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{a.action}</Td>
-            <Td className="text-neutral-900">{a.target}</Td>
-            <Td className="tnum" style={{ color: "var(--ink-2)" }}>{a.at}</Td>
-            <Td className="tnum" style={{ color: "var(--ink-3)" }}>{a.ip}</Td>
-          </tr>
-        ))}
-      </TableShell>
+      <SectionHead title="Audit logs" desc="Every administrative action, newest first." />
+      <PrivacyNote>
+        The audit log is <strong>append-only</strong> and written by the database itself, so it
+        records what actually happened rather than what this screen thinks happened.
+      </PrivacyNote>
+      {audit.length === 0 ? (
+        <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <p className="text-sm" style={{ color: "var(--ink-3)" }}>No admin actions recorded yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {Object.entries(collapseAudit(audit).reduce((groups, a) => {
+            const k = dayBucket(a.when);
+            (groups[k] = groups[k] || []).push(a);
+            return groups;
+          }, {})).map(([day, rows]) => (
+            <section key={day}>
+              <h3 className="text-xs font-bold uppercase tracking-wide mb-2 px-1" style={{ color: "var(--ink-3)" }}>{day}</h3>
+              <div className="rounded-[20px] overflow-hidden" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                {rows.map((a, i) => (
+                  <div key={a.id} className="adm-row flex items-start gap-3 px-4 sm:px-5 py-3.5"
+                    style={i ? { borderTop: "1px solid var(--line)" } : undefined}>
+                    <span className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: auditTone(a.action) }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                        {auditText(a.action)}
+                        {a.target && <><span style={{ color: "var(--ink-3)" }}> · </span><span className="font-semibold text-neutral-900">{a.target}</span></>}
+                        {a.count > 1 && <span className="tnum text-[11px] font-bold ml-1.5 px-1.5 py-0.5 rounded-full" style={{ background: "var(--app-bg)", color: "var(--ink-3)" }}>×{a.count}</span>}
+                      </p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
+                        {a.actor !== "—" ? a.actor : "System"}
+                        {a.role && <> · {ROLE_META[a.role]?.short || a.role}</>}
+                      </p>
+                    </div>
+                    <span className="text-xs tnum shrink-0" style={{ color: "var(--ink-3)" }} title={a.when || ""}>{a.at}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -921,9 +2191,6 @@ function AdminLogin({ onLogin }) {
             <img src="/aster-logo.png" alt="Aster" className="h-6 w-auto object-contain" />
             <span className="text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Admin</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "1px solid rgba(220,38,38,0.3)" }}>
-            <Icon name="lock" className="w-3.5 h-3.5" /> Internal team access only
-          </div>
         </div>
         <div className="rounded-2xl p-6 sm:p-7" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 30px 80px -30px rgba(0,0,0,0.7)" }}>
           <h1 className="text-xl font-bold adm-display text-neutral-900">Sign in to the admin console</h1>
@@ -958,61 +2225,153 @@ function AdminLogin({ onLogin }) {
 // ---------------------------------------------------------------------------
 // Shell + root
 // ---------------------------------------------------------------------------
-function AdminShell({ admin, section, go, onLogout, children }) {
+// A dropdown that closes on outside click and on Escape. Every popover in the
+// top bar uses it, so they all dismiss the same way.
+function Popover({ open, onClose, align = "right", width = 300, children }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className={`adm-pop absolute z-50 top-[calc(100%+8px)] ${align === "right" ? "right-0" : "left-0"} rounded-2xl overflow-hidden`}
+        style={{ width, background: "#fff", border: "1px solid var(--line)", boxShadow: "0 24px 60px -20px rgba(18,19,42,.35)" }}>
+        {children}
+      </div>
+    </>
+  );
+}
+// Bell: the same live signals the dashboard's attention cards use.
+function AdminAlerts({ companies, tickets, role, go }) {
+  const [open, setOpen] = useState(false);
+  const items = [
+    ...companies.filter((c) => c.status === "suspended").map((c) => ({ id: "s" + c.id, label: c.name, note: "Workspace suspended", color: "var(--c-risk)", to: "companies" })),
+    ...tickets.filter((t) => t.status === "open").map((t) => ({ id: "t" + t.id, label: t.company || t.subject, note: `${t.priority} priority · ${t.subject}`, color: t.priority === "urgent" ? "var(--c-risk)" : "#1D4ED8", to: "support" })),
+  ];
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((v) => !v)} aria-label={`Alerts, ${items.length} open`} aria-expanded={open}
+        className="w-11 h-11 rounded-full grid place-items-center">
+        {/* Same 34px circle as the avatar beside it, so the two read as a pair. */}
+        <span className="w-[34px] h-[34px] rounded-full grid place-items-center relative transition-colors"
+          style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <Icon name="bell" className="w-4 h-4" />
+          {items.length > 0 && <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white inline-flex items-center justify-center tnum" style={{ background: "var(--c-risk)", border: "2px solid #fff" }}>{items.length > 9 ? "9+" : items.length}</span>}
+        </span>
+      </button>
+      <Popover open={open} onClose={() => setOpen(false)} width={320}>
+        <p className="text-xs font-bold uppercase tracking-wide px-4 pt-3.5 pb-2" style={{ color: "var(--ink-3)" }}>Alerts</p>
+        <div className="max-h-[320px] overflow-y-auto pb-2">
+          {items.length === 0
+            ? <p className="text-sm px-4 py-3" style={{ color: "var(--ink-3)" }}>Nothing needs attention.</p>
+            : items.slice(0, 8).map((i) => (
+              <button key={i.id} onClick={() => { setOpen(false); go(i.to); }} disabled={!sectionAllowed(role, i.to)}
+                className="adm-row w-full flex items-start gap-2.5 px-4 py-2.5 text-left disabled:opacity-50">
+                <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: i.color }} />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-neutral-900 truncate">{i.label}</span>
+                  <span className="block text-xs truncate" style={{ color: "var(--ink-3)" }}>{i.note}</span>
+                </span>
+              </button>
+            ))}
+        </div>
+      </Popover>
+    </div>
+  );
+}
+
+function AdminShell({ admin, section, go, onLogout, companies, tickets, children }) {
   const rm = ROLE_META[admin.role];
   const nav = SECTIONS.filter((s) => s.roles.includes(admin.role));
-  const [mobileNav, setMobileNav] = useState(false);
-  return (
-    <div className="adm min-h-screen flex" style={{ background: "var(--bg)" }}>
-      {/* Sidebar */}
-      <aside className={`adm-side fixed lg:static z-40 top-0 bottom-0 left-0 w-64 shrink-0 flex flex-col transition-transform ${mobileNav ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`} style={{ background: "var(--adm)", borderRight: "1px solid var(--adm-line)" }}>
-        <div className="h-16 flex items-center gap-2 px-5 shrink-0" style={{ borderBottom: "1px solid var(--adm-line)" }}>
-          <img src="/aster-logo.png" alt="Aster" className="h-5 w-auto object-contain" />
-          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Admin</span>
-        </div>
-        <div className="px-3 py-2">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md tracking-wider" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}><Icon name="shield" className="w-3 h-3" /> INTERNAL · PRODUCTION</span>
-        </div>
-        <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
-          {nav.map((s) => {
-            const on = s.key === section;
-            return (
-              <button key={s.key} onClick={() => { go(s.key); setMobileNav(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${on ? "" : "adm-nav-item"}`}
-                style={{ background: on ? "var(--brand-soft)" : "transparent", color: on ? "var(--brand)" : "var(--ink-2)" }}>
-                <Icon name={s.icon} className="w-[18px] h-[18px]" /> <span className="font-medium">{s.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="p-3" style={{ borderTop: "1px solid var(--adm-line)" }}>
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl" style={{ background: "var(--adm-2)" }}>
-            <span className="w-8 h-8 rounded-lg grad text-white text-xs font-bold inline-flex items-center justify-center shrink-0">{admin.name.split(" ").map((x) => x[0]).join("")}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-neutral-900 font-medium truncate">{admin.name}</p>
-              <p className="text-[11px] truncate" style={{ color: rm.tint }}>{rm.label}</p>
-            </div>
-            <button onClick={onLogout} title="Sign out" className="p-1.5 rounded-lg" style={{ color: "var(--adm-ink)" }}><Icon name="logout" className="w-4 h-4" /></button>
-          </div>
-        </div>
-      </aside>
-      {mobileNav && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMobileNav(false)} />}
+  // Five tabs read comfortably on a laptop; the rest live behind More, which
+  // also carries the active item when it is one of them.
+  const primary = nav.slice(0, 5);
+  const overflow = nav.slice(5);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [meOpen, setMeOpen] = useState(false);
+  const overflowActive = overflow.some((s) => s.key === section);
 
-      {/* Main */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-16 flex items-center justify-between gap-3 px-4 sm:px-8 sticky top-0 z-20" style={{ background: "rgba(250,250,251,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--line)" }}>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMobileNav(true)} className="lg:hidden p-2 rounded-lg" style={{ border: "1px solid var(--line)" }} aria-label="Open menu"><Icon name="dashboard" className="w-4 h-4" /></button>
-            <div className="hidden sm:flex items-center gap-2 text-sm" style={{ color: "var(--ink-3)" }}>
-              <span className="font-medium" style={{ color: "var(--ink-2)" }}>Admin</span><Icon name="chevronRight" className="w-3.5 h-3.5" /><span className="text-neutral-900 font-semibold capitalize">{SECTIONS.find((s) => s.key === section)?.label || section}</span>
-            </div>
+  const Tab = ({ s }) => {
+    const on = s.key === section;
+    return (
+      <button key={s.key} onClick={() => go(s.key)} aria-current={on ? "page" : undefined}
+        className="adm-tab h-11 px-4 rounded-full text-sm font-semibold whitespace-nowrap inline-flex items-center gap-2"
+        style={{ background: on ? "var(--brand-soft)" : "transparent", color: on ? "var(--brand)" : "var(--ink-2)" }}>
+        <Icon name={s.icon} className="w-4 h-4 sm:hidden" /><span>{s.label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="adm adm-page min-h-screen p-0 sm:p-4 lg:p-6">
+      <div className="mx-auto w-full max-w-[1480px] rounded-none sm:rounded-[32px] p-3 sm:p-5"
+        style={{ background: "#fff", boxShadow: "0 24px 70px -40px rgba(11,42,224,.35)" }}>
+
+        {/* Top bar */}
+        <header className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 shrink-0 pl-1 pr-1 sm:pr-3">
+            <img src="/aster-logo.png" alt="Aster" className="h-5 sm:h-6 w-auto object-contain" />
+            <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Admin</span>
           </div>
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: TONE[admin.role === "super" ? "brand" : admin.role === "billing" ? "ok" : "info"].bg, color: TONE[admin.role === "super" ? "brand" : admin.role === "billing" ? "ok" : "info"].fg }}>
-              <Icon name="shield" className="w-3.5 h-3.5" /> {rm.label}
-            </span>
+
+          {/* The tab strip scrolls, but More sits outside that scroll box so its
+              dropdown is not clipped by the overflow. */}
+          <nav aria-label="Admin sections" className="flex items-center gap-1 flex-1 min-w-0">
+            <div className="flex items-center gap-1 min-w-0 overflow-x-auto">
+              {primary.map((s) => <Tab key={s.key} s={s} />)}
+            </div>
+            {overflow.length > 0 && (
+              <div className="relative shrink-0">
+                <button onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
+                  className="adm-tab h-11 px-4 rounded-full text-sm font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
+                  style={{ background: overflowActive ? "var(--brand-soft)" : "transparent", color: overflowActive ? "var(--brand)" : "var(--ink-2)" }}>
+                  {overflowActive ? SECTIONS.find((s) => s.key === section)?.label : "More"}
+                  <Icon name="chevronDown" className="w-3.5 h-3.5" />
+                </button>
+                <Popover open={moreOpen} onClose={() => setMoreOpen(false)} align="left" width={230}>
+                  {overflow.map((s) => (
+                    <button key={s.key} onClick={() => { setMoreOpen(false); go(s.key); }}
+                      className="adm-row w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium"
+                      style={{ color: s.key === section ? "var(--brand)" : "var(--ink-2)" }}>
+                      <Icon name={s.icon} className="w-4 h-4 shrink-0" /> {s.label}
+                    </button>
+                  ))}
+                </Popover>
+              </div>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <AdminAlerts companies={companies} tickets={tickets} role={admin.role} go={go} />
+            <div className="relative">
+              {/* Avatar only: the name and email live inside the menu, not on screen. */}
+              <button onClick={() => setMeOpen((v) => !v)} aria-expanded={meOpen} aria-label="Account menu"
+                className="w-11 h-11 rounded-full grid place-items-center transition-colors hover:bg-neutral-100">
+                <Monogram label={admin.name} size={34} soft ring={false} />
+              </button>
+              <Popover open={meOpen} onClose={() => setMeOpen(false)} width={250}>
+                <div className="px-4 py-3.5" style={{ borderBottom: "1px solid var(--line)" }}>
+                  <p className="text-sm font-bold text-neutral-900 truncate">{admin.name}</p>
+                  <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{admin.email}</p>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full mt-2" style={{ background: "var(--brand-soft)", color: rm.tint }}>
+                    <Icon name="shield" className="w-3 h-3" /> {rm.label}
+                  </span>
+                  <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>{rm.blurb}</p>
+                </div>
+                <button onClick={onLogout} className="adm-row w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold" style={{ color: "var(--danger)" }}>
+                  <Icon name="logout" className="w-4 h-4" /> Sign out
+                </button>
+              </Popover>
+            </div>
           </div>
         </header>
-        <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8 max-w-[1200px] w-full mx-auto">{children}</main>
+
+        {/* Content. There is no refresh button: the console polls for itself. */}
+        <main className="rounded-[24px] p-3 sm:p-4 mt-4" style={{ background: "var(--app-bg)" }}>{children}</main>
       </div>
     </div>
   );
@@ -1050,8 +2409,114 @@ function mapTicketRow(r) {
 
 // DB plan_tier -> the label the admin tables render, and back.
 const ADMIN_PLAN_LABEL = { launch: "Launch", scale: "Scale", elite: "Elite", enterprise: "Enterprise" };
-const ADMIN_PLAN_KEY = { Launch: "launch", Scale: "scale", Elite: "elite", Enterprise: "enterprise" };
 
+// Requested 1:1 calls, grouped by day so the next few days read as a schedule
+// rather than a list. Two people asking for the same slot is flagged, because
+// nothing stops them both requesting it.
+const BOOKING_TONE = { requested: "warn", confirmed: "ok", done: "ink", cancelled: "danger" };
+
+function Bookings({ role, bookings, onStatus }) {
+  const [show, setShow] = useState("upcoming");
+  const [busy, setBusy] = useState(null);
+  const allowed = can(role, "booking.manage");
+  const todayKey = new Date().toISOString().slice(0, 10);
+
+  const rows = bookings.filter((b) =>
+    show === "all" ? true
+      : show === "upcoming" ? b.day >= todayKey && b.status !== "cancelled"
+        : b.day < todayKey || b.status === "cancelled");
+
+  // Same day + same slot, still live: you cannot be in two calls at once.
+  const clashes = new Set();
+  const seen = new Map();
+  for (const b of bookings.filter((x) => x.status === "requested" || x.status === "confirmed")) {
+    const k = `${b.day}|${b.slot}`;
+    if (seen.has(k)) { clashes.add(b.id); clashes.add(seen.get(k)); } else seen.set(k, b.id);
+  }
+
+  const byDay = rows.reduce((m, b) => { (m[b.day] = m[b.day] || []).push(b); return m; }, {});
+  const days = Object.keys(byDay).sort((a, b) => (show === "past" ? b.localeCompare(a) : a.localeCompare(b)));
+  const fmtDay = (d) => {
+    const dt = new Date(d + "T00:00:00");
+    const label = dt.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    return d === todayKey ? `Today, ${label}` : label;
+  };
+
+  const move = async (b, status) => {
+    setBusy(b.id);
+    await onStatus(b, status);
+    setBusy(null);
+  };
+
+  return (
+    <div>
+      <SectionHead title="Bookings" desc="1:1 calls requested from the website, so you can arrange your own time around them.">
+        <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
+          {[{ k: "upcoming", l: "Upcoming" }, { k: "past", l: "Past" }, { k: "all", l: "All" }].map((f) => (
+            <button key={f.k} onClick={() => setShow(f.k)} aria-pressed={show === f.k}
+              className="h-9 px-4 rounded-full text-xs font-semibold"
+              style={{ background: show === f.k ? "#fff" : "transparent", color: show === f.k ? "var(--brand)" : "var(--ink-2)" }}>{f.l}</button>
+          ))}
+        </div>
+      </SectionHead>
+      <PrivacyNote>
+        These are <strong>prospects from the public site</strong>, not customer users. Blocking a date under
+        Blocked dates stops new requests for that day; it does not move a booking already made.
+      </PrivacyNote>
+
+      {days.length === 0 ? (
+        <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <span className="w-12 h-12 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-blue)", color: "var(--brand)" }}><Icon name="calendar" className="w-6 h-6" /></span>
+          <p className="text-sm mt-3" style={{ color: "var(--ink-2)" }}>No {show === "all" ? "" : show} bookings.</p>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Requests from /contact-sales land here.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {days.map((day) => (
+            <section key={day}>
+              <h3 className="text-xs font-bold uppercase tracking-wide mb-2 px-1" style={{ color: "var(--ink-3)" }}>
+                {fmtDay(day)} <span className="tnum font-semibold" style={{ color: "var(--ink-2)" }}>· {byDay[day].length}</span>
+              </h3>
+              <div className="grid gap-2">
+                {byDay[day].sort((a, b) => a.slot.localeCompare(b.slot)).map((b) => (
+                  <div key={b.id} className="rounded-[20px] p-4 sm:p-5" style={{ background: "#fff", border: `1px solid ${clashes.has(b.id) ? "var(--warn)" : "var(--line)"}` }}>
+                    <div className="flex flex-wrap items-start gap-3">
+                      <span className="rounded-xl px-3 py-2 text-sm font-bold tnum shrink-0" style={{ background: "var(--app-bg)", color: "var(--ink)" }}>{b.slot}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-bold text-neutral-900">{b.name}</p>
+                          <Badge tone={BOOKING_TONE[b.status] || "ink"} dot>{b.status}</Badge>
+                          {clashes.has(b.id) && <Badge tone="warn">double booked</Badge>}
+                        </div>
+                        <p className="text-xs mt-0.5 tnum" style={{ color: "var(--ink-3)" }}>
+                          {b.email}{b.phone && ` · ${b.phone}`}{b.company && ` · ${b.company}`}
+                        </p>
+                        {b.message && (
+                          <p className="text-sm mt-2 rounded-xl px-3 py-2" style={{ background: "var(--app-bg)", color: "var(--ink-2)" }}>{b.message}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {b.status !== "confirmed" && b.status !== "done" && (
+                          <ActionBtn icon="check" disabled={!allowed || busy === b.id} onClick={() => move(b, "confirmed")}>Confirm</ActionBtn>
+                        )}
+                        {b.status === "confirmed" && (
+                          <ActionBtn icon="check" disabled={!allowed || busy === b.id} onClick={() => move(b, "done")}>Mark done</ActionBtn>
+                        )}
+                        {b.status !== "cancelled" && (
+                          <ActionBtn icon="close" tone="danger" disabled={!allowed || busy === b.id} onClick={() => move(b, "cancelled")}>Cancel</ActionBtn>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 // Blocked dates for the public "book a 1:1" calendar (/contact-sales). Admin adds
 // a date (holiday, off-site); the marketing page reads booking_blocked_dates and
 // greys it out. Writes go through the admin-gated RPCs (migration 0065).
@@ -1139,9 +2604,14 @@ export default function AdminPortal() {
   const [subs, setSubs] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [flags, setFlags] = useState(INIT_FLAGS);
+  const [bookings, setBookings] = useState([]);   // sales_bookings (0160)
   const [blocked, setBlocked] = useState([]); // booking_blocked_dates: [{ day, reason }]
   const [audit, setAudit] = useState([]);
-  const usage = [];
+  // AI usage per workspace for the selected month, and the sen-per-action rates
+  // it is costed at. Both are admin-only reads.
+  const [usage, setUsage] = useState([]);
+  const [aiCosts, setAiCosts] = useState(null);
+  const [period, setPeriod] = useState(() => recentPeriods(1)[0]);
   const [restoring, setRestoring] = useState(hasSupabase);
 
   useEffect(() => {
@@ -1186,10 +2656,15 @@ export default function AdminPortal() {
     ]);
     if (Array.isArray(co)) {
       setCompanies(co.map((c) => ({
-        id: c.id, name: c.name, owner: "", region: c.region || "—",
+        id: c.id, name: c.name,
+        // Owner name + email, or nothing at all rather than a dangling "Owner:".
+        owner: [c.owner_name, c.owner_email].filter(Boolean).join(" · "),
         plan: ADMIN_PLAN_LABEL[c.plan] || c.plan,
         status: c.status, seats: Number(c.user_count) || 0,
+        cycle: c.cycle || "monthly",   // drives the monthly share of a yearly plan
         activeJobs: Number(c.active_jobs) || 0, candidates: Number(c.candidate_count) || 0,
+        interviews: Number(c.interview_count) || 0, hired: Number(c.hired_count) || 0,
+        upcoming: Number(c.upcoming_interviews) || 0,
       })));
       setSubs(co.map((c) => ({
         companyId: c.id, plan: ADMIN_PLAN_LABEL[c.plan] || c.plan,
@@ -1201,11 +2676,65 @@ export default function AdminPortal() {
       setUsers(us.map((u) => ({
         id: u.id, name: u.full_name || "—", email: u.email || "",
         companyId: u.company_id, role: (u.role || "").replace(/^./, (m) => m.toUpperCase()),
-        status: u.status, lastActive: u.last_active_at ? new Date(u.last_active_at).toLocaleDateString() : "—",
+        status: u.status,
+        // Nobody has been active until they next sign in, so fall back to when
+        // the account was created rather than showing a bare dash.
+        lastActive: u.last_active_at ? relTime(u.last_active_at) : null,
+        joined: u.created_at ? relTime(u.created_at) : null,
       })));
     }
   };
   useEffect(() => { if (admin) reloadAdminData(); /* eslint-disable-line */ }, [admin]);
+
+  // AI usage for the selected month. Reloads when the month changes, and rides
+  // along with the polling below so the current month stays live.
+  const reloadUsage = async (forPeriod = period) => {
+    if (!hasSupabase || !admin) return;
+    const { data, error } = await supabase.rpc("admin_usage_detail", { p_period: forPeriod });
+    if (error || !Array.isArray(data)) return;
+    setUsage(data.map((u) => ({
+      companyId: u.company_id, name: u.company_name,
+      plan: ADMIN_PLAN_LABEL[u.plan] || u.plan, status: u.status,
+      resume_screen: Number(u.resume_screen) || 0,
+      applicant_screen: Number(u.applicant_screen) || 0,
+      ai_rank: Number(u.ai_rank) || 0,
+      ai_insight: Number(u.ai_insight) || 0,
+      interview_questions: Number(u.interview_questions) || 0,
+      total: Number(u.total_actions) || 0,
+      monthlyPool: Number(u.monthly_pool) || 0,
+      purchasedPool: Number(u.purchased_pool) || 0,
+    })));
+  };
+  useEffect(() => { if (admin) reloadUsage(period); /* eslint-disable-line */ }, [admin, period]);
+
+  // Requested 1:1 calls. Admin-only read, newest day first.
+  const reloadBookings = async () => {
+    if (!hasSupabase || !admin) return;
+    const { data, error } = await supabase.from("sales_bookings")
+      .select("id, day, slot, name, email, phone, company, message, status, ticket_id")
+      .order("day", { ascending: true });
+    if (!error && Array.isArray(data)) setBookings(data);
+  };
+  useEffect(() => { if (admin) reloadBookings(); /* eslint-disable-line */ }, [admin]);
+
+  const setBookingStatus = async (b, status) => {
+    setBookings((bs) => bs.map((x) => x.id === b.id ? { ...x, status } : x));   // optimistic
+    const err = await runAdminAction("set_booking_status", { p_booking: b.id, p_status: status },
+      "Set booking to " + status, b.name + " · " + b.day + " " + b.slot);
+    if (err) setBookings((bs) => bs.map((x) => x.id === b.id ? { ...x, status: b.status } : x));
+    else reloadBookings();
+  };
+
+  // Sen-per-action rates. Cost figures read as a dash until these are set.
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    let active = true;
+    supabase.from("ai_unit_costs").select("kind, cost_sen").then(({ data }) => {
+      if (!active || !Array.isArray(data)) return;
+      setAiCosts(Object.fromEntries(data.map((r) => [r.kind, Number(r.cost_sen) || 0])));
+    });
+    return () => { active = false; };
+  }, [admin]);
 
   // One place that runs an admin RPC (or the reset-password edge function),
   // records the audit on success, and hands back an error string so the caller
@@ -1226,9 +2755,39 @@ export default function AdminPortal() {
     } catch (e) { console.error(rpc, e); return "Action failed."; }
   };
 
+  // The real record lives in public.audit_log, written by the database itself.
+  // This reads it back; it is never the source of truth.
+  const reloadAudit = async () => {
+    if (!hasSupabase || !admin) return;
+    if (!sectionAllowed(admin.role, "audit")) return;   // RLS: super and billing only
+    const { data, error } = await supabase
+      .from("audit_log")
+      .select("id, actor_name, actor_role, action, target, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error || !Array.isArray(data)) return;
+    setAudit(data.map((r) => ({
+      id: r.id,
+      actor: r.actor_name || "—",
+      role: r.actor_role,
+      action: r.action,
+      target: r.target || "",
+      at: relTime(r.created_at),
+      when: r.created_at ? new Date(r.created_at).toLocaleString() : "",
+    })));
+  };
+  useEffect(() => { if (admin) reloadAudit(); /* eslint-disable-line */ }, [admin]);
+
+  // An immediate echo so an action is visibly recorded, replaced by the server's
+  // own row on the next read. Actions the database audits for itself (suspend,
+  // deactivate, plan change) will match; the rest are local until 0158 lands.
   const logAudit = (action, target) => {
     if (!admin) return;
-    setAudit((a) => [{ id: (a[0]?.id || 0) + 1, actor: admin.name, role: admin.role, action, target, at: "just now", ip: "10.2.4." + (admin.id === "a1" ? "11" : admin.id === "a2" ? "22" : "31") }, ...a]);
+    setAudit((a) => [{
+      id: `local-${a.length}-${action}`, actor: admin.name, role: admin.role,
+      action, target, at: "just now", when: "",
+    }, ...a]);
+    reloadAudit();
   };
 
   // Toggle a feature flag: optimistic UI, persist to platform_flags when live
@@ -1245,19 +2804,52 @@ export default function AdminPortal() {
     }
   };
 
-  // Load real support tickets once an admin who can see them is signed in.
-  // Company name + requester are embedded via foreign keys; RLS returns every
-  // company's tickets for super/support (billing has no support policy).
-  useEffect(() => {
+  // Load real support tickets for an admin who can see them. Company name +
+  // requester are embedded via foreign keys; RLS returns every company's
+  // tickets for super/support (billing has no support policy).
+  const reloadTickets = async () => {
     if (!hasSupabase || !admin || !["super", "support"].includes(admin.role)) return;
+    const { data, error } = await supabase
+      .from("support_tickets")
+      .select("id, subject, channel, priority, status, body, company_id, requester_name, requester_email, created_at, updated_at, companies(name), requester:profiles(full_name)")
+      .order("updated_at", { ascending: false });
+    if (!error && data) setTickets(data.map(mapTicketRow));
+  };
+  useEffect(() => { if (admin) reloadTickets(); /* eslint-disable-line */ }, [admin]);
+
+  // Keep the console live. The admin tables (companies, profiles, subscriptions,
+  // support_tickets) are not in the Realtime publication, so this polls instead:
+  // every 20s while the tab is visible, and immediately when it regains focus.
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    const pull = () => {
+      if (document.visibilityState !== "visible") return;
+      reloadAdminData();
+      reloadTickets();
+      reloadUsage();
+      reloadAudit();
+      reloadBookings();
+    };
+    const id = setInterval(pull, 20000);
+    window.addEventListener("focus", pull);
+    document.addEventListener("visibilitychange", pull);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", pull);
+      document.removeEventListener("visibilitychange", pull);
+    };
+    /* eslint-disable-line */
+  }, [admin]);
+
+  // Real Stripe plan prices (same source as the public pricing page), used to
+  // total recurring revenue in ringgit rather than from a hardcoded list price.
+  const [planPrices, setPlanPrices] = useState(null);
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
     let active = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .select("id, subject, channel, priority, status, body, company_id, requester_name, requester_email, created_at, updated_at, companies(name), requester:profiles(full_name)")
-        .order("updated_at", { ascending: false });
-      if (active && !error && data) setTickets(data.map(mapTicketRow));
-    })();
+    supabase.functions.invoke("get-plan-prices").then(({ data, error }) => {
+      if (active && !error && data?.prices) setPlanPrices(data.prices);
+    });
     return () => { active = false; };
   }, [admin]);
 
@@ -1340,20 +2932,25 @@ export default function AdminPortal() {
     // record the blocked attempt once per mount of a disallowed section
   } else {
     switch (section) {
-      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} audit={logAudit} onAction={runAdminAction} />; break;
+      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} audit={logAudit} onAction={runAdminAction} />; break;
       case "users":         screen = <Users role={role} companies={companies} users={users} setUsers={setUsers} audit={logAudit} onAction={runAdminAction} />; break;
-      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} onAction={runAdminAction} />; break;
-      case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
+      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} planPrices={planPrices} usage={usage} aiCosts={aiCosts} audit={logAudit} onAction={runAdminAction} />; break;
+      case "usage":         screen = <Usage role={role} usage={usage} aiCosts={aiCosts} period={period} periods={recentPeriods()} onPeriod={setPeriod} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "rates":         screen = <CurrencyRates role={role} audit={logAudit} />; break;
+      case "ai_costs":      screen = <AiCosts role={role} rates={aiCosts} setRates={setAiCosts} usage={usage} audit={logAudit} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
+      case "bookings":      screen = <Bookings role={role} bookings={bookings} onStatus={setBookingStatus} />; break;
       case "booking":       screen = <BookingDates role={role} blocked={blocked} setBlocked={setBlocked} audit={logAudit} />; break;
       case "email_templates": screen = <EmailTemplatesAdmin role={role} audit={logAudit} />; break;
       case "audit":         screen = <Audit audit={audit} />; break;
-      default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
+      default:              screen = <Dashboard role={role} companies={companies} users={users} tickets={tickets} audit={audit} planPrices={planPrices} go={go} />;
     }
   }
 
   const onLogout = async () => { if (hasSupabase) await supabase.auth.signOut(); setAdmin(null); };
-  return <AdminShell admin={admin} section={section} go={go} onLogout={onLogout}>{screen}</AdminShell>;
+  return (
+    <AdminShell admin={admin} section={section} go={go} onLogout={onLogout}
+      companies={companies} tickets={tickets}>{screen}</AdminShell>
+  );
 }

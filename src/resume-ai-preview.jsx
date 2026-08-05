@@ -52,6 +52,10 @@ async function loadCustomerSession(userId, fallbackEmail) {
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
+  // Stamp last_active_at so the admin console can tell an idle workspace from a
+  // busy one. Fire and forget: it is throttled to once an hour server-side, and
+  // a failure here must never block signing in.
+  supabase.rpc("touch_last_active").then(() => {}, () => {});
   // Parse the name from full_name ONLY — never fall back to the email. Some invited
   // accounts were provisioned with their email as full_name; treat a bare email as
   // "no name set" so First/Last render empty (with placeholders) instead of the
@@ -4770,7 +4774,16 @@ function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossar
       let id = "T-preview";
       if (hasSupabase) {
         const fnRes = await supabase.functions.invoke("support-intake", {
-          body: { name: name.trim(), email: email.trim(), subject, body, website },
+          body: {
+            name: name.trim(), email: email.trim(), subject, body, website,
+            // The slot as data as well as prose, so the admin calendar can read
+            // it without parsing the ticket body. ISO day, not the display label.
+            booking: {
+              day: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+              slot, phone: phone.trim() || null,
+              company: company.trim() || null, message: message.trim() || null,
+            },
+          },
         });
         if (!fnRes.error && fnRes.data?.id) id = fnRes.data.id;
         else {
