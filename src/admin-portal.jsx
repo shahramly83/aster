@@ -203,9 +203,8 @@ const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.role
 // ---------------------------------------------------------------------------
 // Helpers: masking, formatting
 // ---------------------------------------------------------------------------
-// Candidate PII is masked wherever it could surface. Company (customer) users
 // are account holders and shown normally; candidates are applicants and are not.
-const maskName = (n) => (n || "").split(" ").map((p) => (p.length <= 1 ? p : p[0] + "•".repeat(Math.max(1, p.length - 1)))).join(" ");
+const LOADED_AT = Date.now();
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 // ---------------------------------------------------------------------------
@@ -340,22 +339,13 @@ function PlanColumns({ rows }) {
     </div>
   );
 }
-function SectionHead({ title, desc, children }) {
+function SectionHead({ title, children }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
       <div>
         <h1 className="text-2xl font-bold adm-display text-neutral-900">{title}</h1>
-        {desc && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{desc}</p>}
       </div>
       {children}
-    </div>
-  );
-}
-function PrivacyNote({ children }) {
-  return (
-    <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 mb-5 text-sm" style={{ background: "var(--brand-soft)", border: "1px solid #CBD8F5", color: "var(--ink-2)" }}>
-      <span style={{ color: "var(--brand)" }} className="shrink-0 mt-0.5"><Icon name="shield" className="w-4 h-4" /></span>
-      <span>{children}</span>
     </div>
   );
 }
@@ -865,10 +855,31 @@ function StatusDialog({ company, mode, planPrices, onClose, onConfirm }) {
     </div>
   );
 }
-function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, audit, onAction }) {
+function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, activity = [], audit, onAction }) {
   const [q, setQ] = useState("");
   const [dialog, setDialog] = useState(null);   // { company, mode }
-  const rows = companies.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+  const [dormantOnly, setDormantOnly] = useState(false);
+  // Dormant: a PAYING workspace nobody has signed into for 30 days. Trials are
+  // excluded because a quiet trial is expected, not alarming; this is churn you
+  // can still act on. "never" counts only once we have been recording long
+  // enough to tell silence from a column that was empty until 0157.
+  const DORMANT_DAYS = 30;
+  const seenAt = new Map(activity.map((a) => [a.company_id, a.last_active_at]));
+  const daysQuiet = (id) => {
+    const at = seenAt.get(id);
+    if (!at) return null;
+    return Math.floor((LOADED_AT - new Date(at).getTime()) / 86400000);
+  };
+  const isDormant = (c) => {
+    if (c.status !== "active") return false;
+    const d = daysQuiet(c.id);
+    return d != null && d >= DORMANT_DAYS;
+  };
+  const dormantCount = companies.filter(isDormant).length;
+
+  const rows = companies
+    .filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
+    .filter((c) => !dormantOnly || isDormant(c));
   const costOf = (id) => aiCostFor(usage.find((u) => u.companyId === id), aiCosts);
   const priced = aiCosts && Object.values(aiCosts).some((v) => v > 0);
 
@@ -895,14 +906,22 @@ function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, 
 
   return (
     <div>
-      <SectionHead title="Companies" desc="Every customer workspace on the platform.">
-        <label className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies" className="pl-9 pr-3 h-11 rounded-xl text-sm w-56" style={{ border: "1px solid var(--line)", background: "#fff" }} />
-        </label>
+      <SectionHead title="Companies">
+        <div className="flex items-center gap-2">
+          {dormantCount > 0 && (
+            <button onClick={() => setDormantOnly((v) => !v)} aria-pressed={dormantOnly}
+              className="h-11 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
+              style={{ background: dormantOnly ? "var(--warn-soft)" : "#fff", border: `1px solid ${dormantOnly ? "var(--warn)" : "var(--line)"}`, color: "var(--warn)" }}>
+              <Icon name="warning" className="w-4 h-4" /> Dormant <span className="tnum">{dormantCount}</span>
+            </button>
+          )}
+          <label className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies" className="pl-9 pr-3 h-11 rounded-xl text-sm w-56" style={{ border: "1px solid var(--line)", background: "#fff" }} />
+          </label>
+        </div>
       </SectionHead>
-      <PrivacyNote>Candidate records are counted here but their resumes and personal data are <strong>not accessible</strong> from the admin portal.</PrivacyNote>
-      <TableShell head={["Company", "Plan", "Status", "Seats", "Active jobs", "Candidates", "AI this month", "Actions"]}>
+      <TableShell head={["Company", "Plan", "Status", "Seats", "Active jobs", "Candidates", "Last seen", "AI this month", "Actions"]}>
         {rows.map((c) => {
           const u = usage.find((x) => x.companyId === c.id);
           const cost = costOf(c.id);
@@ -917,6 +936,13 @@ function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, 
               <Td className="tnum">{c.seats}</Td>
               <Td className="tnum">{c.activeJobs}</Td>
               <Td><span className="inline-flex items-center gap-1.5 tnum"><span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>{c.candidates.toLocaleString()}</span></Td>
+              <Td>
+                {(() => {
+                  const d = daysQuiet(c.id);
+                  if (d == null) return <span className="text-xs" style={{ color: "var(--ink-3)" }}>not recorded</span>;
+                  return <span className="text-sm tnum" style={{ color: isDormant(c) ? "var(--warn)" : "var(--ink-2)" }}>{d === 0 ? "today" : `${d}d ago`}</span>;
+                })()}
+              </Td>
               <Td>
                 <div className="tnum font-semibold" style={{ color: "var(--ink)" }}>
                   {priced ? ringgit2(cost) : "—"}
@@ -1060,8 +1086,7 @@ function Users({ role, companies, users, setUsers, audit, onAction }) {
 
   return (
     <div>
-      <SectionHead title="User management" desc="Company user accounts (recruiters, admins, interviewers). These are customer team members, not candidates." />
-      <PrivacyNote>These are <strong>company users</strong>, separate from admin accounts and from candidates. Candidate/applicant records are never listed here.</PrivacyNote>
+      <SectionHead title="User management" />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1374,7 +1399,7 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
 
   return (
     <div>
-      <SectionHead title="Subscriptions" desc="Plans, billing status and revenue by workspace.">
+      <SectionHead title="Subscriptions">
         <div className="flex items-center gap-6">
           <div className="text-right">
             <p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p>
@@ -1398,7 +1423,6 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
           </div>
         </div>
       </SectionHead>
-      <PrivacyNote>Aster does <strong>not store or display card details</strong>. Payment methods are held by the payment processor; only plan and status are shown here.</PrivacyNote>
       <TableShell head={["Company", "Plan", "Cycle", "Status", "Monthly", "Renews", "Payment method", "Actions"]}>
         {subs.map((s) => {
           const monthly = planMonthlyMYR(s.plan, s.cycle, planPrices);
@@ -1451,7 +1475,7 @@ function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
 
   return (
     <div>
-      <SectionHead title="Usage monitoring" desc="AI actions per workspace and what they cost, by month.">
+      <SectionHead title="Usage monitoring">
         <label className="relative">
           <select value={period} onChange={(e) => onPeriod(e.target.value)}
             className="appearance-none h-11 pl-4 pr-9 rounded-xl text-sm font-medium bg-white" style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>
@@ -1460,7 +1484,6 @@ function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
           <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--ink-3)" }}><Icon name="chevronDown" className="w-3.5 h-3.5" /></span>
         </label>
       </SectionHead>
-      <PrivacyNote>Usage is <strong>aggregate only</strong>. Individual candidate data and resumes are never exposed through monitoring.</PrivacyNote>
 
       {/* Month at a glance */}
       <div className="grid gap-3 sm:grid-cols-3 mb-4">
@@ -1597,10 +1620,7 @@ function AiCosts({ role, rates, setRates, usage, audit }) {
 
   return (
     <div>
-      <SectionHead title="AI costs" desc="What one AI action costs us, in sen. Usage times these rates is the cost shown on Companies and Usage monitoring." />
-      <PrivacyNote>
-        Nothing records model spend, so these figures are a <strong>stated rate, not a measurement</strong>. Set them from your provider invoice and revisit when model pricing changes.
-      </PrivacyNote>
+      <SectionHead title="AI costs" />
 
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2 grid gap-3">
@@ -1740,7 +1760,7 @@ function Support({ role, companies, tickets, onResolve, onReply }) {
 
   return (
     <div>
-      <SectionHead title="Support logs" desc="Customer support tickets and interactions.">
+      <SectionHead title="Support logs">
         <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
           {[{ k: "open", l: "Open" }, { k: "resolved", l: "Resolved" }, { k: "all", l: "All" }].map((f) => (
             <button key={f.k} onClick={() => setFilter(f.k)} aria-pressed={filter === f.k}
@@ -1751,7 +1771,6 @@ function Support({ role, companies, tickets, onResolve, onReply }) {
           ))}
         </div>
       </SectionHead>
-      <PrivacyNote>Where a ticket mentions a candidate, their name is <strong>masked</strong> (e.g. {maskName("Nurul Huda")}). Resumes are never attached or viewable.</PrivacyNote>
       {rows.length === 0 ? (
         <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           <span className="w-12 h-12 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-mint)", color: "#166534" }}><Icon name="check" className="w-6 h-6" /></span>
@@ -1824,8 +1843,7 @@ function Flags({ role, flags, setFlags, audit, onToggle }) {
   const toggle = onToggle || ((f) => { setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: !x.enabled } : x)); audit(f.enabled ? "Disabled feature flag" : "Enabled feature flag", `${f.key} (${f.env})`); });
   return (
     <div>
-      <SectionHead title="Feature flags" desc="Roll capabilities out or back across environments. Changes are audited." />
-      <PrivacyNote>Only <strong>Super Admins</strong> can toggle flags. Every change is written to the audit log with actor and time.</PrivacyNote>
+      <SectionHead title="Feature flags" />
       <div className="grid gap-3">
         {flags.map((f) => (
           <Card key={f.key} pad="p-4 sm:p-5">
@@ -1941,8 +1959,7 @@ function CurrencyRates({ role, audit }) {
 
   return (
     <div>
-      <SectionHead title="Currency rates" desc="FX rate per currency (USD = 1). Credit top-up prices are the USD base times this rate. Plan prices are set in Stripe." />
-      <PrivacyNote>Editable by <strong>Super</strong> and <strong>Billing</strong> admins. Changes apply to new credit purchases immediately, and every change is audited.</PrivacyNote>
+      <SectionHead title="Currency rates" />
       <div className="grid gap-3 max-w-lg">
         {[{ c: "usd", label: "US Dollar", fixed: true }, { c: "myr", label: "Malaysian Ringgit" }, { c: "sgd", label: "Singapore Dollar" }].map(({ c, label, fixed }) => (
           <Card key={c} pad="p-4 sm:p-5">
@@ -2039,8 +2056,7 @@ function EmailTemplatesAdmin({ role, audit }) {
   if (!selected) {
     return (
       <div>
-        <SectionHead title="Email templates" desc="System emails Aster sends to companies. Edited here, invisible to customers." />
-        <PrivacyNote>These are <strong>platform</strong> emails (Aster → company). Companies cannot see or edit them. Aster's logo header and footer are added automatically, so edit only the HTML body.</PrivacyNote>
+        <SectionHead title="Email templates" />
         <div className="grid gap-3">
           {PLATFORM_EMAIL_TEMPLATE_DEFS.map((t) => (
             <Card key={t.key} pad="p-4 sm:p-5">
@@ -2062,7 +2078,7 @@ function EmailTemplatesAdmin({ role, audit }) {
   return (
     <div>
       <button onClick={() => setSelected(null)} className="text-sm font-semibold mb-4 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>← All templates</button>
-      <SectionHead title={def.name} desc={def.desc} />
+      <SectionHead title={def.name} />
       {msg && <div className="rounded-xl px-4 py-3 mb-4 text-sm" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}>{msg}</div>}
       {err && <div className="rounded-xl px-4 py-3 mb-4 text-sm" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{err}</div>}
       <Card>
@@ -2129,11 +2145,7 @@ function EmailTemplatesAdmin({ role, audit }) {
 function Audit({ audit }) {
   return (
     <div>
-      <SectionHead title="Audit logs" desc="Every administrative action, newest first." />
-      <PrivacyNote>
-        The audit log is <strong>append-only</strong> and written by the database itself, so it
-        records what actually happened rather than what this screen thinks happened.
-      </PrivacyNote>
+      <SectionHead title="Audit logs" />
       {audit.length === 0 ? (
         <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           <p className="text-sm" style={{ color: "var(--ink-3)" }}>No admin actions recorded yet.</p>
@@ -2471,7 +2483,7 @@ function Bookings({ role, bookings, onStatus }) {
 
   return (
     <div>
-      <SectionHead title="Bookings" desc="1:1 calls requested from the website, so you can arrange your own time around them.">
+      <SectionHead title="Bookings">
         <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
           {[{ k: "upcoming", l: "Upcoming" }, { k: "past", l: "Past" }, { k: "all", l: "All" }].map((f) => (
             <button key={f.k} onClick={() => setShow(f.k)} aria-pressed={show === f.k}
@@ -2480,10 +2492,6 @@ function Bookings({ role, bookings, onStatus }) {
           ))}
         </div>
       </SectionHead>
-      <PrivacyNote>
-        These are <strong>prospects from the public site</strong>, not customer users. Blocking a date under
-        Blocked dates stops new requests for that day; it does not move a booking already made.
-      </PrivacyNote>
 
       {days.length === 0 ? (
         <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
@@ -2575,8 +2583,7 @@ function BookingDates({ role, blocked, setBlocked, audit }) {
 
   return (
     <div>
-      <SectionHead title="Booking dates" desc="Block dates on the public book-a-1:1 calendar (holidays, team off-sites). Visitors can't request a blocked day." />
-      <PrivacyNote>Blocked dates apply to the marketing booking page at <strong>/contact-sales</strong> for everyone. Every change is written to the audit log.</PrivacyNote>
+      <SectionHead title="Booking dates" />
       {allowed && (
         <Card pad="p-4 sm:p-5" className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
@@ -2633,6 +2640,7 @@ export default function AdminPortal() {
   const [usage, setUsage] = useState([]);
   const [aiCosts, setAiCosts] = useState(null);
   const [topups, setTopups] = useState([]);   // credit_purchase_log, this month
+  const [activity, setActivity] = useState([]);   // last sign-in per workspace (0162)
   const [period, setPeriod] = useState(() => recentPeriods(1)[0]);
   const [restoring, setRestoring] = useState(hasSupabase);
 
@@ -2757,6 +2765,16 @@ export default function AdminPortal() {
     });
     return () => { active = false; };
   }, [admin, period]);
+
+  // When each workspace was last touched. Thin until 0157 has seen sign-ins.
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    let active = true;
+    supabase.rpc("admin_workspace_activity").then(({ data, error }) => {
+      if (active && !error && Array.isArray(data)) setActivity(data);
+    });
+    return () => { active = false; };
+  }, [admin]);
 
   // Sen-per-action rates. Cost figures read as a dash until these are set.
   useEffect(() => {
@@ -2965,7 +2983,7 @@ export default function AdminPortal() {
     // record the blocked attempt once per mount of a disallowed section
   } else {
     switch (section) {
-      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} audit={logAudit} onAction={runAdminAction} />; break;
+      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} activity={activity} audit={logAudit} onAction={runAdminAction} />; break;
       case "users":         screen = <Users role={role} companies={companies} users={users} setUsers={setUsers} audit={logAudit} onAction={runAdminAction} />; break;
       case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} planPrices={planPrices} usage={usage} aiCosts={aiCosts} topups={topups} audit={logAudit} onAction={runAdminAction} />; break;
       case "usage":         screen = <Usage role={role} usage={usage} aiCosts={aiCosts} period={period} periods={recentPeriods()} onPeriod={setPeriod} />; break;
