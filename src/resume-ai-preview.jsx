@@ -12644,23 +12644,23 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   return (
     <div className="space-y-4">
       <div>
-        <label className={labelClass}>Title</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
+        <label htmlFor="njf-title" className={labelClass}>Title</label>
+        <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Department</label>
-          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
+          <label htmlFor="njf-department" className={labelClass}>Department</label>
+          <input id="njf-department" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>Location</label>
-          <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
+          <label htmlFor="njf-location" className={labelClass}>Location</label>
+          <input id="njf-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Employment type</label>
-          <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
+          <label htmlFor="njf-employmentType" className={labelClass}>Employment type</label>
+          <select id="njf-employmentType" value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
             <option value="full_time">Full-time</option>
             <option value="part_time">Part-time</option>
             <option value="contract">Contract</option>
@@ -12668,16 +12668,16 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           </select>
         </div>
         <div>
-          <label className={labelClass}>Work mode</label>
-          <select value={remoteType} onChange={(e) => setRemoteType(e.target.value)} className={inputClass}>
+          <label htmlFor="njf-remoteType" className={labelClass}>Work mode</label>
+          <select id="njf-remoteType" value={remoteType} onChange={(e) => setRemoteType(e.target.value)} className={inputClass}>
             <option value="onsite">On-site</option>
             <option value="hybrid">Hybrid</option>
             <option value="remote">Remote</option>
           </select>
         </div>
         <div>
-          <label className={labelClass}>Openings <span className="text-neutral-400 font-normal">(how many to hire)</span></label>
-          <input type="number" min={1} value={openings} onChange={(e) => setOpenings(e.target.value)} className={inputClass} />
+          <label htmlFor="njf-openings" className={labelClass}>Openings <span className="text-neutral-400 font-normal">(how many to hire)</span></label>
+          <input id="njf-openings" type="number" min={1} value={openings} onChange={(e) => setOpenings(e.target.value)} className={inputClass} />
         </div>
       </div>
       <div>
@@ -12712,37 +12712,37 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       </div>
       <div className="grid grid-cols-[minmax(0,0.7fr)_1fr_1fr] gap-3">
         <div>
-          <label className={labelClass}>Currency</label>
-          <select value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)} className={inputClass}>
+          <label htmlFor="njf-salaryCurrency" className={labelClass}>Currency</label>
+          <select id="njf-salaryCurrency" value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)} className={inputClass}>
             {SALARY_CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>{c.label}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className={labelClass}>Salary min</label>
-          <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
+          <label htmlFor="njf-salaryMin" className={labelClass}>Salary min</label>
+          <input id="njf-salaryMin" type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>Salary max</label>
-          <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
+          <label htmlFor="njf-salaryMax" className={labelClass}>Salary max</label>
+          <input id="njf-salaryMax" type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
         </div>
       </div>
       <div>
-        <label className={labelClass}>Description</label>
-        <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short summary of the role and team context…" className={inputClass} />
+        <label htmlFor="njf-description" className={labelClass}>Description</label>
+        <textarea id="njf-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short summary of the role and team context…" className={inputClass} />
       </div>
       <div>
-        <label className={labelClass}>What you'll do <span className="text-neutral-400 font-normal">(one per line)</span></label>
-        <textarea rows={4} value={responsibilities} onChange={(e) => setResponsibilities(e.target.value)} placeholder={"Own the design system\nLead frontend architecture\nMentor the team"} className={inputClass} />
+        <label htmlFor="njf-responsibilities" className={labelClass}>What you'll do <span className="text-neutral-400 font-normal">(one per line)</span></label>
+        <textarea id="njf-responsibilities" rows={4} value={responsibilities} onChange={(e) => setResponsibilities(e.target.value)} placeholder={"Own the design system\nLead frontend architecture\nMentor the team"} className={inputClass} />
       </div>
       <div>
-        <label className={labelClass}>What we're looking for <span className="text-neutral-400 font-normal">(one per line)</span></label>
-        <textarea rows={4} value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder={"5+ years React & TypeScript\nDesign-system experience\nStrong CSS skills"} className={inputClass} />
+        <label htmlFor="njf-requirements" className={labelClass}>What we're looking for <span className="text-neutral-400 font-normal">(one per line)</span></label>
+        <textarea id="njf-requirements" rows={4} value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder={"5+ years React & TypeScript\nDesign-system experience\nStrong CSS skills"} className={inputClass} />
       </div>
       <div>
-        <label className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
-        <textarea rows={3} value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder={"Health insurance\nFlexible hours\nLearning budget"} className={inputClass} />
+        <label htmlFor="njf-benefits" className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
+        <textarea id="njf-benefits" rows={3} value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder={"Health insurance\nFlexible hours\nLearning budget"} className={inputClass} />
       </div>
       <div>
         <label className={labelClass}>Closing date <span className="text-neutral-400 font-normal">(optional)</span></label>
