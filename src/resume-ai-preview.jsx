@@ -29058,6 +29058,38 @@ export default function ResumeAIPreview() {
   const [scheduledPlan, setScheduledPlan] = useState(null);
   const [scheduledCycle, setScheduledCycle] = useState(null);
   const [scheduledEffective, setScheduledEffective] = useState(null);
+  // Plan, trial and comp state are loaded once at sign-in, so an admin change
+  // stayed invisible to anyone already signed in until they signed out and back
+  // in. Re-read the few billing facts when the tab regains focus: switching back
+  // from the admin console is exactly when they are most likely to have changed.
+  // Deliberately narrow. A full session reload would re-run routing and could
+  // move someone off the screen they are working on.
+  useEffect(() => {
+    if (!hasSupabase || !companyId) return;
+    const pull = () => {
+      if (document.visibilityState !== "visible") return;
+      supabase.from("companies").select("plan, comped_at").eq("id", companyId).maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          if (data.plan) setPlan(data.plan);
+          setComped(!!data.comped_at);
+        }, () => {});
+      supabase.from("subscriptions").select("status, current_period_end").eq("company_id", companyId).maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          setSubStatus(data.status || null);
+          setRenewsAt(data.current_period_end || null);
+          setTrialDaysLeft(data.status === "trialing" ? daysUntil(data.current_period_end) : 0);
+        }, () => {});
+    };
+    window.addEventListener("focus", pull);
+    document.addEventListener("visibilitychange", pull);
+    return () => {
+      window.removeEventListener("focus", pull);
+      document.removeEventListener("visibilitychange", pull);
+    };
+  }, [companyId]);
+
   const trialActive = subStatus === "trialing" && !dayHasPassed(renewsAt) && !comped;
   // A live trial grants Scale-level access whatever tier the row carries.
   const effectivePlan = trialActive && plan === "launch" ? "scale" : plan;
@@ -29933,6 +29965,15 @@ export default function ResumeAIPreview() {
         if (sess.plan) setPlan(sess.plan);
         setPlanCycle(sess.planCycle || "monthly");
         setTrialDaysLeft(sess.trialDaysLeft || 0);
+        // Same comp read as the sign-in path. Restoring a session on refresh
+        // takes this branch, not applyCustomerSession, so leaving it out here
+        // meant a comped workspace looked comped after signing in and reverted
+        // to a trial on the next refresh.
+        setComped(false);
+        if (sess.companyId) {
+          supabase.from("companies").select("comped_at").eq("id", sess.companyId).maybeSingle()
+            .then(({ data }) => setComped(!!data?.comped_at), () => {});
+        }
         setRenewsAt(sess.renewsAt || null);
         setSubStatus(sess.subStatus || null);
         setScheduledPlan(sess.scheduledPlan || null);
