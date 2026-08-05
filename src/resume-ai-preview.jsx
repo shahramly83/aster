@@ -464,18 +464,35 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 // Fetch the signed-in company's jobs, candidates, applications, interviews and
 // scorecards and map them into the shapes the app already renders. Returns null
 // on failure or when there's nothing to show (so callers keep the demo data).
+// PostgREST caps a response at 1000 rows. Every select below used to be
+// unbounded, so a workspace past 1000 candidates or applications was handed a
+// partial slice with no error, and that slice fed the dashboard counts, the
+// pipeline, Talent Pool search and the bulk-upload duplicate check. Paging needs
+// a total order or rows repeat or vanish between pages, so every query is sorted
+// by its primary key (offers keeps its newest-first order, with id to break ties).
+const ROW_PAGE = 1000;
+async function selectAllRows(build) {
+  const out = [];
+  for (let from = 0; ; from += ROW_PAGE) {
+    const { data, error } = await build().range(from, from + ROW_PAGE - 1);
+    if (error) return { data: out.length ? out : null, error };
+    if (data && data.length) out.push(...data);
+    if (!data || data.length < ROW_PAGE) return { data: out, error: null };
+  }
+}
+
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
-    supabase.from("jobs").select("id, title, status, details, created_at, expires_at, ai_ranked_at").eq("company_id", companyId),
-    supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
-    supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note, previous_at, scorecards_released_at").eq("company_id", companyId),
-    supabase.from("scorecards").select("id, candidate_id, job_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
+    selectAllRows(() => supabase.from("jobs").select("id, title, status, details, created_at, expires_at, ai_ranked_at").eq("company_id", companyId).order("id")),
+    selectAllRows(() => supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId).order("id")),
+    selectAllRows(() => supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId).order("id")),
+    selectAllRows(() => supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note, previous_at, scorecards_released_at").eq("company_id", companyId).order("id")),
+    selectAllRows(() => supabase.from("scorecards").select("id, candidate_id, job_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId).order("id")),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
-    supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
-    supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId),
-    supabase.from("offers").select("candidate_id, status, created_at, email_sent, offer_mode").eq("company_id", companyId).order("created_at", { ascending: false }),
+    selectAllRows(() => supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null).order("id")),
+    selectAllRows(() => supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId).order("id")),
+    selectAllRows(() => supabase.from("offers").select("candidate_id, status, created_at, email_sent, offer_mode").eq("company_id", companyId).order("created_at", { ascending: false }).order("id", { ascending: false })),
   ]);
   const jobRows = jobsRes.data || [];
   // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
@@ -21888,6 +21905,11 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
   // deletion, which the owner can undo with one click.
   const suspended = info?.status === "suspended" || info?.status === "churned";
   const churned = info?.status === "churned";
+  // companies.status cannot tell a lapsed trial from a suspended payer: both are
+  // 'suspended'. ever_paid comes from my_deletion_status (0153). Until that
+  // migration is applied it is undefined, which reads as never-paid, i.e. exactly
+  // the behaviour this screen had before.
+  const adminSuspended = info?.status === "suspended" && info?.ever_paid === true;
   const purge = info?.purge_after ? new Date(info.purge_after) : null;
   const daysLeft = purge ? Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000)) : null;
   // fmtDay, like every other date in the app. This screen was missed in the
@@ -21924,13 +21946,18 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
           : <AsterMark className="w-10 h-10 mx-auto mb-4" />}
 
         <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>
-          {churned ? "Your subscription has ended" : suspended ? "Subscribe to unlock your workspace" : "Workspace scheduled for deletion"}
+          {adminSuspended ? "This workspace has been suspended"
+            : churned ? "Your subscription has ended"
+            : suspended ? "Subscribe to unlock your workspace"
+            : "Workspace scheduled for deletion"}
         </h1>
 
         {suspended ? (
           <>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              {churned
+              {adminSuspended
+                ? <>{name} has been suspended by Aster, so it is locked for everyone on the team. Your subscription is unaffected and nothing has been cancelled.</>
+                : churned
                 ? <>{name} is locked because the subscription was cancelled. Subscribe to unlock it again.</>
                 : <>{name} needs an active subscription to unlock. Choose a plan below to get started.</>}
             </p>
@@ -21939,6 +21966,14 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
               {daysLeft != null && <> (<span className="font-semibold" style={{ color: "var(--brand)" }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span> left)</>}, then permanently deleted.
             </p>
             {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
+            {adminSuspended ? (
+              <a
+                href="mailto:support@hireaster.com?subject=Suspended%20workspace"
+                className="block w-full mt-5 rounded-xl brand-gradient hover:opacity-90 text-white font-semibold py-3 transition-opacity"
+              >
+                Email support
+              </a>
+            ) : (
             <div className="grid gap-2 sm:grid-cols-3 mt-5">
               {[
                 { key: "launch", name: "Launch" },
@@ -21965,7 +22000,11 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
                 );
               })}
             </div>
-            <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>{busy ? "Opening secure checkout…" : "Billed monthly. Cancel anytime."}</p>
+            )}
+            <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+              {adminSuspended ? "Only Aster can lift a suspension, so the plan buttons are not shown here."
+                : busy ? "Opening secure checkout…" : "Billed monthly. Cancel anytime."}
+            </p>
           </>
         ) : (
           <>
@@ -30108,12 +30147,12 @@ export default function ResumeAIPreview() {
     Object.entries(APPLICANTS_BY_JOB).forEach(([jid, list]) => list.forEach((a) => { if (a.candidateId === candidateId && (!jobId || jid === jobId)) a.baseStage = stage; }));
     // Stamp the hire date when a candidate is marked hired (drives "Hired {date}").
     if (stage === "hired") setHiredDates((prev) => (prev[candidateId] ? prev : { ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
-    if (!canPersist || prevStage === stage) return;
+    if (!canPersist || prevStage === stage) return Promise.resolve();
     // The database refuses a second live application per candidate (0144), so a
     // move back into the pipeline can legitimately fail. Put the stage back where
     // it was and say why, rather than leaving the screen showing a change that
     // did not happen.
-    dbSetCandidateStage(companyId, candidateId, stage, jobId).then((res) => {
+    const pending = dbSetCandidateStage(companyId, candidateId, stage, jobId).then((res) => {
       if (!res?.error) return;
       Object.entries(APPLICANTS_BY_JOB).forEach(([jid, list]) => list.forEach((a) => {
         if (a.candidateId === candidateId && (!jobId || jid === jobId)) a.baseStage = prevStage;
@@ -30129,18 +30168,28 @@ export default function ResumeAIPreview() {
         .invoke("send-stage-email", { body: { candidate_id: candidateId, stage } })
         .catch(() => { /* best-effort: never block the stage change on email */ });
     }
+    return pending;
   };
 
   // Closing a role clears its pipeline: every applicant except hired ones is
   // rejected. Their profiles stay in the candidate database (searchable, reusable),
   // they just leave this job's active pipeline, so reopening starts fresh. Hired
-  // candidates keep their status. No rejection emails are sent for a bulk close.
-  const closeJobRejectAll = (jobId) => {
+  // candidates keep their status. Every rejected applicant is emailed, the same as
+  // closing the role from the Applicants screen: the two paths used to disagree,
+  // so whether a candidate heard back depended on which screen HR happened to use.
+  const closeJobRejectAll = async (jobId) => {
     const list = APPLICANTS_BY_JOB[jobId] || [];
-    list.forEach((a) => {
+    const toReject = list.filter((a) => {
       const cur = readOverride(stageOverrides, a.candidateId, jobId) ?? a.baseStage;
-      if (cur !== "hired" && cur !== "rejected") setCandidateStage(a.candidateId, "rejected", { notify: false, jobId });
+      return cur !== "hired" && cur !== "rejected";
     });
+    // In batches, not all at once: a busy role has hundreds of applicants and
+    // this used to fire that many concurrent PATCHes from a single tab.
+    const BATCH = 10;
+    for (let i = 0; i < toReject.length; i += BATCH) {
+      await Promise.all(toReject.slice(i, i + BATCH).map((a) =>
+        setCandidateStage(a.candidateId, "rejected", { notify: true, jobId })));
+    }
   };
 
   // Reopening a closed role starts fresh: remove its applications so it reopens
