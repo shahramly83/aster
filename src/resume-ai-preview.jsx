@@ -851,7 +851,7 @@ function JobPipelineBar({ jobId, closed = false }) {
   if (closed) {
     const hired = counts.hired;
     return (
-      <p className="text-xs inline-flex items-center gap-1.5" style={{ color: hired ? "#16A34A" : "var(--ink-3)" }}>
+      <p className="text-xs inline-flex items-center gap-1.5" style={{ color: hired ? "var(--ok-text)" : "var(--ink-3)" }}>
         {hired > 0
           ? <><Icon name="check" className="w-3.5 h-3.5" /> <span className="tnum font-semibold">{hired}</span> hired</>
           : "Closed, no hire made"}
@@ -893,7 +893,8 @@ const BRAND_STYLES = `
   --line-strong: #DEDEE3;
   --ink: #0F1B33;
   --ink-2: #4A5568;
-  --ink-3: #6B7280;
+  --ink-3: #6A717F;   /* was #6B7280: 4.47:1 on --bg, just under the 4.5 floor */
+  --ok-text: #15803D; /* #16A34A is 3.30:1 on white: fine for a chart fill, not for text */
   --ink-4: #8A90A0;   /* used 29x and never defined: colour silently inherited */
   --brand: #0B2AE0;
   --brand-2: #3550EE;
@@ -5609,7 +5610,7 @@ function OfferHeroAnim() {
         </div>
         <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: accepted ? "#DCFCE7" : "#F7F9FC", border: `1px solid ${accepted ? "#BBF7D0" : "var(--line)"}`, transition: "background .4s, border-color .4s" }}>
           <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: accepted ? "#16A34A" : "var(--ink-3)", transition: "background .4s" }}><Icon name="check" className="w-3 h-3" /></span>
-          <span className="text-xs font-medium" style={{ color: accepted ? "#16A34A" : "var(--ink-2)" }}>{accepted ? "Signed & accepted" : "Awaiting signature"}</span>
+          <span className="text-xs font-medium" style={{ color: accepted ? "var(--ok-text)" : "var(--ink-2)" }}>{accepted ? "Signed & accepted" : "Awaiting signature"}</span>
         </div>
       </div>
       <div className="rounded-2xl p-4 sm:p-5 flex flex-col" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
@@ -24145,6 +24146,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       empType: offerRec.employment_type || undefined,
       startDate: offerRec.start_date || "",
       approvers: approvals.map((a) => ({ email: a.approver_email, name: a.approver_name || "", status: a.status })),
+      // Carry the original send mode. Without it an "upload our letter" offer
+      // came back as a composed one and nothing on screen said the document
+      // had changed.
+      offerMode: offerRec.offer_mode || "compose",
     });
     setShowOffer(true);
   };
@@ -26369,7 +26374,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   };
   // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
   // brings their own finished PDF and places one candidate signature box).
-  const [mode, setMode] = useState("compose");
+  const [mode, setMode] = useState(resubmit?.offerMode === "upload" ? "upload" : "compose");
   const [pdfFile, setPdfFile] = useState(null);
   const [signField, setSignField] = useState(null);   // { page, x, y, w, h, origin }
   const [uploadErr, setUploadErr] = useState(null);
@@ -26511,7 +26516,12 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         )}
 
         {/* Mode toggle: compose in Aster, or upload your own letter PDF. */}
-        {!resubmit && (
+        {resubmit?.offerMode === "upload" && (
+          <div className="mb-4 rounded-xl px-3.5 py-2.5 text-[13px]" style={{ background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--ink)" }}>
+            This offer was sent as your own uploaded letter. Attach it again below, or switch to Compose to send an Aster-written letter instead.
+          </div>
+        )}
+        {(!resubmit || resubmit.offerMode === "upload") && (
           <div className="mb-4 grid grid-cols-2 gap-2">
             {[["compose", "Compose in Aster", "Build the letter from terms"], ["upload", "Upload our letter", "Send your own PDF letter"]].map(([k, t, d]) => (
               <button key={k} type="button" onClick={() => setMode(k)} className="text-left rounded-xl border px-3.5 py-2.5 transition-all" style={mode === k ? { borderColor: "var(--brand)", background: "var(--brand-soft)", boxShadow: "0 0 0 1px var(--brand)" } : { borderColor: "var(--line)", background: "#fff" }}>

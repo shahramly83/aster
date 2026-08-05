@@ -82,7 +82,10 @@ export default function HelpPortal() {
       setTicketId(id);
       setStatus("done");
     } catch (e2) {
-      setErr(e2?.message || "Something went wrong. Please try again in a moment.");
+      // Never show e2.message here: this form is public, and the message is
+      // whatever Postgres or the edge runtime happened to say.
+      console.error("support-intake", e2);
+      setErr("Something went wrong. Please try again in a moment.");
       setStatus("idle");
     }
   };

@@ -189,7 +189,17 @@ async function run() {
   console.log(`\nPrerendered ${ok}/${ROUTES.length} routes.${failed.length ? " Failed: " + failed.join(", ") : ""}`);
   // Note failures but never fail the build over them — a green deploy that falls
   // back to SPA for a route beats a blocked deploy.
-  if (failed.length) console.warn(`[prerender] ${failed.length} route(s) fell back to SPA rendering.`);
+  if (failed.length) {
+    console.warn(`[prerender] ${failed.length} route(s) fell back to SPA rendering.`);
+    // Still never block the deploy, but make it impossible to miss: a broken
+    // headless Chrome on the build image used to ship every marketing page
+    // un-prerendered with nothing in the log but a count nobody reads.
+    console.warn("[prerender] SEO IMPACT: those routes ship without server-rendered HTML.");
+    if (process.env.PRERENDER_STRICT === "1") {
+      console.error("[prerender] PRERENDER_STRICT=1 set, failing the build.");
+      process.exitCode = 1;
+    }
+  }
 }
 
 // Prerendering is a progressive enhancement; any error degrades to an SPA build
