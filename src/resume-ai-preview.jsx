@@ -48,7 +48,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, comped_at, logo_url, preferred_currency, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, logo_url, preferred_currency, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -130,8 +130,8 @@ async function loadCustomerSession(userId, fallbackEmail) {
     scheduledCycle: scheduledChange.cycle,
     scheduledEffective: scheduledChange.effective,
     renewsAt: sub.current_period_end || null,
-    comped: !!co.comped_at,
-    trialDaysLeft: (sub.status === "trialing" && !co.comped_at) ? daysUntil(sub.current_period_end) : 0,
+    comped: false,   // filled in separately below; see loadComped
+    trialDaysLeft: sub.status === "trialing" ? daysUntil(sub.current_period_end) : 0,
     logoUrl: co.logo_url || null,
     // Workspace billing currency (0095), RM default. Seeds the billing/checkout
     // currency and the Settings selector.
@@ -29528,7 +29528,11 @@ export default function ResumeAIPreview() {
       if (sess.plan) setPlan(sess.plan);
       setPlanCycle(sess.planCycle || "monthly");
       setTrialDaysLeft(sess.trialDaysLeft || 0);
-      setComped(!!sess.comped);
+      setComped(false);
+      if (hasSupabase && sess.companyId) {
+        supabase.from("companies").select("comped_at").eq("id", sess.companyId).maybeSingle()
+          .then(({ data }) => setComped(!!data?.comped_at), () => {});
+      }
       setRenewsAt(sess.renewsAt || null);
       setSubStatus(sess.subStatus || null);
       setScheduledPlan(sess.scheduledPlan || null);
