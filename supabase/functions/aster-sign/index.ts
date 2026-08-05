@@ -501,6 +501,12 @@ Deno.serve(async (req) => {
 
     // ── SIGN: validate, build PDF, store, settle, notify ─────────────────────
     if (offer.status === "accepted" || offer.status === "declined") return json({ error: "already_settled" }, 409);
+    // Expiry was only ever enforced lazily, by expire-offer running when an HR
+    // user happened to open the candidate's profile. If nobody opened it, the
+    // offer stayed signable forever. Check it here, where it actually matters.
+    if (offer.expires_at && new Date(offer.expires_at).getTime() < Date.now()) {
+      return json({ error: "offer_expired" }, 409);
+    }
     const signatureType = body?.signatureType === "drawn" ? "drawn" : "typed";
     const signedName = String(body?.typedName || cand?.full_name || "").trim();
     const drawn = signatureType === "drawn" ? dataUrlToBytes(String(body?.drawnPng || "")) : null;

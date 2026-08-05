@@ -131,6 +131,15 @@ Deno.serve(async (req) => {
     // Claude can't read a .docx binary. Exactly one of the two is present.
     const { job_id, name, email, resume_base64, resume_text, original_base64, original_ext, filename, source, website } = await req.json();
     if (!job_id || (!resume_base64 && !resume_text)) return json({ error: "job_id and a resume (resume_base64 or resume_text) are required" }, 400);
+    // The 10 MB limit was enforced only in the apply page's own JavaScript, and
+    // this endpoint is public: a direct caller could hand us anything and we would
+    // forward it straight to the model. base64 is about 4/3 of the raw bytes.
+    const MAX_B64 = 10 * 1024 * 1024 * 4 / 3;
+    if ((typeof resume_base64 === "string" && resume_base64.length > MAX_B64)
+      || (typeof original_base64 === "string" && original_base64.length > MAX_B64)
+      || (typeof resume_text === "string" && resume_text.length > 1_000_000)) {
+      return json({ error: "resume_too_large" }, 413);
+    }
     // Honeypot: `website` is a hidden field a real applicant never sees or fills.
     // Any value means an automated submission, so drop it BEFORE the credit charge
     // and AI parse, but answer 200 as if it succeeded so the bot doesn't learn it

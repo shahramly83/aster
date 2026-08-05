@@ -10532,8 +10532,8 @@ function JourneyRings({ stages }) {
 //
 // Metered credits (reset on a rolling 30-day cycle): job posts, AI Parsing
 // (applicant + bulk are SEPARATE pools), AI Rank, AI Insight, AI Interview
-// Questions, and See Why. AI Rank / AI Insight / See Why are charged once per
-// candidate and cached; regenerating charges again (with a confirm prompt).
+// Questions. AI Rank and AI Insight are charged once per candidate and cached;
+// regenerating charges again (with a confirm prompt).
 // Match-to-role and Database (AI Rank) share the AI Rank pool.
 //
 // Enterprise inherits Pro's feature set with unlimited metered limits (it is
@@ -21552,7 +21552,11 @@ const EMAIL_TEMPLATE_DEFS = [
     subject: "Pick a time for your {{job_title}} interview",
     body: "Hi {{candidate_name}},\n\nWe'd like to interview you for the {{job_title}} role at {{company_name}}, and you'll be meeting {{interviewer_name}}.\n\nPick whichever time suits you best. Once you choose, we'll send the calendar invite and joining details to your inbox." },
   { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent to the candidate once they pick a slot.",
-    tokens: ["candidate_name", "job_title", "date_time", "meeting_link"],
+    // meeting_link is deliberately NOT offered here. confirm-booking always passes
+    // it as an empty string, because the video link does not exist yet when the
+    // slot is confirmed: it is sent separately by share-meeting-link. Advertising
+    // it meant any company that used it emailed every candidate a blank, forever.
+    tokens: ["candidate_name", "job_title", "date_time"],
     subject: "Your interview is confirmed: {{date_time}}",
     body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}. Your interviewer will share the meeting link before the call. We look forward to speaking with you." },
   { key: "interview_reminder", name: "Interview reminder (24h)", desc: "Sent to the candidate about a day before their interview.",
@@ -29088,8 +29092,6 @@ export default function ResumeAIPreview() {
   const [questionsUsed, setQuestionsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
-  // See Why (Option B): its own metered credit, charged once per candidate and
-  // cached (candidate id -> rationale). Regenerating charges again via a prompt.
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("elite");
   const [signupCycle, setSignupCycle] = useState("monthly");

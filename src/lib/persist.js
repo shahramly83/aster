@@ -998,18 +998,6 @@ export async function dbSaveMatchScores(companyId, jobId, results = []) {
   return { ok: true };
 }
 
-// Persist a "Why this fit" (See Why) explanation on the application, so it
-// survives reloads and AI Rank re-runs and doesn't cost another credit to
-// re-view. Needs the applications.see_why column (migration 0066); a missing
-// column just logs and no-ops.
-export async function dbSaveSeeWhy(companyId, jobId, candidateId, text) {
-  if (!hasSupabase || !companyId || !jobId || !candidateId) return;
-  const { error } = await supabase.from("applications")
-    .update({ see_why: text || null })
-    .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId);
-  if (error) console.error("dbSaveSeeWhy", error.message);
-}
-
 // ---- Interview availability polls (web parity with the mobile app) ------------
 // The hiring manager runs a panel poll (proposes a few time ranges); the assigned
 // interviewers mark the ones they can make. A panelist counts as "voted" only
