@@ -345,10 +345,14 @@ function CurrencyDropdown({ value, onChange }) {
 function geoDefaults() {
   let tz = "Asia/Kuala_Lumpur";
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch { /* noop */ }
+  // Malaysia gets ringgit, Singapore gets Singapore dollars, everywhere else
+  // gets USD. This used to fall through to MYR for every timezone outside the
+  // Americas and Singapore, so a visitor in London, Sydney or Dubai was quoted
+  // ringgit, which reads as a pricing error rather than a home-market default.
+  // Only these three currencies have Stripe prices, so USD is the honest catch-all.
+  if (tz === "Asia/Kuala_Lumpur" || tz === "Asia/Kuching") return { currency: "myr", timezone: tz };
   if (tz === "Asia/Singapore") return { currency: "sgd", timezone: tz };
-  // US / Canada / Latin America keep USD; every other region defaults to MYR.
-  if (/^America\//.test(tz) || /^US\//.test(tz) || tz === "Canada/Atlantic") return { currency: "usd", timezone: tz };
-  return { currency: "myr", timezone: tz };
+  return { currency: "usd", timezone: tz };
 }
 
 let planPricesPromise = null;

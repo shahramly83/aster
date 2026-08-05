@@ -1,12 +1,11 @@
 // Supabase Edge Function: expire-offer
 // ---------------------------------------------------------------------------
 // Declines an offer whose expiry date has passed and that the candidate has not
-// yet signed. Voids the DocuSign envelope (so they can no longer sign it), marks
-// the offer declined, and moves the candidate out of the Offer stage. Idempotent:
+// yet signed. Marks the offer declined and moves the candidate out of the Offer
+// stage. Idempotent:
 // a second call for an already-settled offer is a no-op. Verifies the caller
 // belongs to the offer's company.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { dsAccessToken, dsConfigured } from "../_shared/docusign.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,18 +43,9 @@ Deno.serve(async (req) => {
     const past = offer.expires_at && new Date(`${offer.expires_at}T23:59:59`).getTime() < Date.now();
     if (settled || !past) return json({ ok: true, skipped: "not_expired_or_settled" });
 
-    // Void the DocuSign envelope so the candidate can no longer sign it.
-    if (offer.esign_envelope_id && dsConfigured()) {
-      try {
-        const { token, basePath } = await dsAccessToken();
-        const accountId = Deno.env.get("DOCUSIGN_ACCOUNT_ID")!;
-        await fetch(`${basePath}/v2.1/accounts/${accountId}/envelopes/${offer.esign_envelope_id}`, {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "voided", voidedReason: "Offer expired" }),
-        });
-      } catch (e) { console.error("void envelope failed", e); }
-    }
+    // DocuSign was retired on 2026-07-18 in favour of Aster Sign, so there is no
+    // external envelope to void: setting the offer to declined below is what stops
+    // the candidate signing, and aster-sign now refuses an expired offer outright.
 
     await admin.from("offers").update({ status: "declined", esign_status: "voided", responded_at: new Date().toISOString() }).eq("id", offer.id);
     // Move the candidate out of the Offer stage (unless already further along).
