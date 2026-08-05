@@ -191,6 +191,7 @@ const PERMS = {
   "user.reset":          ["super", "support"],
   "user.deactivate":     ["super"],
   "subscription.change": ["super", "billing"],
+  "company.comp":        ["super", "billing"],
   "flag.toggle":         ["super"],
   "booking.block":       ["super", "support"],
   "support.resolve":     ["super", "support"],
@@ -411,7 +412,7 @@ function monthlyRevenueMYR(companies, prices) {
   if (!prices) return null;
   let sen = 0, counted = 0;
   for (const c of companies) {
-    if (c.status !== "active") continue;
+    if (c.subStatus !== "active") continue;
     const plan = String(c.plan || "").toLowerCase();
     if (!plan || plan === "enterprise") continue;
     const p = prices[`${plan}|${c.cycle === "yearly" ? "yearly" : "monthly"}`] || prices[`${plan}|monthly`];
@@ -1028,6 +1029,15 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
   const costOf = (id) => aiCostFor(usage.find((u) => u.companyId === id), aiCosts);
   const priced = aiCosts && Object.values(aiCosts).some((v) => v > 0);
 
+  // Grant or withdraw a free plan. Withdrawing does not suspend: it removes the
+  // protection and lets the trial rules apply again.
+  const onComp = async (c, on) => {
+    setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, compedAt: on ? new Date().toISOString() : null } : x));
+    const err = await onAction("admin_set_comped", { p_company: c.id, p_comped: on, p_note: null },
+      on ? "Comped workspace" : "Ended comp", c.name);
+    if (err) setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, compedAt: c.compedAt } : x));
+  };
+
   // Confirmed from the dialog. Status first, then the plan when it changed, so a
   // failed plan change cannot leave a workspace suspended-but-reported-restored.
   const apply = async (c, status, plan) => {
@@ -1077,7 +1087,7 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
                 <div className="text-xs" style={{ color: "var(--ink-3)" }}>{c.owner || "No owner on record"}</div>
               </Td>
               <Td><Badge tone={c.plan === "Enterprise" ? "brand" : "ink"}>{c.plan}</Badge></Td>
-              <Td><StatusBadge value={c.status} /></Td>
+              <Td>{c.compedAt ? <Badge tone="brand" dot>comped</Badge> : <StatusBadge value={c.status} />}</Td>
               <Td className="tnum">{c.seats}</Td>
               <Td className="tnum">{c.activeJobs}</Td>
               <Td><span className="inline-flex items-center gap-1.5 tnum"><span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>{c.candidates.toLocaleString()}</span></Td>
@@ -1097,9 +1107,16 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
                 </div>
               </Td>
               <Td>
-                {c.status === "suspended"
-                  ? <ActionBtn icon="refresh" disabled={!can(role, "company.restore")} onClick={() => setDialog({ company: c, mode: "restore" })}>Restore</ActionBtn>
-                  : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "company.suspend")} onClick={() => setDialog({ company: c, mode: "suspend" })}>Suspend</ActionBtn>}
+                <div className="flex gap-2">
+                  {/* Comp is offered only where it means something: a paying
+                      workspace already has its plan and Stripe owns it. */}
+                  {c.compedAt
+                    ? <ActionBtn icon="close" disabled={!can(role, "company.comp")} onClick={() => onComp(c, false)}>End comp</ActionBtn>
+                    : <ActionBtn icon="spark" disabled={!can(role, "company.comp") || c.subStatus === "active"} onClick={() => onComp(c, true)}>Comp</ActionBtn>}
+                  {c.status === "suspended"
+                    ? <ActionBtn icon="refresh" disabled={!can(role, "company.restore")} onClick={() => setDialog({ company: c, mode: "restore" })}>Restore</ActionBtn>
+                    : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "company.suspend")} onClick={() => setDialog({ company: c, mode: "suspend" })}>Suspend</ActionBtn>}
+                </div>
               </Td>
             </tr>
           );
@@ -1486,7 +1503,7 @@ function MarginPanel({ companies, usage, aiCosts, planPrices }) {
   // than guessed, and it is left out of the totals.
   const margins = companies.map((c) => {
     const cost = aiCostFor(usage.find((u) => u.companyId === c.id), aiCosts);
-    const rev = c.status === "active" ? planMonthlyMYR(c.plan, c.cycle, planPrices) : 0;
+    const rev = c.subStatus === "active" ? planMonthlyMYR(c.plan, c.cycle, planPrices) : 0;
     return { ...c, cost, rev, margin: rev == null ? null : rev - cost, known: rev != null };
   });
   const knownMargins = margins.filter((m) => m.known);
@@ -1615,7 +1632,9 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, topups = []
               </Td>
               <Td style={{ color: "var(--ink-2)" }}>{s.renews}</Td>
               <Td>
-                <ActionBtn icon="refresh" disabled={!allowed} onClick={() => setDialog(s)}>Change plan</ActionBtn>
+                {s.status === "active"
+                  ? <span className="text-xs" style={{ color: "var(--ink-3)" }} title="Stripe rewrites the plan from its own subscription events, so changing it here would not be charged and would revert.">Manage in Stripe</span>
+                  : <ActionBtn icon="refresh" disabled={!allowed} onClick={() => setDialog(s)}>Change plan</ActionBtn>}
               </Td>
             </tr>
           );
@@ -2922,7 +2941,9 @@ export default function AdminPortal() {
         plan: ADMIN_PLAN_LABEL[c.plan] || c.plan,
         status: c.status, seats: Number(c.user_count) || 0,
         cycle: c.cycle || "monthly",   // drives the monthly share of a yearly plan
+        subStatus: c.sub_status || null,   // paying is a subscription fact, not a company one
         activeJobs: Number(c.active_jobs) || 0, candidates: Number(c.candidate_count) || 0,
+        compedAt: c.comped_at || null, compedNote: c.comped_note || null,
         interviews: Number(c.interview_count) || 0, hired: Number(c.hired_count) || 0,
         upcoming: Number(c.upcoming_interviews) || 0,
       })));

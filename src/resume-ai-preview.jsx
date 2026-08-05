@@ -48,7 +48,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, logo_url, preferred_currency, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, comped_at, logo_url, preferred_currency, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -130,7 +130,8 @@ async function loadCustomerSession(userId, fallbackEmail) {
     scheduledCycle: scheduledChange.cycle,
     scheduledEffective: scheduledChange.effective,
     renewsAt: sub.current_period_end || null,
-    trialDaysLeft: sub.status === "trialing" ? daysUntil(sub.current_period_end) : 0,
+    comped: !!co.comped_at,
+    trialDaysLeft: (sub.status === "trialing" && !co.comped_at) ? daysUntil(sub.current_period_end) : 0,
     logoUrl: co.logo_url || null,
     // Workspace billing currency (0095), RM default. Seeds the billing/checkout
     // currency and the Settings selector.
@@ -20720,7 +20721,7 @@ const CREDIT_KIND_LABELS = {
 // How many recent entries the billing card shows. The full history is the CSV.
 const SPEND_PAGE = 50;
 
-function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyId = null, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, trialActive = false, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyId = null, comped = false, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, trialActive = false, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(() => {
     // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
     // confirmation from the fresh page load.
@@ -21083,7 +21084,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
                       // both wrong and alarming.
                       : pastDue
                         ? "Your subscription is on hold until the payment below is settled."
-                        : "No active subscription."}
+                        : comped
+                          ? "Included with your account. Nothing to pay."
+                          : "No active subscription."}
               </p>
             </div>
             {paidSub && (savedPrice || upcoming) && (
@@ -29048,6 +29051,7 @@ export default function ResumeAIPreview() {
   // Both hydrated from subscriptions on sign-in: days left when status is
   // 'trialing' (0 otherwise), and the current_period_end the plan renews on.
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
+  const [comped, setComped] = useState(false);   // plan granted by Aster, never billed
   const [renewsAt, setRenewsAt] = useState(null);
   const [subStatus, setSubStatus] = useState(null); // subscriptions.status
   // A deferred downgrade scheduled to take effect at period end (0092).
@@ -29524,6 +29528,7 @@ export default function ResumeAIPreview() {
       if (sess.plan) setPlan(sess.plan);
       setPlanCycle(sess.planCycle || "monthly");
       setTrialDaysLeft(sess.trialDaysLeft || 0);
+      setComped(!!sess.comped);
       setRenewsAt(sess.renewsAt || null);
       setSubStatus(sess.subStatus || null);
       setScheduledPlan(sess.scheduledPlan || null);
@@ -30859,7 +30864,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && isOwner(profile?.role) && (
-          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} initialCycle={billingCycleIntent} onCycleIntentConsumed={() => setBillingCycleIntent(null)} company={company} companyId={companyId} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} initialCycle={billingCycleIntent} onCycleIntentConsumed={() => setBillingCycleIntent(null)} company={company} companyId={companyId} comped={comped} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} trialEndsAt={trialActive ? renewsAt : null} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
