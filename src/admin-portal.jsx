@@ -341,11 +341,12 @@ function PlanColumns({ rows }) {
     </div>
   );
 }
-function SectionHead({ title, children }) {
+function SectionHead({ title, left, children }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-      <div>
+    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex items-center gap-4">
         <h1 className="text-2xl font-bold adm-display text-neutral-900">{title}</h1>
+        {left}
       </div>
       {children}
     </div>
@@ -2722,7 +2723,7 @@ function Bookings({ role, bookings, onStatus, blocked, setBlocked, audit }) {
 
   return (
     <div>
-      <SectionHead title="Bookings">
+      <SectionHead title="Bookings" left={
         <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
           {[{ k: "requests", l: "Requests" }, { k: "blocked", l: "Blocked dates" }].map((v) => (
             <button key={v.k} onClick={() => setView(v.k)} aria-pressed={view === v.k}
@@ -2730,6 +2731,7 @@ function Bookings({ role, bookings, onStatus, blocked, setBlocked, audit }) {
               style={{ background: view === v.k ? "#fff" : "transparent", color: view === v.k ? "var(--brand)" : "var(--ink-2)" }}>{v.l}</button>
           ))}
         </div>
+      }>
         <div className={view === "requests" ? "flex items-center gap-1 p-1 rounded-full" : "hidden"} style={{ background: "var(--app-bg)" }}>
           {[{ k: "upcoming", l: "Upcoming" }, { k: "past", l: "Past" }, { k: "all", l: "All" }].map((f) => (
             <button key={f.k} onClick={() => setShow(f.k)} aria-pressed={show === f.k}
