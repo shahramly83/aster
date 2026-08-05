@@ -29058,7 +29058,7 @@ export default function ResumeAIPreview() {
   const [scheduledPlan, setScheduledPlan] = useState(null);
   const [scheduledCycle, setScheduledCycle] = useState(null);
   const [scheduledEffective, setScheduledEffective] = useState(null);
-  const trialActive = subStatus === "trialing" && !dayHasPassed(renewsAt);
+  const trialActive = subStatus === "trialing" && !dayHasPassed(renewsAt) && !comped;
   // A live trial grants Scale-level access whatever tier the row carries.
   const effectivePlan = trialActive && plan === "launch" ? "scale" : plan;
   // Shared monthly AI-match run counter (Free is limited; resets in production
