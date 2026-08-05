@@ -176,12 +176,15 @@
     // rest straight from the CV, so asking for them again would be redundant. Just
     // take the file.
     root.innerHTML =
-      '<label>Apply with your resume</label>' +
-      '<div class="aster-drop" id="' + id + '-drop">Click to upload or drop your resume here' +
+      '<label for="' + id + '-input">Apply with your resume</label>' +
+      '<div class="aster-drop" id="' + id + '-drop" role="button" tabindex="0" '
+        + 'aria-controls="' + id + '-input" '
+        + 'aria-label="Upload your resume. PDF or Word document, up to 10 MB.">'
+        + 'Click to upload or drop your resume here' +
         '<div class="aster-file" id="' + id + '-file"></div>' +
         '<div style="font-size:11px;color:#9096a2;margin-top:4px">PDF or Word (.docx), up to 10 MB</div>' +
       '</div>' +
-      '<input id="' + id + '-input" type="file" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">' +
+      '<input id="' + id + '-input" aria-label="Resume file" type="file" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">' +
       // Honeypot field: a real applicant never sees or fills it. Any value marks
       // the submission as a bot; the endpoint drops it but answers 200.
       '<input class="aster-hp" type="text" id="' + id + '-website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">' +
@@ -218,6 +221,11 @@
     }
 
     drop.addEventListener("click", function () { fileInput.click(); });
+    // The drop zone is now role="button" tabindex="0", so it has to answer the
+    // keyboard too. Focusable but unactivatable would be worse than unfocusable.
+    drop.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") { e.preventDefault(); fileInput.click(); }
+    });
     fileInput.addEventListener("change", function (e) { pick(e.target.files[0]); });
     ["dragenter", "dragover"].forEach(function (ev) {
       drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add("drag"); });
