@@ -1348,10 +1348,15 @@ function MarginPanel({ companies, usage, aiCosts, planPrices }) {
   );
 }
 
-function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCosts, audit, onAction }) {
+function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCosts, topups = [], audit, onAction }) {
   const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
   const [dialog, setDialog] = useState(null);
   const allowed = can(role, "subscription.change");
+
+  // Ringgit top-ups summed; anything charged in another currency is named
+  // rather than converted at whatever today's rate happens to be.
+  const topupMYR = topups.filter((t) => t.currency === "myr").reduce((a, t) => a + Number(t.amount_cents || 0), 0);
+  const otherCurrencies = [...new Set(topups.filter((t) => t.currency !== "myr").map((t) => String(t.currency).toUpperCase()))];
 
   const mrrOf = (s) => (s.status === "active" ? planMonthlyMYR(s.plan, s.cycle, planPrices) : null);
   const total = subs.reduce((a, s) => a + (mrrOf(s) || 0), 0);
@@ -1370,11 +1375,27 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
   return (
     <div>
       <SectionHead title="Subscriptions" desc="Plans, billing status and revenue by workspace.">
-        <div className="text-right">
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p>
-          <p className="text-lg font-bold adm-display tnum" style={{ color: "var(--ok)" }}>
-            {planPrices ? ringgit(total) : "—"}
-          </p>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p>
+            <p className="text-lg font-bold adm-display tnum" style={{ color: "var(--ok)" }}>
+              {planPrices ? ringgit(total) : "—"}
+            </p>
+          </div>
+          {/* Credit top-ups are billed on top of the plan, so they are shown
+              beside MRR rather than folded into it: one is recurring, the other
+              is not, and adding them would make MRR mean something else. */}
+          <div className="text-right">
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>Top-ups this month</p>
+            <p className="text-lg font-bold adm-display tnum" style={{ color: topupMYR ? "var(--ok)" : "var(--ink-3)" }}>
+              {ringgit(topupMYR / 100)}
+            </p>
+            {otherCurrencies.length > 0 && (
+              <p className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                plus {otherCurrencies.join(", ")}
+              </p>
+            )}
+          </div>
         </div>
       </SectionHead>
       <PrivacyNote>Aster does <strong>not store or display card details</strong>. Payment methods are held by the payment processor; only plan and status are shown here.</PrivacyNote>
@@ -2611,6 +2632,7 @@ export default function AdminPortal() {
   // it is costed at. Both are admin-only reads.
   const [usage, setUsage] = useState([]);
   const [aiCosts, setAiCosts] = useState(null);
+  const [topups, setTopups] = useState([]);   // credit_purchase_log, this month
   const [period, setPeriod] = useState(() => recentPeriods(1)[0]);
   const [restoring, setRestoring] = useState(hasSupabase);
 
@@ -2724,6 +2746,17 @@ export default function AdminPortal() {
     if (err) setBookings((bs) => bs.map((x) => x.id === b.id ? { ...x, status: b.status } : x));
     else reloadBookings();
   };
+
+  // Credit top-ups bought this month. Real revenue the subscription figure
+  // never counted. Returned per currency, not converted.
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    let active = true;
+    supabase.rpc("admin_credit_revenue", { p_period: period }).then(({ data, error }) => {
+      if (active && !error && Array.isArray(data)) setTopups(data);
+    });
+    return () => { active = false; };
+  }, [admin, period]);
 
   // Sen-per-action rates. Cost figures read as a dash until these are set.
   useEffect(() => {
@@ -2934,7 +2967,7 @@ export default function AdminPortal() {
     switch (section) {
       case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} audit={logAudit} onAction={runAdminAction} />; break;
       case "users":         screen = <Users role={role} companies={companies} users={users} setUsers={setUsers} audit={logAudit} onAction={runAdminAction} />; break;
-      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} planPrices={planPrices} usage={usage} aiCosts={aiCosts} audit={logAudit} onAction={runAdminAction} />; break;
+      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} planPrices={planPrices} usage={usage} aiCosts={aiCosts} topups={topups} audit={logAudit} onAction={runAdminAction} />; break;
       case "usage":         screen = <Usage role={role} usage={usage} aiCosts={aiCosts} period={period} periods={recentPeriods()} onPeriod={setPeriod} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "rates":         screen = <CurrencyRates role={role} audit={logAudit} />; break;
