@@ -157,6 +157,15 @@ function dayBucket(iso) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
+const SETTINGS_TABS = [
+  { key: "rates",           label: "Currency rates",  roles: ["super", "billing"] },
+  { key: "ai_costs",        label: "AI costs",        roles: ["super", "billing"] },
+  { key: "flags",           label: "Feature flags",   roles: ["super"] },
+  { key: "email_templates", label: "Email templates", roles: ["super", "support"] },
+  { key: "usage",           label: "Usage monitoring", roles: ["super", "support", "billing"] },
+  { key: "audit",           label: "Audit logs",      roles: ["super", "billing"] },
+];
+
 // ---------------------------------------------------------------------------
 // Roles & permissions (RBAC)
 // ---------------------------------------------------------------------------
@@ -169,18 +178,10 @@ const ROLE_META = {
 // Which sections each role may open. Enforced in the sidebar and per screen.
 const SECTIONS = [
   { key: "dashboard",     label: "Dashboard",        icon: "dashboard", roles: ["super", "support", "billing"] },
-  { key: "companies",     label: "Companies",        icon: "building",  roles: ["super", "support", "billing"] },
-  { key: "users",         label: "User management",  icon: "users",     roles: ["super", "support"] },
-  { key: "subscriptions", label: "Subscriptions",    icon: "card",      roles: ["super", "billing"] },
-  { key: "usage",         label: "Usage monitoring", icon: "chart",     roles: ["super", "support", "billing"] },
-  { key: "support",       label: "Support logs",     icon: "headset",   roles: ["super", "support"] },
-  { key: "ai_costs",      label: "AI costs",         icon: "spark",     roles: ["super", "billing"] },
-  { key: "rates",         label: "Currency rates",   icon: "card",      roles: ["super", "billing"] },
-  { key: "flags",         label: "Feature flags",    icon: "flag",      roles: ["super"] },
+  { key: "workspaces",    label: "Workspaces",       icon: "building",  roles: ["super", "support", "billing"] },
+  { key: "support",       label: "Support",           icon: "headset",   roles: ["super", "support"] },
   { key: "bookings",      label: "Bookings",         icon: "calendar",  roles: ["super", "support"] },
-  { key: "booking",       label: "Blocked dates",    icon: "ban",       roles: ["super", "support"] },
-  { key: "email_templates", label: "Email templates", icon: "mail",     roles: ["super", "support"] },
-  { key: "audit",         label: "Audit logs",       icon: "audit",     roles: ["super", "billing"] },
+  { key: "settings",      label: "Settings",         icon: "spark",     roles: ["super", "support", "billing"] },
 ];
 
 // Fine-grained actions -> roles allowed.
@@ -690,8 +691,8 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
 
         {/* Only the roles the audit_log policy admits: a Support admin would
             otherwise get an empty card that reads as "nothing happened". */}
-        <Tile className={sectionAllowed(role, "audit") ? "" : "hidden"}>
-          <TileHead title="Admin activity" right={sectionAllowed(role, "audit") && <SeeAll onClick={() => go("audit")} />} />
+        <Tile className={SETTINGS_TABS.find((t) => t.key === "audit").roles.includes(role) ? "" : "hidden"}>
+          <TileHead title="Admin activity" right={sectionAllowed(role, "settings") && <SeeAll onClick={() => go("settings")} />} />
           {audit.length === 0 ? (
             <div className="py-10 text-center">
               <span className="w-11 h-11 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-mint)", color: "#166534" }}><Icon name="check" className="w-5 h-5" /></span>
@@ -761,27 +762,25 @@ function StatusDialog({ company, mode, planPrices, onClose, onConfirm }) {
       <div className="adm-pop w-full sm:max-w-lg rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
         style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
 
-        <div className="p-6 sm:p-7">
+        <div className="px-6 sm:px-7 pt-6 pb-5" style={{ background: restoring ? `linear-gradient(135deg,#5570F5,#0B2AE0)` : `linear-gradient(135deg,#F2775A,#DC2626)` }}>
           <div className="flex items-start gap-4">
-            <span className="w-12 h-12 rounded-2xl inline-flex items-center justify-center shrink-0"
-              style={{ background: restoring ? "var(--t-mint)" : "var(--danger-soft)", color: restoring ? "#166534" : "var(--danger)" }}>
-              <Icon name={restoring ? "refresh" : "ban"} className="w-5 h-5" />
-            </span>
             <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-bold adm-display text-neutral-900 leading-snug">
+              <h2 className="text-xl font-bold adm-display text-white leading-snug">
                 {restoring ? "Restore" : "Suspend"} {company.name}?
               </h2>
-              <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
+              <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,.85)" }}>
                 {restoring
                   ? "The team gets access back straight away. Pick the plan it returns on."
                   : `All ${company.seats} ${company.seats === 1 ? "person" : "people"} lose access until you restore it. Nothing is deleted.`}
               </p>
             </div>
             <button onClick={onClose} disabled={busy} aria-label="Close"
-              className="w-9 h-9 rounded-full grid place-items-center shrink-0 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+              className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ color: "#fff", background: "rgba(255,255,255,.18)" }}>
               <Icon name="close" className="w-4 h-4" />
             </button>
           </div>
+        </div>
+        <div className="px-6 sm:px-7 py-6">
 
           {restoring ? (
             <fieldset className="mt-6">
@@ -855,7 +854,153 @@ function StatusDialog({ company, mode, planPrices, onClose, onConfirm }) {
     </div>
   );
 }
-function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, activity = [], audit, onAction }) {
+// One workspace, opened from the list. Companies, User management and
+// Subscriptions were three views of the same thing, so this pulls them into one
+// place: the team, the plan and the AI bill for a single company, next to the
+// actions that change them.
+//
+// Each tab gates itself. The nav used to do this for free, but inside a drawer
+// a Billing admin must not see Team and a Support admin must not see Billing,
+// so the check lives on the tab rather than on the route.
+const WS_TABS = [
+  { key: "overview", label: "Overview", section: "companies" },
+  { key: "team",     label: "Team",     section: "users" },
+  { key: "billing",  label: "Billing",  section: "subscriptions" },
+  { key: "usage",    label: "AI usage", section: "usage" },
+];
+
+function WsRow({ label, value, hint }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-2.5" style={{ borderBottom: "1px solid var(--line)" }}>
+      <span className="text-sm" style={{ color: "var(--ink-2)" }}>{label}</span>
+      <span className="text-sm font-semibold tnum text-right" style={{ color: "var(--ink)" }}>
+        {value}{hint && <span className="block text-[11px] font-normal" style={{ color: "var(--ink-3)" }}>{hint}</span>}
+      </span>
+    </div>
+  );
+}
+
+function WorkspaceDrawer({ company, role, users, subs, usage, aiCosts, planPrices, lastSeen, onClose, onUserAction, onOpenSection }) {
+  const tabs = WS_TABS.filter((t) => sectionAllowed(role, t.section));
+  const [tab, setTab] = useState(tabs[0]?.key);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const team = users.filter((u) => u.companyId === company.id);
+  const sub = subs.find((s) => s.companyId === company.id);
+  const use = usage.find((u) => u.companyId === company.id);
+  const cost = aiCostFor(use, aiCosts);
+  const monthly = planMonthlyMYR(company.plan, company.cycle, planPrices);
+  const priced = aiCosts && Object.values(aiCosts).some((v) => v > 0);
+
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(15,27,51,0.35)" }} onClick={onClose}>
+      <aside className="adm-pop w-full max-w-xl h-full overflow-y-auto bg-white" onClick={(e) => e.stopPropagation()}
+        role="dialog" aria-modal="true" aria-label={company.name}
+        style={{ boxShadow: "-30px 0 80px -30px rgba(15,27,51,.45)" }}>
+
+        <header className="sticky top-0 z-10 px-6 pt-5 pb-3" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+          <div className="flex items-start gap-3">
+            <Monogram label={company.name} size={40} soft />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-bold adm-display text-neutral-900 truncate">{company.name}</h2>
+              <p className="text-xs mt-0.5 flex flex-wrap items-center gap-x-2" style={{ color: "var(--ink-3)" }}>
+                <Badge tone={company.plan === "Enterprise" ? "brand" : "ink"}>{company.plan}</Badge>
+                <StatusBadge value={company.status} />
+                <span className="tnum">{lastSeen}</span>
+              </p>
+            </div>
+            <button onClick={onClose} aria-label="Close"
+              className="w-9 h-9 rounded-full grid place-items-center shrink-0 hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+          <nav className="flex gap-1 mt-4 -mb-3 overflow-x-auto">
+            {tabs.map((t) => (
+              <button key={t.key} onClick={() => setTab(t.key)} aria-current={tab === t.key ? "page" : undefined}
+                className="h-10 px-3.5 rounded-t-xl text-sm font-semibold whitespace-nowrap"
+                style={{ color: tab === t.key ? "var(--brand)" : "var(--ink-2)", borderBottom: `2px solid ${tab === t.key ? "var(--brand)" : "transparent"}` }}>
+                {t.label}{t.key === "team" && team.length > 0 ? ` (${team.length})` : ""}
+              </button>
+            ))}
+          </nav>
+        </header>
+
+        <div className="px-6 py-5">
+          {tab === "overview" && (
+            <div>
+              <WsRow label="Owner" value={company.owner || "None on record"} />
+              <WsRow label="Seats" value={company.seats} />
+              <WsRow label="Open jobs" value={company.activeJobs} />
+              <WsRow label="Candidates" value={company.candidates.toLocaleString()} hint="counted only, never readable here" />
+              <WsRow label="Interviews" value={(company.interviews || 0).toLocaleString()} hint={company.upcoming ? `${company.upcoming} still ahead` : undefined} />
+              <WsRow label="Hired" value={(company.hired || 0).toLocaleString()} />
+              <WsRow label="Last seen" value={lastSeen} />
+            </div>
+          )}
+
+          {tab === "team" && (
+            team.length === 0
+              ? <p className="text-sm py-8 text-center" style={{ color: "var(--ink-3)" }}>Nobody on this workspace yet.</p>
+              : <ul className="space-y-2">
+                  {team.map((u) => (
+                    <li key={u.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: "var(--app-bg)" }}>
+                      <Monogram label={u.name} size={32} soft />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">{u.name}</p>
+                        <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{u.email}</p>
+                      </div>
+                      <Badge tone={u.role === "Owner" ? "brand" : "ink"}>{u.role}</Badge>
+                      {u.status === "suspended"
+                        ? <ActionBtn icon="refresh" disabled={!can(role, "user.deactivate")} onClick={() => onUserAction(u, "unblock")}>Unblock</ActionBtn>
+                        : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "user.deactivate")} onClick={() => onUserAction(u, "block")}>Block</ActionBtn>}
+                    </li>
+                  ))}
+                </ul>
+          )}
+
+          {tab === "billing" && (
+            <div>
+              <WsRow label="Plan" value={company.plan} />
+              <WsRow label="Cycle" value={sub?.cycle || company.cycle || "—"} />
+              <WsRow label="Subscription" value={sub?.status || "—"} />
+              <WsRow label="Monthly" value={monthly == null ? (company.plan === "Enterprise" ? "Custom" : "—") : ringgit(monthly)} />
+              <WsRow label="Renews" value={sub?.renews || "—"} />
+              <WsRow label="AI cost this month" value={priced ? ringgit2(cost) : "—"} />
+              <WsRow label="Margin"
+                value={monthly == null ? "—" : (monthly - cost < 0 ? "−" : "") + ringgit2(Math.abs(monthly - cost))}
+                hint={monthly == null ? "custom-priced, revenue unknown" : undefined} />
+              <button onClick={() => onOpenSection("subscriptions")} className="text-xs font-semibold mt-4" style={{ color: "var(--brand)" }}>
+                Change plan in Subscriptions
+              </button>
+            </div>
+          )}
+
+          {tab === "usage" && (
+            !use || use.total === 0
+              ? <p className="text-sm py-8 text-center" style={{ color: "var(--ink-3)" }}>No AI actions this month.</p>
+              : <div>
+                  {AI_KINDS.map((k) => (
+                    <WsRow key={k.key} label={k.label}
+                      value={(use[k.key] || 0).toLocaleString()}
+                      hint={priced ? ringgit2(((use[k.key] || 0) * (aiCosts[k.key] || 0)) / 100) : undefined} />
+                  ))}
+                  <WsRow label="Total" value={use.total.toLocaleString()} hint={priced ? ringgit2(cost) : undefined} />
+                </div>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function Companies({ role, companies, setCompanies, users = [], subs = [], usage, aiCosts, planPrices, activity = [], audit, onAction, go }) {
+  const [openWs, setOpenWs] = useState(null);   // workspace shown in the drawer
   const [q, setQ] = useState("");
   const [dialog, setDialog] = useState(null);   // { company, mode }
   const [dormantOnly, setDormantOnly] = useState(false);
@@ -906,7 +1051,7 @@ function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, 
 
   return (
     <div>
-      <SectionHead title="Companies">
+      <SectionHead title="">
         <div className="flex items-center gap-2">
           {dormantCount > 0 && (
             <button onClick={() => setDormantOnly((v) => !v)} aria-pressed={dormantOnly}
@@ -928,7 +1073,7 @@ function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, 
           return (
             <tr key={c.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
               <Td>
-                <div className="font-semibold text-neutral-900">{c.name}</div>
+                <button onClick={() => setOpenWs(c)} className="font-semibold text-neutral-900 text-left hover:underline">{c.name}</button>
                 <div className="text-xs" style={{ color: "var(--ink-3)" }}>{c.owner || "No owner on record"}</div>
               </Td>
               <Td><Badge tone={c.plan === "Enterprise" ? "brand" : "ink"}>{c.plan}</Badge></Td>
@@ -965,6 +1110,16 @@ function Companies({ role, companies, setCompanies, usage, aiCosts, planPrices, 
           AI cost shows a dash until the per-action rates are set under AI costs.
         </p>
       )}
+      {openWs && (
+        <WorkspaceDrawer
+          company={companies.find((x) => x.id === openWs.id) || openWs}
+          role={role} users={users} subs={subs} usage={usage} aiCosts={aiCosts} planPrices={planPrices}
+          lastSeen={(() => { const d = daysQuiet(openWs.id); return d == null ? "not recorded" : d === 0 ? "seen today" : `seen ${d}d ago`; })()}
+          onClose={() => setOpenWs(null)}
+          onUserAction={(u, mode) => onAction("admin_set_user_status", { p_profile: u.id, p_active: mode === "unblock" },
+            mode === "block" ? "Blocked user access" : "Restored user access", u.email)}
+          onOpenSection={() => { setOpenWs(null); go("workspaces"); }} />
+      )}
       {dialog && <StatusDialog company={dialog.company} mode={dialog.mode} planPrices={planPrices} onClose={() => setDialog(null)} onConfirm={apply} />}
     </div>
   );
@@ -976,7 +1131,7 @@ function UserActionDialog({ user, company, mode, onClose, onConfirm }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const meta = {
-    block:   { icon: "ban",     tint: "var(--danger-soft)", fg: "var(--danger)", title: "Block access for", cta: "Block access", btn: "var(--danger)",
+    block:   { title: "Block access for", cta: "Block access", btn: "var(--danger)",
                body: "They are signed out and cannot sign back in until you unblock them. Their account, assignments and history are kept.",
                points: ["Cannot sign in to the workspace", "Stays on the team list, marked suspended", "Nothing is deleted"] },
     unblock: { icon: "refresh", tint: "var(--t-mint)",      fg: "#166534",       title: "Restore access for", cta: "Unblock", btn: "var(--brand)",
@@ -1006,14 +1161,16 @@ function UserActionDialog({ user, company, mode, onClose, onConfirm }) {
       onClick={() => !busy && onClose()} role="dialog" aria-modal="true">
       <div className="adm-pop w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
         style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 sm:p-7">
-          <span className="w-12 h-12 rounded-2xl inline-flex items-center justify-center" style={{ background: meta.tint, color: meta.fg }}>
-            <Icon name={meta.icon} className="w-5 h-5" />
-          </span>
-          <h2 className="text-lg font-bold adm-display text-neutral-900 mt-4 leading-snug">{meta.title} {user.name}?</h2>
-          <p className="text-xs mt-1 tnum" style={{ color: "var(--ink-3)" }}>{user.email} · {company} · {user.role}</p>
-          <p className="text-sm mt-3" style={{ color: "var(--ink-2)" }}>{meta.body}</p>
-          <ul className="mt-3 space-y-1.5">
+        {/* A gradient band carries the tone instead of an icon chip, matching
+            the mobile app's sign-in header. Red only when access is removed. */}
+        <div className="px-6 sm:px-7 pt-6 pb-5"
+          style={{ background: mode === "block" ? "linear-gradient(135deg,#F2775A,#DC2626)" : "linear-gradient(135deg,#5570F5,#0B2AE0)" }}>
+          <h2 className="text-lg font-bold adm-display text-white leading-snug">{meta.title} {user.name}?</h2>
+          <p className="text-xs mt-1 tnum" style={{ color: "rgba(255,255,255,.75)" }}>{user.email} · {company} · {user.role}</p>
+          <p className="text-sm mt-3" style={{ color: "rgba(255,255,255,.9)" }}>{meta.body}</p>
+        </div>
+        <div className="px-6 sm:px-7 py-6">
+          <ul className="space-y-1.5">
             {meta.points.map((p) => (
               <li key={p} className="flex items-start gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
                 <span className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ background: "var(--ink-3)" }} />{p}
@@ -1086,7 +1243,6 @@ function Users({ role, companies, users, setUsers, audit, onAction }) {
 
   return (
     <div>
-      <SectionHead title="User management" />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1187,6 +1343,8 @@ function PlanChangeDialog({ sub, company, planPrices, onClose, onConfirm }) {
 
   const rank = (p) => PLAN_ORDER.indexOf(p);
   const direction = plan === sub.plan ? "same" : rank(plan) > rank(sub.plan) ? "up" : "down";
+  // Only an active subscription is actually being charged; a trial is not.
+  const billing = sub.status === "active";
   const nowPrice = planMonthlyMYR(sub.plan, sub.cycle, planPrices);
   const nextPrice = planMonthlyMYR(plan, sub.cycle, planPrices);
   const delta = nowPrice != null && nextPrice != null ? nextPrice - nowPrice : null;
@@ -1273,16 +1431,20 @@ function PlanChangeDialog({ sub, company, planPrices, onClose, onConfirm }) {
             <div className="mt-4 rounded-2xl px-4 py-3" style={{ background: "var(--app-bg)" }}>
               <p className="text-sm font-semibold" style={{ color: tone }}>
                 {verb} to {plan}
-                {delta != null && delta !== 0 && (
+                {/* A price delta only means something to someone being billed.
+                    A trial pays nothing, so quoting one would be fiction. */}
+                {billing && delta != null && delta !== 0 && (
                   <span className="tnum font-normal" style={{ color: "var(--ink-2)" }}>
                     {" "}· {delta > 0 ? "+" : "−"}{ringgit(Math.abs(delta))}/mo
                   </span>
                 )}
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>
-                {direction === "up"
-                  ? "Higher allowances apply immediately. Billing follows on the next invoice from the payment processor."
-                  : "Lower allowances apply immediately. Work already done is kept, but new AI actions stop once the smaller allowance is used up."}
+                {!billing
+                  ? `This workspace is ${sub.status || "not subscribed"}, so nothing is billed and no subscription is created. It changes which tier the allowances come from.`
+                  : direction === "up"
+                    ? "Higher allowances apply immediately. This does NOT change what the payment processor charges: update the subscription there too."
+                    : "Lower allowances apply immediately. This does NOT change what the payment processor charges: update the subscription there too."}
               </p>
               {limitDrops.length > 0 && (
                 <ul className="mt-2.5 space-y-1">
@@ -1332,8 +1494,19 @@ function MarginPanel({ companies, usage, aiCosts, planPrices }) {
   const worst = [...knownMargins].sort((a, b) => a.margin - b.margin).slice(0, 6);
   const netMargin = knownMargins.reduce((s, m) => s + m.margin, 0);
   const costed = aiCosts && Object.values(aiCosts).some((v) => v > 0);
-  // Every figure is meaningless at a zero rate, so say that instead of showing it.
-  if (!costed) return null;
+  // Every figure is meaningless at a zero rate, so say so rather than render a
+  // table of zeros that reads like real margin.
+  if (!costed) {
+    return (
+      <Tile className="mt-4">
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+          Margin needs the AI rates set. Until then every workspace would show its
+          revenue as profit, which is not true.
+        </p>
+        <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>Settings &rsaquo; AI costs</p>
+      </Tile>
+    );
+  }
   return (
       <Tile className="mt-4">
         <TileHead
@@ -1373,7 +1546,7 @@ function MarginPanel({ companies, usage, aiCosts, planPrices }) {
   );
 }
 
-function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCosts, topups = [], audit, onAction }) {
+function Subscriptions({ role, companies, subs, setSubs, planPrices, topups = [], audit, onAction }) {
   const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
   const [dialog, setDialog] = useState(null);
   const allowed = can(role, "subscription.change");
@@ -1399,7 +1572,7 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
 
   return (
     <div>
-      <SectionHead title="Subscriptions">
+      <SectionHead title="">
         <div className="flex items-center gap-6">
           <div className="text-right">
             <p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p>
@@ -1423,7 +1596,7 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
           </div>
         </div>
       </SectionHead>
-      <TableShell head={["Company", "Plan", "Cycle", "Status", "Monthly", "Renews", "Payment method", "Actions"]}>
+      <TableShell head={["Company", "Plan", "Cycle", "Status", "Monthly", "Renews", "Actions"]}>
         {subs.map((s) => {
           const monthly = planMonthlyMYR(s.plan, s.cycle, planPrices);
           return (
@@ -1441,7 +1614,6 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
                     </>}
               </Td>
               <Td style={{ color: "var(--ink-2)" }}>{s.renews}</Td>
-              <Td><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> On file (processor)</span></Td>
               <Td>
                 <ActionBtn icon="refresh" disabled={!allowed} onClick={() => setDialog(s)}>Change plan</ActionBtn>
               </Td>
@@ -1452,7 +1624,6 @@ function Subscriptions({ role, companies, subs, setSubs, planPrices, usage, aiCo
       {!planPrices && (
         <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>Prices are still loading from Stripe.</p>
       )}
-      <MarginPanel companies={companies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} />
       {dialog && (
         <PlanChangeDialog sub={dialog} company={cName(dialog.companyId)} planPrices={planPrices}
           onClose={() => setDialog(null)} onConfirm={change} />
@@ -1475,7 +1646,7 @@ function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
 
   return (
     <div>
-      <SectionHead title="Usage monitoring">
+      <SectionHead title="">
         <label className="relative">
           <select value={period} onChange={(e) => onPeriod(e.target.value)}
             className="appearance-none h-11 pl-4 pr-9 rounded-xl text-sm font-medium bg-white" style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>
@@ -1620,7 +1791,6 @@ function AiCosts({ role, rates, setRates, usage, audit }) {
 
   return (
     <div>
-      <SectionHead title="AI costs" />
 
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2 grid gap-3">
@@ -1760,7 +1930,7 @@ function Support({ role, companies, tickets, onResolve, onReply }) {
 
   return (
     <div>
-      <SectionHead title="Support logs">
+      <SectionHead title="Support">
         <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
           {[{ k: "open", l: "Open" }, { k: "resolved", l: "Resolved" }, { k: "all", l: "All" }].map((f) => (
             <button key={f.k} onClick={() => setFilter(f.k)} aria-pressed={filter === f.k}
@@ -1806,19 +1976,24 @@ function ReplyComposer({ ticket, cName, onClose, onSend }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{ background: "rgba(11,13,26,0.55)" }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 30px 80px -30px rgba(0,0,0,0.6)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 pt-5 pb-4" style={{ borderBottom: "1px solid var(--line)" }}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="adm-pop w-full sm:max-w-lg rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+        style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 sm:px-7 pt-6 pb-5" style={{ background: "linear-gradient(135deg,#5570F5,#0B2AE0)" }}>
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-neutral-900">Reply to {ticket.requester}</h2>
-              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{ticket.id} · {cName} · <span className="tnum">{ticket.email}</span></p>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold adm-display text-white leading-snug">Reply to {ticket.requester}</h2>
+              <p className="text-xs mt-1 truncate" style={{ color: "rgba(255,255,255,.75)" }}>{ticket.id} · {cName} · <span className="tnum">{ticket.email}</span></p>
             </div>
-            <button onClick={onClose} className="text-sm" style={{ color: "var(--ink-3)" }} aria-label="Close">✕</button>
+            <button onClick={onClose} aria-label="Close"
+              className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ color: "#fff", background: "rgba(255,255,255,.18)" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
           </div>
-          <div className="mt-2 text-xs" style={{ color: "var(--ink-2)" }}>{ticket.subject}</div>
+          <div className="mt-3 text-xs" style={{ color: "rgba(255,255,255,.9)" }}>{ticket.subject}</div>
         </div>
-        <div className="px-6 py-4">
+        <div className="px-6 sm:px-7 py-5">
           <textarea
             autoFocus value={message} onChange={(e) => setMessage(e.target.value)}
             rows={6} placeholder="Write your reply. This is emailed to the requester from support@hireaster.com."
@@ -1830,9 +2005,9 @@ function ReplyComposer({ ticket, cName, onClose, onSend }) {
           </label>
           {err && <div className="mt-3 text-sm" style={{ color: "var(--danger)" }}>{err}</div>}
         </div>
-        <div className="px-6 pb-5 pt-1 flex items-center justify-end gap-2.5">
-          <button onClick={onClose} disabled={busy} className="text-sm font-semibold px-3.5 py-2 rounded-lg" style={{ border: "1px solid var(--line)", color: "var(--ink-2)", background: "#fff" }}>Cancel</button>
-          <button onClick={send} disabled={busy} className="text-sm font-semibold px-4 py-2 rounded-lg text-white grad disabled:opacity-50">{busy ? "Sending…" : "Send reply"}</button>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 sm:px-7 py-4" style={{ background: "var(--app-bg)" }}>
+          <button onClick={onClose} disabled={busy} className="h-11 px-5 rounded-xl text-sm font-semibold bg-white" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+          <button onClick={send} disabled={busy} className="h-11 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--brand)" }}>{busy ? "Sending…" : "Send reply"}</button>
         </div>
       </div>
     </div>
@@ -1843,7 +2018,6 @@ function Flags({ role, flags, setFlags, audit, onToggle }) {
   const toggle = onToggle || ((f) => { setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: !x.enabled } : x)); audit(f.enabled ? "Disabled feature flag" : "Enabled feature flag", `${f.key} (${f.env})`); });
   return (
     <div>
-      <SectionHead title="Feature flags" />
       <div className="grid gap-3">
         {flags.map((f) => (
           <Card key={f.key} pad="p-4 sm:p-5">
@@ -1959,7 +2133,6 @@ function CurrencyRates({ role, audit }) {
 
   return (
     <div>
-      <SectionHead title="Currency rates" />
       <div className="grid gap-3 max-w-lg">
         {[{ c: "usd", label: "US Dollar", fixed: true }, { c: "myr", label: "Malaysian Ringgit" }, { c: "sgd", label: "Singapore Dollar" }].map(({ c, label, fixed }) => (
           <Card key={c} pad="p-4 sm:p-5">
@@ -2056,7 +2229,6 @@ function EmailTemplatesAdmin({ role, audit }) {
   if (!selected) {
     return (
       <div>
-        <SectionHead title="Email templates" />
         <div className="grid gap-3">
           {PLATFORM_EMAIL_TEMPLATE_DEFS.map((t) => (
             <Card key={t.key} pad="p-4 sm:p-5">
@@ -2145,7 +2317,7 @@ function EmailTemplatesAdmin({ role, audit }) {
 function Audit({ audit }) {
   return (
     <div>
-      <SectionHead title="Audit logs" />
+      
       {audit.length === 0 ? (
         <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           <p className="text-sm" style={{ color: "var(--ink-3)" }}>No admin actions recorded yet.</p>
@@ -2317,6 +2489,53 @@ function AdminAlerts({ companies, tickets, role, go }) {
   );
 }
 
+
+// Settings groups the four configuration screens. Each tab carries the role
+// list its own nav entry used to have: moving them must not widen access.
+const WORKSPACE_TABS = [
+  { key: "companies",     label: "Companies",       roles: ["super", "support", "billing"] },
+  { key: "users",         label: "User management", roles: ["super", "support"] },
+  { key: "subscriptions", label: "Subscriptions",   roles: ["super", "billing"] },
+  { key: "margin",        label: "Margin",          roles: ["super", "billing"] },
+];
+
+function Workspaces({ role, children, tab, setTab }) {
+  const allowed = WORKSPACE_TABS.filter((t) => t.roles.includes(role));
+  return (
+    <div>
+      <SectionHead title="Workspaces">
+        <div className="flex items-center gap-1 p-1 rounded-full overflow-x-auto" style={{ background: "var(--app-bg)" }}>
+          {allowed.map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)} aria-pressed={tab === t.key}
+              className="h-9 px-4 rounded-full text-xs font-semibold whitespace-nowrap"
+              style={{ background: tab === t.key ? "#fff" : "transparent", color: tab === t.key ? "var(--brand)" : "var(--ink-2)" }}>{t.label}</button>
+          ))}
+        </div>
+      </SectionHead>
+      {allowed.length === 0 ? <NoAccess role={role} /> : children}
+    </div>
+  );
+}
+
+
+function Settings({ role, children, tab, setTab }) {
+  const allowed = SETTINGS_TABS.filter((t) => t.roles.includes(role));
+  return (
+    <div>
+      <SectionHead title="Settings">
+        <div className="flex items-center gap-1 p-1 rounded-full overflow-x-auto" style={{ background: "var(--app-bg)" }}>
+          {allowed.map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)} aria-pressed={tab === t.key}
+              className="h-9 px-4 rounded-full text-xs font-semibold whitespace-nowrap"
+              style={{ background: tab === t.key ? "#fff" : "transparent", color: tab === t.key ? "var(--brand)" : "var(--ink-2)" }}>{t.label}</button>
+          ))}
+        </div>
+      </SectionHead>
+      {allowed.length === 0 ? <NoAccess role={role} /> : children}
+    </div>
+  );
+}
+
 function AdminShell({ admin, section, go, onLogout, companies, tickets, children }) {
   const rm = ROLE_META[admin.role];
   const nav = SECTIONS.filter((s) => s.roles.includes(admin.role));
@@ -2448,7 +2667,8 @@ const ADMIN_PLAN_LABEL = { launch: "Launch", scale: "Scale", elite: "Elite", ent
 // nothing stops them both requesting it.
 const BOOKING_TONE = { requested: "warn", confirmed: "ok", done: "ink", cancelled: "danger" };
 
-function Bookings({ role, bookings, onStatus }) {
+function Bookings({ role, bookings, onStatus, blocked, setBlocked, audit }) {
+  const [view, setView] = useState("requests");
   const [show, setShow] = useState("upcoming");
   const [busy, setBusy] = useState(null);
   const allowed = can(role, "booking.manage");
@@ -2485,6 +2705,13 @@ function Bookings({ role, bookings, onStatus }) {
     <div>
       <SectionHead title="Bookings">
         <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "var(--app-bg)" }}>
+          {[{ k: "requests", l: "Requests" }, { k: "blocked", l: "Blocked dates" }].map((v) => (
+            <button key={v.k} onClick={() => setView(v.k)} aria-pressed={view === v.k}
+              className="h-9 px-4 rounded-full text-xs font-semibold"
+              style={{ background: view === v.k ? "#fff" : "transparent", color: view === v.k ? "var(--brand)" : "var(--ink-2)" }}>{v.l}</button>
+          ))}
+        </div>
+        <div className={view === "requests" ? "flex items-center gap-1 p-1 rounded-full" : "hidden"} style={{ background: "var(--app-bg)" }}>
           {[{ k: "upcoming", l: "Upcoming" }, { k: "past", l: "Past" }, { k: "all", l: "All" }].map((f) => (
             <button key={f.k} onClick={() => setShow(f.k)} aria-pressed={show === f.k}
               className="h-9 px-4 rounded-full text-xs font-semibold"
@@ -2493,7 +2720,9 @@ function Bookings({ role, bookings, onStatus }) {
         </div>
       </SectionHead>
 
-      {days.length === 0 ? (
+      {view === "blocked" ? (
+        <BookingDates role={role} blocked={blocked} setBlocked={setBlocked} audit={audit} />
+      ) : days.length === 0 ? (
         <div className="rounded-[20px] py-16 text-center" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           <span className="w-12 h-12 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-blue)", color: "var(--brand)" }}><Icon name="calendar" className="w-6 h-6" /></span>
           <p className="text-sm mt-3" style={{ color: "var(--ink-2)" }}>No {show === "all" ? "" : show} bookings.</p>
@@ -2583,7 +2812,6 @@ function BookingDates({ role, blocked, setBlocked, audit }) {
 
   return (
     <div>
-      <SectionHead title="Booking dates" />
       {allowed && (
         <Card pad="p-4 sm:p-5" className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
@@ -2641,6 +2869,8 @@ export default function AdminPortal() {
   const [aiCosts, setAiCosts] = useState(null);
   const [topups, setTopups] = useState([]);   // credit_purchase_log, this month
   const [activity, setActivity] = useState([]);   // last sign-in per workspace (0162)
+  const [settingsTab, setSettingsTab] = useState("rates");
+  const [wsTab, setWsTab] = useState("companies");
   const [period, setPeriod] = useState(() => recentPeriods(1)[0]);
   const [restoring, setRestoring] = useState(hasSupabase);
 
@@ -2810,7 +3040,7 @@ export default function AdminPortal() {
   // This reads it back; it is never the source of truth.
   const reloadAudit = async () => {
     if (!hasSupabase || !admin) return;
-    if (!sectionAllowed(admin.role, "audit")) return;   // RLS: super and billing only
+    if (!["super", "billing"].includes(admin.role)) return;   // RLS: super and billing only
     const { data, error } = await supabase
       .from("audit_log")
       .select("id, actor_name, actor_role, action, target, created_at")
@@ -2983,18 +3213,37 @@ export default function AdminPortal() {
     // record the blocked attempt once per mount of a disallowed section
   } else {
     switch (section) {
-      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} activity={activity} audit={logAudit} onAction={runAdminAction} />; break;
-      case "users":         screen = <Users role={role} companies={companies} users={users} setUsers={setUsers} audit={logAudit} onAction={runAdminAction} />; break;
-      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} planPrices={planPrices} usage={usage} aiCosts={aiCosts} topups={topups} audit={logAudit} onAction={runAdminAction} />; break;
-      case "usage":         screen = <Usage role={role} usage={usage} aiCosts={aiCosts} period={period} periods={recentPeriods()} onPeriod={setPeriod} />; break;
+      case "workspaces": {
+        const allowed = WORKSPACE_TABS.filter((t) => t.roles.includes(role));
+        const active = allowed.some((t) => t.key === wsTab) ? wsTab : allowed[0]?.key;
+        screen = (
+          <Workspaces role={role} tab={active} setTab={setWsTab}>
+            {active === "companies" && <Companies role={role} companies={companies} setCompanies={setCompanies} users={users} subs={subs} usage={usage} aiCosts={aiCosts} planPrices={planPrices} activity={activity} audit={logAudit} onAction={runAdminAction} go={go} />}
+            {active === "users" && <Users role={role} companies={companies} users={users} setUsers={setUsers} audit={logAudit} onAction={runAdminAction} />}
+            {active === "margin" && <MarginPanel companies={companies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} />}
+            {active === "margin" && <MarginPanel companies={companies} usage={usage} aiCosts={aiCosts} planPrices={planPrices} />}
+            {active === "subscriptions" && <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} planPrices={planPrices} topups={topups} audit={logAudit} onAction={runAdminAction} />}
+          </Workspaces>
+        );
+        break;
+      }
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
-      case "rates":         screen = <CurrencyRates role={role} audit={logAudit} />; break;
-      case "ai_costs":      screen = <AiCosts role={role} rates={aiCosts} setRates={setAiCosts} usage={usage} audit={logAudit} />; break;
-      case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
-      case "bookings":      screen = <Bookings role={role} bookings={bookings} onStatus={setBookingStatus} />; break;
-      case "booking":       screen = <BookingDates role={role} blocked={blocked} setBlocked={setBlocked} audit={logAudit} />; break;
-      case "email_templates": screen = <EmailTemplatesAdmin role={role} audit={logAudit} />; break;
-      case "audit":         screen = <Audit audit={audit} />; break;
+      case "bookings":      screen = <Bookings role={role} bookings={bookings} onStatus={setBookingStatus} blocked={blocked} setBlocked={setBlocked} audit={logAudit} />; break;
+      case "settings": {
+        const allowed = SETTINGS_TABS.filter((t) => t.roles.includes(role));
+        const active = allowed.some((t) => t.key === settingsTab) ? settingsTab : allowed[0]?.key;
+        screen = (
+          <Settings role={role} tab={active} setTab={setSettingsTab}>
+            {active === "rates" && <CurrencyRates role={role} audit={logAudit} />}
+            {active === "ai_costs" && <AiCosts role={role} rates={aiCosts} setRates={setAiCosts} usage={usage} audit={logAudit} />}
+            {active === "flags" && <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />}
+            {active === "email_templates" && <EmailTemplatesAdmin role={role} audit={logAudit} />}
+            {active === "usage" && <Usage role={role} usage={usage} aiCosts={aiCosts} period={period} periods={recentPeriods()} onPeriod={setPeriod} />}
+            {active === "audit" && <Audit audit={audit} />}
+          </Settings>
+        );
+        break;
+      }
       default:              screen = <Dashboard role={role} companies={companies} users={users} tickets={tickets} audit={audit} planPrices={planPrices} go={go} />;
     }
   }
