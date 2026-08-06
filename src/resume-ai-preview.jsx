@@ -9912,15 +9912,31 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
 // allow_promotion_codes on). The countdown ticks live off a deadline persisted in
 // localStorage so it doesn't reset on every render/navigation; when it lapses the
 // window rolls forward another 3 days so the offer never dead-ends.
-const PROMO_CODE = "YEARLY10";
+// Which code we advertise, and the line above it, come from promo_banner (0168)
+// so switching a promotion off in Stripe does not leave the site shouting about
+// a code that fails at checkout. Seeded with what was hardcoded here before, so
+// the first paint before the fetch lands is still correct.
+let promoBanner = { code: "YEARLY10", headline: "Extra 10% off yearly with", enabled: true };
+function setPromoBanner(row) {
+  if (!row) return;
+  promoBanner = {
+    code: row.code ? String(row.code).toUpperCase() : null,
+    headline: row.headline || promoBanner.headline,
+    enabled: !!row.enabled,
+  };
+}
 function TrialPromoStrip({ accent }) {
   const [copied, setCopied] = useState(false);
+  const PROMO_CODE = promoBanner.code;
   const copy = () => {
     try { navigator.clipboard?.writeText(PROMO_CODE); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* noop */ }
   };
+  // Nothing promoted, or the banner switched off: say nothing rather than
+  // advertise a code that will be refused.
+  if (!promoBanner.enabled || !PROMO_CODE) return null;
   return (
     <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-center" style={{ color: accent }}>
-      <span className="font-bold">Extra 10% off yearly with</span>
+      <span className="font-bold">{promoBanner.headline}</span>
       <button
         onClick={copy}
         title="Copy code"
@@ -29024,6 +29040,10 @@ export default function ResumeAIPreview() {
     // the same table, so what is quoted here is what Stripe charges.
     supabase.from("credit_prices").select("kind, price_usd_cents").then(({ data }) => {
       if (active && Array.isArray(data)) setCreditPrices(data);
+    });
+    // Which promo code to advertise, if any (0168).
+    supabase.from("promo_banner").select("code, headline, enabled").maybeSingle().then(({ data }) => {
+      if (active && data) setPromoBanner(data);
     });
     return () => { active = false; };
   }, []);

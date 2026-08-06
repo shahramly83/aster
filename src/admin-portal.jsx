@@ -194,6 +194,7 @@ const SETTINGS_TABS = [
   // What we charge, kept apart from what we pay. Two screens because one screen
   // makes it far too easy to edit the wrong number.
   { key: "credit_prices",   label: "Credit pricing",  roles: ["super", "billing"] },
+  { key: "promos",          label: "Promo codes",     roles: ["super", "billing"] },
   { key: "ai_costs",        label: "AI costs",        roles: ["super", "billing"] },
   { key: "flags",           label: "Feature flags",   roles: ["super"] },
   { key: "email_templates", label: "Email templates", roles: ["super", "support"] },
@@ -2021,6 +2022,287 @@ function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
 }
 
 // Rates editor. Sen per AI action, so a fraction of a sen per call is expressible.
+// Promo codes. Stripe owns them; this is the window onto them, plus the one
+// piece Aster owns: which code the site advertises.
+//
+// Nothing here edits a discount. Stripe will not allow it, and pretending
+// otherwise would produce a form whose Save button sometimes lies.
+function Promos({ role, companies = [], audit }) {
+  const editable = can(role, "creditprice.edit");   // same money-touching roles
+  const [codes, setCodes] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [banner, setBanner] = useState({ code: "", headline: "", enabled: true });
+  const [bannerSaved, setBannerSaved] = useState(false);
+  const [form, setForm] = useState({ code: "", percent_off: "10", duration: "once", expires_at: "", max_redemptions: "", first_time_only: false, company_id: "" });
+  const [confirm, setConfirm] = useState(null);   // { kind: "create" | "toggle", ... }
+
+  const load = async () => {
+    setErr("");
+    const { data, error } = await supabase.functions.invoke("admin-promos", { body: { action: "list" } });
+    if (error || data?.error) { setErr(data?.error || "Could not load promo codes."); setCodes([]); return; }
+    setCodes(data.codes || []);
+  };
+  useEffect(() => {
+    if (!hasSupabase) { setCodes([]); return; }
+    load();
+    supabase.from("promo_banner").select("code, headline, enabled").maybeSingle().then(({ data }) => {
+      if (data) setBanner({ code: data.code || "", headline: data.headline || "", enabled: !!data.enabled });
+    });
+  }, []); // eslint-disable-line
+
+  const saveBanner = async () => {
+    setBusy(true); setErr("");
+    const { error } = await supabase.rpc("set_promo_banner", { p_code: banner.code || null, p_headline: banner.headline, p_enabled: banner.enabled });
+    setBusy(false);
+    if (error) { setErr(error.message || "Could not save the banner."); return; }
+    audit("Set promo banner", banner.enabled ? (banner.code || "none") : `${banner.code || "none"} (hidden)`);
+    setBannerSaved(true); setTimeout(() => setBannerSaved(false), 2000);
+  };
+
+  const doCreate = async () => {
+    setBusy(true); setErr("");
+    const { data, error } = await supabase.functions.invoke("admin-promos", {
+      body: {
+        action: "create",
+        code: form.code, percent_off: Number(form.percent_off), duration: form.duration,
+        expires_at: form.expires_at || null,
+        max_redemptions: form.max_redemptions ? Number(form.max_redemptions) : null,
+        first_time_only: form.first_time_only,
+        company_id: form.company_id || null,
+      },
+    });
+    setBusy(false);
+    if (error || data?.error) { setErr(data?.error || error?.message || "Could not create that code."); setConfirm(null); return; }
+    audit("Created promo code", `${data.code} · ${data.percent_off}% off${data.target ? ` · ${data.target} only` : ""}`);
+    setForm((f) => ({ ...f, code: "", max_redemptions: "", expires_at: "", company_id: "" }));
+    setConfirm(null);
+    load();
+  };
+
+  const doToggle = async (p) => {
+    setBusy(true); setErr("");
+    const { data, error } = await supabase.functions.invoke("admin-promos", { body: { action: "set_active", id: p.id, active: !p.active } });
+    setBusy(false);
+    if (error || data?.error) { setErr(data?.error || "Could not update that code."); setConfirm(null); return; }
+    audit(p.active ? "Switched off promo code" : "Switched on promo code", p.code);
+    setConfirm(null);
+    load();
+  };
+
+  const fmtTs = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null);
+  const expired = (p) => p.expires_at && p.expires_at * 1000 < Date.now();
+  const usedUp = (p) => p.max_redemptions && p.times_redeemed >= p.max_redemptions;
+  const live = (p) => p.active && !expired(p) && !usedUp(p);
+
+  if (codes === null) return <Card pad="p-6"><p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading promo codes…</p></Card>;
+
+  return (
+    <div>
+      {/* What the site advertises. Separate from the codes themselves, because
+          a code can exist in Stripe without us shouting about it. */}
+      <Card pad="p-4 sm:p-5" className="mb-4">
+        <TileHead title="Advertised on the site" />
+        <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+          <div>
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Code</label>
+            <input value={banner.code} onChange={(e) => setBanner((b) => ({ ...b, code: e.target.value.toUpperCase() }))}
+              placeholder="none" disabled={!editable}
+              className="adm-input h-9 rounded-lg px-3 text-sm w-40 font-mono tracking-wider"
+              style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }} />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Line above it</label>
+            <input value={banner.headline} onChange={(e) => setBanner((b) => ({ ...b, headline: e.target.value }))}
+              disabled={!editable}
+              className="adm-input h-9 rounded-lg px-3 text-sm w-full"
+              style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }} />
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm h-9" style={{ color: "var(--ink-2)" }}>
+            <input type="checkbox" checked={banner.enabled} disabled={!editable}
+              onChange={(e) => setBanner((b) => ({ ...b, enabled: e.target.checked }))} />
+            Show it
+          </label>
+          {editable && <ActionBtn icon="check" disabled={busy} onClick={saveBanner}>{bannerSaved ? "Saved" : "Save"}</ActionBtn>}
+        </div>
+        <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+          Leave the code empty, or untick, and the banner disappears rather than advertising something that fails at checkout.
+        </p>
+      </Card>
+
+      {editable && (
+        <Card pad="p-4 sm:p-5" className="mb-4">
+          <TileHead title="New code" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Code</label>
+              <input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                placeholder="WELCOME20"
+                className="adm-input h-9 rounded-lg px-3 text-sm w-full font-mono tracking-wider"
+                style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Percent off</label>
+              <input type="number" min="1" max="100" value={form.percent_off}
+                onChange={(e) => setForm((f) => ({ ...f, percent_off: e.target.value }))}
+                className="adm-input h-9 rounded-lg px-3 text-sm w-full tnum"
+                style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Applies</label>
+              <select value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+                className="adm-input h-9 rounded-lg px-2 text-sm w-full" style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }}>
+                <option value="once">To the first payment</option>
+                <option value="forever">To every payment</option>
+                <option value="repeating">For 12 months</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Expires</label>
+              <DatePicker value={form.expires_at} onChange={(v) => setForm((f) => ({ ...f, expires_at: v }))}
+                leadDays={0} placeholder="Never" id="promo-expiry" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Max redemptions</label>
+              <input type="number" min="1" value={form.max_redemptions} placeholder="Unlimited"
+                onChange={(e) => setForm((f) => ({ ...f, max_redemptions: e.target.value }))}
+                className="adm-input h-9 rounded-lg px-3 text-sm w-full tnum"
+                style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }} />
+            </div>
+            <div className="xl:col-span-2">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Only for</label>
+              <select value={form.company_id} onChange={(e) => setForm((f) => ({ ...f, company_id: e.target.value }))}
+                className="adm-input h-9 rounded-lg px-2 text-sm w-full" style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink)" }}>
+                <option value="">Anyone</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm self-end h-9" style={{ color: "var(--ink-2)" }}>
+              <input type="checkbox" checked={form.first_time_only}
+                onChange={(e) => setForm((f) => ({ ...f, first_time_only: e.target.checked }))} />
+              First purchase only
+            </label>
+          </div>
+          <div className="flex items-center justify-between gap-3 mt-4">
+            <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+              A code string can never be reused, and its discount can never be edited. Getting it wrong means creating another one.
+            </p>
+            <ActionBtn icon="spark" disabled={busy || !form.code || !form.percent_off}
+              onClick={() => setConfirm({ kind: "create" })}>Create code</ActionBtn>
+          </div>
+        </Card>
+      )}
+
+      {err && <p className="text-sm mb-3" style={{ color: "var(--danger)" }}>{err}</p>}
+
+      <TableShell minWidth={900} head={[
+        "Code", "Discount", "Status",
+        { label: "Used", align: "right" },
+        { label: "Expires", align: "right" },
+        "Restricted to", editable ? "" : "",
+      ]}>
+        {codes.map((p) => (
+          <tr key={p.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td>
+              <span className="font-mono font-bold tracking-wider text-neutral-900">{p.code}</span>
+              {banner.code && p.code === banner.code && (
+                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle"
+                  style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>ON SITE</span>
+              )}
+            </Td>
+            <Td>
+              <span className="tnum font-semibold">{p.percent_off != null ? `${p.percent_off}% off` : p.amount_off != null ? `${String(p.coupon_currency || "").toUpperCase()} ${(p.amount_off / 100).toFixed(2)} off` : "—"}</span>
+              <div className="text-xs" style={{ color: "var(--ink-3)" }}>
+                {p.duration === "forever" ? "every payment" : p.duration === "repeating" ? `${p.duration_in_months} months` : "first payment"}
+              </div>
+            </Td>
+            <Td>
+              {live(p) ? <Badge tone="ok" dot>live</Badge>
+                : !p.active ? <Badge tone="ink">off</Badge>
+                : expired(p) ? <Badge tone="warn">expired</Badge>
+                : <Badge tone="warn">used up</Badge>}
+            </Td>
+            <Td className="text-right tnum">
+              {p.times_redeemed}{p.max_redemptions ? <span style={{ color: "var(--ink-3)" }}> / {p.max_redemptions}</span> : ""}
+            </Td>
+            <Td className="text-right text-sm tnum" style={{ color: expired(p) ? "var(--warn)" : "var(--ink-2)" }}>
+              {fmtTs(p.expires_at) || <span style={{ color: "var(--ink-3)" }}>never</span>}
+            </Td>
+            <Td className="text-sm" style={{ color: "var(--ink-2)" }}>
+              {p.customer_name || (p.customer ? "one workspace" : null) || (p.first_time_transaction ? "first purchase only" : <span style={{ color: "var(--ink-3)" }}>anyone</span>)}
+            </Td>
+            {editable && (
+              <Td>
+                <div className="flex justify-end">
+                  <ActionBtn icon={p.active ? "ban" : "refresh"} tone={p.active ? "danger" : "ink"} disabled={busy}
+                    onClick={() => setConfirm({ kind: "toggle", promo: p })}>
+                    {p.active ? "Switch off" : "Switch on"}
+                  </ActionBtn>
+                </div>
+              </Td>
+            )}
+          </tr>
+        ))}
+        {codes.length === 0 && (
+          <tr><td colSpan={7} className="px-5 py-14 text-center">
+            <p className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>No promo codes in Stripe yet</p>
+            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Create one above and it appears here.</p>
+          </td></tr>
+        )}
+      </TableShell>
+
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }}
+          onClick={() => !busy && setConfirm(null)} role="dialog" aria-modal="true" aria-label="Confirm promo change">
+          <div className="adm-pop w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+            style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-5" style={{ background: confirm.kind === "create" ? "linear-gradient(135deg,#5570F5,#0B2AE0)" : "linear-gradient(135deg,#F2775A,#DC2626)" }}>
+              <h2 className="text-xl font-bold adm-display text-white leading-snug">
+                {confirm.kind === "create" ? `Create ${form.code}?` : confirm.promo.active ? `Switch off ${confirm.promo.code}?` : `Switch on ${confirm.promo.code}?`}
+              </h2>
+              <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,.85)" }}>
+                {confirm.kind === "create" ? "This creates a coupon and a code in Stripe." : confirm.promo.active ? "Nobody will be able to redeem it from now on." : "It becomes redeemable again."}
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              {confirm.kind === "create" ? (
+                <ul className="text-sm space-y-1.5" style={{ color: "var(--ink-2)" }}>
+                  <li><b style={{ color: "var(--ink)" }}>{form.percent_off}% off</b> {form.duration === "forever" ? "every payment" : form.duration === "repeating" ? "for 12 months" : "the first payment"}, on monthly and yearly.</li>
+                  <li>Expires: <b style={{ color: "var(--ink)" }}>{form.expires_at ? new Date(form.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "never"}</b></li>
+                  <li>Redemptions: <b style={{ color: "var(--ink)" }}>{form.max_redemptions || "unlimited"}</b></li>
+                  <li>Who: <b style={{ color: "var(--ink)" }}>{form.company_id ? (companies.find((c) => c.id === form.company_id)?.name || "one workspace") : form.first_time_only ? "anyone, first purchase only" : "anyone"}</b></li>
+                </ul>
+              ) : (
+                <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                  {confirm.promo.code} has been redeemed <span className="tnum">{confirm.promo.times_redeemed}</span> {confirm.promo.times_redeemed === 1 ? "time" : "times"}.
+                  {confirm.promo.active && banner.code === confirm.promo.code && (
+                    <> It is also the code advertised on the site, so clear that above or the banner will point at a dead code.</>
+                  )}
+                </p>
+              )}
+              {confirm.kind === "create" && (
+                <p className="text-xs mt-4 p-3 rounded-xl" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
+                  The code string and its discount are permanent once created. Neither can be changed afterwards, only switched off.
+                </p>
+              )}
+              <div className="flex justify-end gap-2 mt-5">
+                <button onClick={() => setConfirm(null)} disabled={busy}
+                  className="h-10 px-4 rounded-xl text-sm font-semibold" style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink-2)" }}>Cancel</button>
+                <button onClick={() => (confirm.kind === "create" ? doCreate() : doToggle(confirm.promo))} disabled={busy}
+                  className="h-10 px-4 rounded-xl text-sm font-semibold text-white"
+                  style={{ background: confirm.kind === "create" ? "var(--brand)" : "var(--danger)" }}>
+                  {busy ? "Working…" : confirm.kind === "create" ? "Create it" : confirm.promo.active ? "Switch it off" : "Switch it on"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // The page behind the two money cards on the dashboard. Those cards answer "how
 // much"; everything that answers "whose, which, when" lives here, because a
 // summary card that grows a list has stopped being a summary.
@@ -3876,6 +4158,7 @@ export default function AdminPortal() {
           <Settings role={role} tab={active} setTab={setSettingsTab}>
             {active === "rates" && <CurrencyRates role={role} audit={logAudit} />}
             {active === "credit_prices" && <CreditPricing role={role} audit={logAudit} />}
+            {active === "promos" && <Promos role={role} companies={companies} audit={logAudit} />}
             {active === "ai_costs" && <AiCosts role={role} rates={aiCosts} setRates={setAiCosts} usage={usage} audit={logAudit} />}
             {active === "flags" && <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />}
             {active === "email_templates" && <EmailTemplatesAdmin role={role} audit={logAudit} />}

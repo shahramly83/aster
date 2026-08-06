@@ -462,13 +462,18 @@ Deno.serve(async (req) => {
       "metadata[company_id]": companyId,
       "metadata[plan]": plan,
       "metadata[cycle]": c,
-      // YEARLY10 is the only code we advertise and it is a yearly offer. Stripe
-      // coupons restrict by PRODUCT, not by price, so a coupon scoped to the three
-      // plans would happily discount a monthly subscription too, and a promotion
-      // code's minimum_amount can't separate them either (Elite monthly costs more
-      // than Launch yearly). The reliable place to draw the line is the session:
-      // a monthly checkout gets no promotion field, so there is nowhere to type it.
-      allow_promotion_codes: c === "yearly" ? "true" : "false",
+      // Open on both cycles. This used to be yearly-only, because a Stripe
+      // coupon restricts by PRODUCT rather than by price, so a coupon scoped to
+      // the three plans discounts a monthly subscription just as happily, and a
+      // promotion code's minimum_amount cannot separate them either (Elite
+      // monthly costs more than Launch yearly). Closing the box on monthly was
+      // the only reliable place to draw that line.
+      //
+      // Deliberately reopened so targeted and win-back codes can apply to a
+      // monthly plan. The line is now drawn per code instead: give a
+      // yearly-only offer a max_redemptions and an expiry, or restrict it to
+      // one customer, rather than relying on the box being absent.
+      allow_promotion_codes: "true",
       success_url: `${base}/billing?checkout=success`,
       cancel_url: `${base}/billing?checkout=cancel`,
     }, secret);
