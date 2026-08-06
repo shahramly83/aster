@@ -53,6 +53,8 @@ const ADMIN_STYLES = `
 .adm-sort{transition:color .15s ease;}
 .adm-sort:hover{color:var(--ink);}
 .adm-x:hover{background:var(--app-bg);color:var(--ink-2);}
+.adm-open{transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
+.adm-open:hover{background:var(--app-bg);border-color:var(--line-strong);color:var(--ink);}
 .adm-datefield{transition:border-color .15s ease,box-shadow .15s ease;}
 .adm-datefield:hover:not(:disabled){border-color:var(--line-strong);}
 .adm-datefield[aria-expanded="true"]{border-color:var(--brand-0);box-shadow:0 0 0 3px var(--brand-soft);}
@@ -214,6 +216,9 @@ const SECTIONS = [
   { key: "workspaces",    label: "Workspaces",       icon: "building",  roles: ["super", "support", "billing"] },
   { key: "support",       label: "Support",           icon: "headset",   roles: ["super", "support"] },
   { key: "bookings",      label: "Bookings",         icon: "calendar",  roles: ["super", "support"] },
+  // Money screens the dashboard links out to rather than trying to hold. A card
+  // that grows a list stops being a summary.
+  { key: "revenue",       label: "Revenue",          icon: "card",      roles: ["super", "billing"] },
   { key: "settings",      label: "Settings",         icon: "spark",     roles: ["super", "support", "billing"] },
 ];
 
@@ -315,6 +320,18 @@ function TileHead({ title, right }) {
 function SeeAll({ children = "See all", onClick }) {
   return (
     <button onClick={onClick} className="text-xs font-semibold px-3.5 py-2 rounded-full shrink-0 transition-colors hover:bg-neutral-100" style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>{children}</button>
+  );
+}
+// The corner arrow on a summary card: this figure has a page behind it. Icon
+// only, so it never competes with the number, but it carries a real label for
+// anyone not looking at it.
+function OpenArrow({ onClick, label }) {
+  return (
+    <button onClick={onClick} aria-label={label} title={label}
+      className="adm-open w-8 h-8 rounded-full shrink-0 inline-flex items-center justify-center"
+      style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+      <Icon name="arrowUpRight" className="w-4 h-4" />
+    </button>
   );
 }
 // Initials avatar. Candidate faces never appear in the admin portal, so every
@@ -728,7 +745,7 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, revTota
         <div className="grid gap-4 mt-4 xl:grid-cols-2">
           <Tile pad="p-5">
             <TileHead title="Total revenue"
-              right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Subscriptions and top-ups</span>} />
+              right={<OpenArrow onClick={() => go("revenue")} label="Open revenue detail" />} />
             <div className="grid gap-3 sm:grid-cols-3">
               {[["This year", "year"], ["This month", "month"], ["Today", "today"]].map(([label, b]) => (
                 <div key={b}>
@@ -753,7 +770,7 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, revTota
 
           <Tile pad="p-5">
             <TileHead title="Credit top-ups"
-              right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Included in total</span>} />
+              right={<OpenArrow onClick={() => go("revenue")} label="Open credit top-up detail" />} />
             <div className="grid gap-3 sm:grid-cols-3">
               {[["This year", "year"], ["This month", "month"], ["Today", "today"]].map(([label, b]) => (
                 <div key={b}>
@@ -767,34 +784,6 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, revTota
                 </div>
               ))}
             </div>
-            {/* Who, not just how much. Four is enough to answer "was that us or
-                a customer" without turning a summary card into a ledger. */}
-            {recentTopups.length > 0 && (
-              <ul className="mt-4 pt-3 space-y-2.5" style={{ borderTop: "1px solid var(--line)" }}>
-                {recentTopups.map((t) => (
-                  <li key={t.id} className="flex items-center gap-3">
-                    <Monogram label={t.company_name} size={26} soft />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{t.company_name}</p>
-                      <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
-                        {CREDIT_LABEL[t.kind] || t.kind} × <span className="tnum">{Number(t.quantity).toLocaleString()}</span>
-                        {" · "}{shortDay(t.created_at)}
-                      </p>
-                    </div>
-                    <span className="text-[13px] font-semibold tnum shrink-0" style={{ color: "var(--ink)" }}>
-                      {t.currency === "myr"
-                        ? ringgit2(Number(t.amount_cents || 0) / 100)
-                        : `${String(t.currency).toUpperCase()} ${(Number(t.amount_cents || 0) / 100).toFixed(2)}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {recentTopups.length === 0 && (
-              <p className="text-[11px] mt-4 pt-3" style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}>
-                Nobody has bought credits yet.
-              </p>
-            )}
             {otherCcyIn(topupTotals).length > 0 && (
               <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
                 Ringgit shown above. Also taken in {otherCcyIn(topupTotals).join(", ")}.
@@ -2032,6 +2021,111 @@ function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
 }
 
 // Rates editor. Sen per AI action, so a fraction of a sen per call is expressible.
+// The page behind the two money cards on the dashboard. Those cards answer "how
+// much"; everything that answers "whose, which, when" lives here, because a
+// summary card that grows a list has stopped being a summary.
+function Revenue({ revTotals = [], revLoaded, topupTotals = [], topupRows = [], go }) {
+  const myrIn = (rows, bucket) => (rows || []).filter((r) => r.bucket === bucket && r.currency === "myr")
+    .reduce((s, r) => s + Number(r.amount_cents || 0), 0) / 100;
+  const countIn = (rows, bucket, field) => (rows || []).filter((r) => r.bucket === bucket)
+    .reduce((s, r) => s + Number(r[field] || 0), 0);
+
+  const WINDOWS = [["This year", "year"], ["This month", "month"], ["Today", "today"]];
+
+  return (
+    <div>
+      <SectionHead title="Revenue" />
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Tile pad="p-5">
+          <TileHead title="Total revenue"
+            right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Subscriptions and top-ups</span>} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {WINDOWS.map(([label, b]) => (
+              <div key={b}>
+                <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>{label}</p>
+                <p className="text-[26px] font-bold adm-display tnum leading-tight mt-1" style={{ color: "var(--ink)" }}>
+                  {revLoaded ? ringgit2(myrIn(revTotals, b)) : "—"}
+                </p>
+                <p className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                  {revLoaded ? `${countIn(revTotals, b, "payments")} payments` : "Reading Stripe…"}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+            Money in, as charged. Refunds and Stripe fees are not deducted.
+          </p>
+        </Tile>
+
+        <Tile pad="p-5">
+          <TileHead title="Credit top-ups"
+            right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Included in the total</span>} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {WINDOWS.map(([label, b]) => (
+              <div key={b}>
+                <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>{label}</p>
+                <p className="text-[26px] font-bold adm-display tnum leading-tight mt-1" style={{ color: "var(--ink)" }}>
+                  {ringgit2(myrIn(topupTotals, b))}
+                </p>
+                <p className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                  {countIn(topupTotals, b, "purchases")} purchases
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+            One-off credit purchases. Subscription payments make up the rest of the total.
+          </p>
+        </Tile>
+      </div>
+
+      <h2 className="text-sm font-bold adm-display mt-6 mb-3" style={{ color: "var(--ink)" }}>Credit purchases</h2>
+      <TableShell minWidth={720} head={[
+        "Workspace", "Credit",
+        { label: "Quantity", align: "right" },
+        { label: "Paid", align: "right" },
+        { label: "When", align: "right" },
+      ]}>
+        {topupRows.map((t) => (
+          <tr key={t.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td>
+              <div className="flex items-center gap-3">
+                <Monogram label={t.company_name} size={30} soft />
+                <span className="font-semibold text-neutral-900 truncate">{t.company_name}</span>
+              </div>
+            </Td>
+            <Td><Badge tone="ink">{CREDIT_LABEL[t.kind] || t.kind}</Badge></Td>
+            <Td className="tnum text-right">{Number(t.quantity).toLocaleString()}</Td>
+            <Td className="text-right tnum font-semibold" style={{ color: "var(--ink)" }}>
+              {t.currency === "myr"
+                ? ringgit2(Number(t.amount_cents || 0) / 100)
+                : `${String(t.currency).toUpperCase()} ${(Number(t.amount_cents || 0) / 100).toFixed(2)}`}
+            </Td>
+            <Td className="text-right">
+              <span className="text-sm tnum" style={{ color: "var(--ink-2)" }}>{shortDay(t.created_at)}</span>
+              <div className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                {new Date(t.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </Td>
+          </tr>
+        ))}
+        {topupRows.length === 0 && (
+          <tr>
+            <td colSpan={5} className="px-5 py-14 text-center">
+              <span className="w-11 h-11 rounded-full inline-flex items-center justify-center" style={{ background: "var(--app-bg)", color: "var(--ink-3)" }}>
+                <Icon name="card" className="w-5 h-5" />
+              </span>
+              <p className="text-sm font-semibold mt-3" style={{ color: "var(--ink-2)" }}>Nobody has bought credits yet</p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Top-ups appear here the moment one is paid for.</p>
+            </td>
+          </tr>
+        )}
+      </TableShell>
+    </div>
+  );
+}
+
 // What we CHARGE for a top-up credit. Deliberately a separate screen from AI
 // costs, which is what we PAY: the two are one keystroke apart and a slip
 // between them is a pricing incident rather than a wrong report.
@@ -3533,7 +3627,7 @@ export default function AdminPortal() {
     });
     // The purchases behind that number. A total nobody can attribute is a total
     // nobody trusts, and the first question anyone asks it is "whose?".
-    supabase.rpc("admin_recent_topups", { p_limit: 4 }).then(({ data, error }) => {
+    supabase.rpc("admin_recent_topups", { p_limit: 50 }).then(({ data, error }) => {
       if (active && !error && Array.isArray(data)) setRecentTopups(data);
     });
     return () => { active = false; };
@@ -3772,6 +3866,9 @@ export default function AdminPortal() {
       }
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "bookings":      screen = <Bookings role={role} bookings={bookings} onStatus={setBookingStatus} blocked={blocked} setBlocked={setBlocked} audit={logAudit} />; break;
+      case "revenue":
+        screen = <Revenue revTotals={revTotals} revLoaded={revLoaded} topupTotals={topupTotals} topupRows={recentTopups} go={go} />;
+        break;
       case "settings": {
         const allowed = SETTINGS_TABS.filter((t) => t.roles.includes(role));
         const active = allowed.some((t) => t.key === settingsTab) ? settingsTab : allowed[0]?.key;
