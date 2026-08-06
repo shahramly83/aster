@@ -597,7 +597,7 @@ function AttentionCard({ card, data, go, allowed }) {
   );
 }
 
-function Dashboard({ role, companies, users, tickets, audit, planPrices, revTotals = [], revLoaded = false, topupTotals = [], go }) {
+function Dashboard({ role, companies, users, tickets, audit, planPrices, revTotals = [], revLoaded = false, topupTotals = [], recentTopups = [], go }) {
   const active = companies.filter((c) => c.status === "active").length;
   const trials = companies.filter((c) => c.status === "trial").length;
   const suspended = companies.filter((c) => c.status === "suspended").length;
@@ -767,9 +767,37 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, revTota
                 </div>
               ))}
             </div>
+            {/* Who, not just how much. Four is enough to answer "was that us or
+                a customer" without turning a summary card into a ledger. */}
+            {recentTopups.length > 0 && (
+              <ul className="mt-4 pt-3 space-y-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                {recentTopups.map((t) => (
+                  <li key={t.id} className="flex items-center gap-3">
+                    <Monogram label={t.company_name} size={26} soft />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{t.company_name}</p>
+                      <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
+                        {CREDIT_LABEL[t.kind] || t.kind} × <span className="tnum">{Number(t.quantity).toLocaleString()}</span>
+                        {" · "}{shortDay(t.created_at)}
+                      </p>
+                    </div>
+                    <span className="text-[13px] font-semibold tnum shrink-0" style={{ color: "var(--ink)" }}>
+                      {t.currency === "myr"
+                        ? ringgit2(Number(t.amount_cents || 0) / 100)
+                        : `${String(t.currency).toUpperCase()} ${(Number(t.amount_cents || 0) / 100).toFixed(2)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {recentTopups.length === 0 && (
+              <p className="text-[11px] mt-4 pt-3" style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                Nobody has bought credits yet.
+              </p>
+            )}
             {otherCcyIn(topupTotals).length > 0 && (
               <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
-                Ringgit shown. Also taken in {otherCcyIn(topupTotals).join(", ")}.
+                Ringgit shown above. Also taken in {otherCcyIn(topupTotals).join(", ")}.
               </p>
             )}
           </Tile>
@@ -2018,6 +2046,23 @@ const PLAN_DISCOUNT = [
   { plan: "Elite", mult: 0.8 },
 ];
 const CUR_SYM = { usd: "$", myr: "RM", sgd: "S$" };
+// The customer-facing name for a credit kind. credit_purchase_log stores the
+// database key, and "ai_rank" on a money card reads like a bug.
+const CREDIT_LABEL = {
+  resume_screen: "Resume screening",
+  applicant_screen: "Applicant screening",
+  ai_rank: "AI Rank",
+  ai_insight: "AI Insight",
+  interview_questions: "AI Questions",
+};
+// "26 Jul" while it is this year, the year added once it stops being obvious.
+const shortDay = (iso) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const opts = { day: "numeric", month: "short" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString("en-GB", opts);
+};
 
 function CreditPricing({ role, audit }) {
   const editable = can(role, "creditprice.edit");
@@ -3329,6 +3374,7 @@ export default function AdminPortal() {
   const [revTotals, setRevTotals] = useState([]); // Stripe charges, today/month/year
   const [revLoaded, setRevLoaded] = useState(false);
   const [topupTotals, setTopupTotals] = useState([]); // credit_purchase_log, same windows
+  const [recentTopups, setRecentTopups] = useState([]); // the purchases behind that total
   const [activity, setActivity] = useState([]);   // last sign-in per workspace (0162)
   const [settingsTab, setSettingsTab] = useState("rates");
   const [wsTab, setWsTab] = useState("companies");
@@ -3484,6 +3530,11 @@ export default function AdminPortal() {
     // invoice like a subscription does.
     supabase.rpc("admin_topup_revenue_totals").then(({ data, error }) => {
       if (active && !error && Array.isArray(data)) setTopupTotals(data);
+    });
+    // The purchases behind that number. A total nobody can attribute is a total
+    // nobody trusts, and the first question anyone asks it is "whose?".
+    supabase.rpc("admin_recent_topups", { p_limit: 4 }).then(({ data, error }) => {
+      if (active && !error && Array.isArray(data)) setRecentTopups(data);
     });
     return () => { active = false; };
   }, [admin]);
@@ -3737,7 +3788,7 @@ export default function AdminPortal() {
         );
         break;
       }
-      default:              screen = <Dashboard role={role} companies={companies} users={users} tickets={tickets} audit={audit} planPrices={planPrices} revTotals={revTotals} revLoaded={revLoaded} topupTotals={topupTotals} go={go} />;
+      default:              screen = <Dashboard role={role} companies={companies} users={users} tickets={tickets} audit={audit} planPrices={planPrices} revTotals={revTotals} revLoaded={revLoaded} topupTotals={topupTotals} recentTopups={recentTopups} go={go} />;
     }
   }
 
