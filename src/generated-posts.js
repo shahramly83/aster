@@ -3,6 +3,120 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-turn-ai-match-scores-into-a-shortlist-you-trust",
+    "title": "How to turn AI match scores into a shortlist you trust",
+    "category": "ai-hiring",
+    "excerpt": "An AI match score is a starting point, not a verdict. Here's how to set thresholds, review bands, and override rules that hold up.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-06",
+    "readMins": 6,
+    "tags": [
+      "match-scores",
+      "shortlisting",
+      "ai-hiring",
+      "screening"
+    ],
+    "body": [
+      {
+        "p": "Your AI screener reads 46 applicants and hands back a ranked list with a score next to each name. Now what? A number is only useful if you know what to do with it. Do you interview everyone above 80? Skim the middle? Trust the bottom to be a pass?"
+      },
+      {
+        "p": "Most teams either over-trust the score (interview the top five, ignore the rest) or under-trust it (re-read every resume anyway, which defeats the point). The useful path sits in between. This is about building a **decision rule** around the score: where the machine can act on its own, where a human looks, and where you deliberately second-guess the ranking."
+      },
+      {
+        "h": "A score is a ranking, not a grade"
+      },
+      {
+        "p": "First, be honest about what the number is. An AI match score ranks candidates against the requirements in your job post. It is good at what it can see: named skills, years in a role, relevant industries, a clear career shape. It is confident about the presence of evidence, not the absence of it."
+      },
+      {
+        "p": "That distinction matters. A 62 doesn't mean \"62% good at the job.\" It means the resume showed less on-paper evidence than a 90 did. The candidate might be excellent and just wrote a thin resume. Or the role summary might undervalue something you actually care about. The score compresses a lot of nuance into one figure, and your job is to decide how much weight that figure carries."
+      },
+      {
+        "quote": "A match score tells you where to look first, not who to hire. The ranking saves you time; the decision is still yours."
+      },
+      {
+        "h": "Set three bands, not one cutoff"
+      },
+      {
+        "p": "A single threshold (\"interview everyone above X\") is brittle. The candidate at X+1 and the one at X-1 are barely different, but one gets a call and one gets a rejection. Bands are more honest about that uncertainty. For most roles, three work well:"
+      },
+      {
+        "ul": [
+          "**Shortlist:** the clear top of the list. These have the evidence you asked for. Move them to interviews without re-reading in full.",
+          "**Review:** the middle. Strong on some things, thin on others, or a non-obvious background. A human spends two minutes each here, because this is where the score is least certain.",
+          "**Pass:** the bottom, where the resume shows little of what the role needs. You can decline these, but keep the reasons visible so you can spot a screener that's systematically missing something."
+        ]
+      },
+      {
+        "p": "Where you draw the lines depends on volume and how expensive a first interview is. If a screen is a 20-minute call, you can afford a wider shortlist. If it's a panel, tighten it and lean on the review band."
+      },
+      {
+        "h": "Spend your human time in the middle"
+      },
+      {
+        "p": "The point of bands is to move your attention to where it changes outcomes. Re-reading the top scorers rarely changes anything: they were going to advance. Re-reading the bottom rarely does either. The **review band is where a human read actually flips decisions**, so that's where your minutes should go."
+      },
+      {
+        "p": "When you review a middle candidate, don't re-grade the whole resume. Ask one question: is there something the score couldn't see that changes this? A career gap with a good reason. A startup title that hides real scope. A skill described in words the job post didn't use. If yes, promote them and note why. If no, let the ranking stand."
+      },
+      {
+        "note": "The score's job is to shrink the pile. Your job is to check the cases where shrinking it might have dropped someone good. Spend your judgment on the review band, not on re-litigating the top.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Write down your override rules before you start"
+      },
+      {
+        "p": "You will disagree with the ranking sometimes, and you should. The trick is deciding in advance what a legitimate override looks like, so you're not just reacting to a name or a school. Good overrides are tied to evidence the model didn't weigh correctly:"
+      },
+      {
+        "ul": [
+          "A required skill is present but phrased differently than the job post.",
+          "Relevant experience is recent and deep but sits under an unusual title.",
+          "The role genuinely values something (a portfolio, a specific certification) that a resume can't show well.",
+          "The candidate is a career changer whose transferable work the score under-counts."
+        ]
+      },
+      {
+        "p": "Bad overrides are the ones that reintroduce the bias you were trying to avoid: promoting someone because the company name is familiar, or because they \"feel\" like a fit. If you can't name the evidence, don't override. Write the rule once and it keeps everyone honest."
+      },
+      {
+        "h": "Read the reasons, not just the number"
+      },
+      {
+        "p": "A good screener shows why it scored someone the way it did. Use that. The reasons are more actionable than the figure, because they tell you what the model matched on. If the top candidates all scored high on one keyword that doesn't actually matter for the role, that's a signal your job post is pointing the model at the wrong thing. Fix the post, re-rank, and the whole list improves."
+      },
+      {
+        "p": "This is also your bias check. Scan the reasons across the shortlist. If they cluster around real capabilities (shipped X, led Y, built Z), good. If they cluster around proxies (prestige, exact former employers), tighten the criteria. The reasons make the ranking auditable, which the raw score never can."
+      },
+      {
+        "h": "Calibrate on people you already know"
+      },
+      {
+        "p": "Before you trust the bands on a live role, run a quick sanity check. Take a few resumes where you already know the outcome: a strong hire, a clear pass, a near-miss. Feed them through and see where they land. If your best recent hire lands in the review band, your criteria are too narrow or the post is missing something. If an obvious pass lands high, the post is too loose."
+      },
+      {
+        "p": "This takes twenty minutes and tells you more than any vendor benchmark. **You're not calibrating the AI, you're calibrating the job post the AI reads from.** Most \"the scores are wrong\" problems are really \"the requirements were vague\" problems."
+      },
+      {
+        "h": "What to do with the bottom of the list"
+      },
+      {
+        "p": "The pass band deserves a small amount of care, because it's where quiet mistakes hide. You won't re-read all of them, but do two things. First, decline promptly and kindly; a slow rejection is the most common candidate complaint. Second, spot-check a handful each cycle. If you keep finding people who should have been in the review band, your threshold is too high or your post is filtering out good backgrounds. The bottom of the list is a feedback signal, not just a discard pile."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "p": "An AI match score earns its keep by ordering the pile so you start with the strongest candidates. It does not decide for you, and it works best when you treat it as a ranking with reasons, not a grade. Set three bands, spend your human time in the middle, write your override rules before you're tempted, and check the ranking against people you already know. Do that and the shortlist you hand your hiring manager is one you can actually defend, in an afternoon instead of two weeks."
+      }
+    ]
+  },
+  {
     "slug": "how-to-calibrate-interviewers-so-a-4-means-the-same-thing-to-everyone",
     "title": "How to calibrate interviewers so a 4 means the same thing to everyone",
     "category": "interviewing",
