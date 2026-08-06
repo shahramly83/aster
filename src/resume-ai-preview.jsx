@@ -11369,7 +11369,18 @@ const CREDIT_KINDS = [
 // Base per-credit price in USD; the shown price is this times the currency's rate
 // (currency_rates, editable in /admin) times the plan discount. buy-credits does
 // the same server-side, so display and charge agree.
-const CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4 };
+// Base price per credit in USD. Seeded with the same figures as credit_prices
+// (0166) so the first paint before the fetch lands is not a lie, then replaced
+// by the live table below. buy-credits reads the same table server-side, which
+// is what keeps the quoted price and the charged price the same number.
+let CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4 };
+function setCreditPrices(rows) {
+  for (const r of rows || []) {
+    const k = String(r?.kind || "");
+    const cents = Number(r?.price_usd_cents);
+    if (k in CREDIT_USD && Number.isFinite(cents) && cents >= 0) CREDIT_USD[k] = cents / 100;
+  }
+}
 const CUR_SYMBOL = { usd: "$", myr: "RM", sgd: "S$" };
 // Editable currency rates (USD = 1), mirrored here and refreshed from the DB at
 // app load so any Buy-credits button prices in the workspace currency.
@@ -29008,6 +29019,11 @@ export default function ResumeAIPreview() {
     // Editable currency rates (drive credit top-up prices), set in /admin.
     supabase.from("currency_rates").select("currency, rate").then(({ data }) => {
       if (active && Array.isArray(data)) setCurrencyRates(data);
+    });
+    // Base credit prices, also set in /admin (0166). buy-credits re-derives from
+    // the same table, so what is quoted here is what Stripe charges.
+    supabase.from("credit_prices").select("kind, price_usd_cents").then(({ data }) => {
+      if (active && Array.isArray(data)) setCreditPrices(data);
     });
     return () => { active = false; };
   }, []);

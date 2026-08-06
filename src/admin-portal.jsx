@@ -18,6 +18,8 @@ import { supabase, hasSupabase } from "./lib/supabase";
 // The one limits table the customer app enforces against, so the allowances
 // shown here cannot drift from the ones actually applied.
 import { PLAN_LIMITS } from "./lib/plan";
+import WorldMap from "./admin-world-map";
+import DatePicker from "./admin-date-picker";
 
 const ADMIN_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -39,8 +41,36 @@ const ADMIN_STYLES = `
 .adm .txt-grad{background:linear-gradient(120deg,#5570F5,#0B2AE0 50%,#3550EE);-webkit-background-clip:text;background-clip:text;color:transparent;}
 .adm-shadow{box-shadow:0 1px 2px rgba(18,19,42,.04),0 10px 26px -16px rgba(18,19,42,.16);}
 .adm .tnum{font-variant-numeric:tabular-nums;}
+.adm-row{transition:background-color .15s ease;}
 .adm-row:hover{background:#F7F9FC;}
 .adm-nav-item:hover{background:#F7F9FC;}
+/* Segment chips. The border is declared here so the inline style only has to
+   carry the colour, which is what changes per state. */
+.adm-seg{border:1px solid var(--line);transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
+.adm-seg:hover[aria-pressed="false"]{border-color:var(--line-strong);background:#FBFCFE;}
+/* Sortable headers read as text until you go near them, which keeps the header
+   row quiet on a table that is mostly read, not sorted. */
+.adm-sort{transition:color .15s ease;}
+.adm-sort:hover{color:var(--ink);}
+.adm-x:hover{background:var(--app-bg);color:var(--ink-2);}
+.adm-datefield{transition:border-color .15s ease,box-shadow .15s ease;}
+.adm-datefield:hover:not(:disabled){border-color:var(--line-strong);}
+.adm-datefield[aria-expanded="true"]{border-color:var(--brand-0);box-shadow:0 0 0 3px var(--brand-soft);}
+.adm-cal{box-shadow:0 1px 2px rgba(18,19,42,.04),0 18px 40px -18px rgba(18,19,42,.28);}
+.adm-cal-nav:hover,.adm-cal-foot:hover{background:var(--app-bg);}
+.adm-cal-day{transition:background-color .12s ease;}
+.adm-cal-day:hover:not(:disabled):not([aria-selected="true"]){background:var(--app-bg);}
+.adm-input{transition:border-color .15s ease,box-shadow .15s ease;}
+.adm-input:focus{outline:none;border-color:var(--brand-0);box-shadow:0 0 0 3px var(--brand-soft);}
+/* Underline on hover only, so a table of names is not a wall of blue rules. */
+.adm-link{text-underline-offset:3px;}
+.adm-link:hover{text-decoration:underline;}
+/* One focus ring for everything focusable, drawn outside the element so it is
+   never clipped by a rounded corner or an overflow container. */
+.adm :is(button,a,input,select,summary,[tabindex]):focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px;}
+@media (prefers-reduced-motion:reduce){
+  .adm *,.adm *::before,.adm *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
+}
 .adm ::-webkit-scrollbar{width:10px;height:10px}.adm ::-webkit-scrollbar-thumb{background:#d9d9e3;border-radius:8px;border:2px solid transparent;background-clip:content-box}
 .adm-side ::-webkit-scrollbar-thumb{background:#d9d9e3}
 .adm-page{background:var(--app-bg);}
@@ -101,10 +131,10 @@ const PATHS = {
 // The real Aster app-icon mark (blue rounded square + white burst), used in the
 // admin header/login in place of the old "A" letter badge. The SVG rounds its
 // own corners, so no extra background/radius is needed on the container.
-function Icon({ name, className = "w-5 h-5" }) {
+function Icon({ name, className = "w-5 h-5", style }) {
   const filled = name === "dot";
   return (
-    <svg viewBox="0 0 24 24" className={className} fill={filled ? "currentColor" : "none"} stroke={filled ? "none" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} style={style} fill={filled ? "currentColor" : "none"} stroke={filled ? "none" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {filled ? <circle cx="12" cy="12" r="4" /> : <path d={PATHS[name] || PATHS.dot} />}
     </svg>
   );
@@ -159,6 +189,9 @@ function dayBucket(iso) {
 
 const SETTINGS_TABS = [
   { key: "rates",           label: "Currency rates",  roles: ["super", "billing"] },
+  // What we charge, kept apart from what we pay. Two screens because one screen
+  // makes it far too easy to edit the wrong number.
+  { key: "credit_prices",   label: "Credit pricing",  roles: ["super", "billing"] },
   { key: "ai_costs",        label: "AI costs",        roles: ["super", "billing"] },
   { key: "flags",           label: "Feature flags",   roles: ["super"] },
   { key: "email_templates", label: "Email templates", roles: ["super", "support"] },
@@ -197,6 +230,7 @@ const PERMS = {
   "support.resolve":     ["super", "support"],
   "template.edit":       ["super", "support"],
   "aicost.edit":         ["super", "billing"],
+  "creditprice.edit":    ["super", "billing"],
   "booking.manage":      ["super", "support"],
 };
 const can = (role, action) => (PERMS[action] || []).includes(role);
@@ -352,16 +386,46 @@ function SectionHead({ title, left, children }) {
     </div>
   );
 }
-function TableShell({ head, children }) {
+// head accepts plain strings, or { label, align, key } to right-align a numeric
+// column and make it sortable. Strings still work, so the tables that do not
+// sort were left alone.
+function TableShell({ head, children, sort, onSort, minWidth = 640 }) {
+  const cols = head.map((h) => (typeof h === "string" ? { label: h } : h));
   return (
     <Card pad="p-0">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm" style={{ minWidth: 640 }}>
+        <table className="w-full text-sm" style={{ minWidth }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--line)" }}>
-              {head.map((h, i) => (
-                <th key={i} className="text-left font-semibold px-4 sm:px-5 py-3.5 whitespace-nowrap" style={{ color: "var(--ink-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
-              ))}
+              {cols.map((c, i) => {
+                const sortable = !!(c.key && onSort);
+                const active = sortable && sort?.key === c.key;
+                const label = (
+                  <span className="inline-flex items-center gap-1">
+                    {c.label}
+                    {/* Direction is drawn, not just implied by which header is
+                        bold: an arrow that only appears on the active column is
+                        the one thing that says which way the sort runs. */}
+                    {active && (
+                      <Icon name="chevronDown" className="w-3 h-3 transition-transform"
+                        style={{ transform: sort.dir === "asc" ? "rotate(180deg)" : "none" }} />
+                    )}
+                  </span>
+                );
+                return (
+                  <th key={i}
+                    aria-sort={sortable ? (active ? (sort.dir === "asc" ? "ascending" : "descending") : "none") : undefined}
+                    className={`font-semibold px-4 sm:px-5 py-3.5 whitespace-nowrap ${c.align === "right" ? "text-right" : "text-left"}`}
+                    style={{ color: active ? "var(--ink-2)" : "var(--ink-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    {sortable ? (
+                      <button type="button" onClick={() => onSort(c.key)}
+                        className={`adm-sort inline-flex items-center gap-1 rounded ${c.align === "right" ? "flex-row-reverse" : ""}`}>
+                        {label}
+                      </button>
+                    ) : label}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>{children}</tbody>
@@ -402,28 +466,10 @@ function NoAccess({ role }) {
 // ---------------------------------------------------------------------------
 // Screens
 // ---------------------------------------------------------------------------
-// List price per plan, so MRR is computed from the plan a company is on rather than
-// a stored field the admin RPCs don't return (which read back as $NaN). Enterprise is
-// custom-priced, so it is excluded from the self-serve MRR figure.
-// Recurring revenue in ringgit, from the same Stripe prices the pricing page
-// quotes (get-plan-prices), not a hardcoded list price. Amounts arrive in sen.
-// A yearly subscription contributes a twelfth of its price each month, and
-// Enterprise is custom-priced so it is left out of the self-serve figure.
-function monthlyRevenueMYR(companies, prices) {
-  if (!prices) return null;
-  let sen = 0, counted = 0;
-  for (const c of companies) {
-    if (c.subStatus !== "active") continue;
-    const plan = String(c.plan || "").toLowerCase();
-    if (!plan || plan === "enterprise") continue;
-    const p = prices[`${plan}|${c.cycle === "yearly" ? "yearly" : "monthly"}`] || prices[`${plan}|monthly`];
-    const amount = p?.currencies?.myr ?? (String(p?.currency || "").toLowerCase() === "myr" ? p.amount : null);
-    if (amount == null) continue;
-    sen += p.interval === "year" ? amount / 12 : amount;
-    counted++;
-  }
-  return { myr: sen / 100, counted };
-}
+// monthlyRevenueMYR lived here and computed MRR by adding up every active
+// company's list price. The overview now reads real Stripe charges instead, so
+// a projection nobody was billed for had no reader left. planMonthlyMYR below
+// still prices a single workspace, which is a different question.
 const ringgit = (n) => "RM " + Math.round(n).toLocaleString("en-MY");
 // Sub-ringgit figures (a single AI call) need the sen, a monthly total does not.
 const ringgit2 = (n) => "RM " + n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -551,14 +597,10 @@ function AttentionCard({ card, data, go, allowed }) {
   );
 }
 
-function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
+function Dashboard({ role, companies, users, tickets, audit, planPrices, revTotals = [], revLoaded = false, topupTotals = [], go }) {
   const active = companies.filter((c) => c.status === "active").length;
   const trials = companies.filter((c) => c.status === "trial").length;
   const suspended = companies.filter((c) => c.status === "suspended").length;
-  // Only active (paying) subscriptions contribute. A yearly plan still bills a
-  // month's worth per month, so the list price is the right per-month figure.
-  const revenue = monthlyRevenueMYR(companies, planPrices);
-
   const canRevenue = role === "billing" || role === "super";
   const seats = companies.reduce((s, c) => s + (c.seats || 0), 0);
   const jobs = companies.reduce((s, c) => s + (c.activeJobs || 0), 0);
@@ -566,6 +608,50 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
   const interviews = companies.reduce((s, c) => s + (c.interviews || 0), 0);
   const hired = companies.reduce((s, c) => s + (c.hired || 0), 0);
   const upcoming = companies.reduce((s, c) => s + (c.upcoming || 0), 0);
+
+  // Workspaces that have stayed a year: still active AND opened over a year
+  // ago. Age alone would count the ones that left, which is the opposite of
+  // what the number is for.
+  const yearAgo = new Date(); yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  const veterans = companies.filter((c) => c.status === "active" && c.createdAt && new Date(c.createdAt) <= yearAgo).length;
+
+  // Where the customers are. Grouped case-insensitively so "malaysia" and
+  // "Malaysia" are one country, and the ones who never filled in an address are
+  // shown as their own row rather than silently dropped: a chart that omits
+  // them makes the coverage look better than it is.
+  const byCountry = new Map();
+  companies.forEach((c) => {
+    const raw = (c.country || "").trim();
+    const key = raw ? raw.toLowerCase() : "__none";
+    const row = byCountry.get(key) || { label: raw || "Not set", n: 0, unknown: !raw };
+    row.n += 1;
+    byCountry.set(key, row);
+  });
+  const countries = [...byCountry.values()]
+    .sort((a, b) => (a.unknown - b.unknown) || (b.n - a.n) || a.label.localeCompare(b.label))
+    .slice(0, 6);
+  // The map shades named countries only; "Not set" has nowhere to go on it.
+  const mapCounts = Object.fromEntries([...byCountry.values()].filter((c) => !c.unknown).map((c) => [c.label, c.n]));
+  const mapMax = Math.max(1, ...Object.values(mapCounts));
+
+  // Subscriptions running out. Already-expired first, because those are the ones
+  // that need doing something about, then nearest renewal.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const expiring = companies
+    .filter((c) => c.periodEnd && c.status !== "suspended")
+    .map((c) => ({ ...c, daysLeft: Math.round((new Date(c.periodEnd) - today) / 86400000) }))
+    .filter((c) => c.daysLeft <= 30)
+    .sort((a, b) => a.daysLeft - b.daysLeft)
+    .slice(0, 5);
+
+  // Revenue: succeeded Stripe charges, in sen, per currency. Ringgit is shown on
+  // the tile and anything else is named underneath rather than converted into it.
+  const myrIn = (rows, bucket) => (rows || []).filter((r) => r.bucket === bucket && r.currency === "myr")
+    .reduce((s, r) => s + Number(r.amount_cents || 0), 0) / 100;
+  const countIn = (rows, bucket, field) => (rows || []).filter((r) => r.bucket === bucket)
+    .reduce((s, r) => s + Number(r[field] || 0), 0);
+  const otherCcyIn = (rows) => [...new Set((rows || []).filter((r) => r.currency !== "myr")
+    .map((r) => String(r.currency || "").toUpperCase()))];
 
   const slices = [
     { label: "Active", pct: pct(active, companies.length), color: "var(--c-active)", n: active },
@@ -576,8 +662,6 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
     const inPlan = companies.filter((c) => c.plan === p);
     return { label: p, a: inPlan.filter((c) => c.status === "active").length, b: inPlan.filter((c) => c.status !== "active").length };
   });
-  const ranked = [...companies].sort((a, b) => (b.seats || 0) - (a.seats || 0)).slice(0, 4);
-  const maxSeats = Math.max(1, ...ranked.map((c) => c.seats || 0));
 
   return (
     <div>
@@ -617,14 +701,12 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
       </div>
 
       {/* Row 2: the plain totals strip */}
-      <div className="grid gap-4 mt-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 mt-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { l: "Workspaces", v: companies.length, s: `${active} active · ${trials} on trial`, t: "var(--t-blue)", i: "building" },
-          { l: "Company users", v: users.length || seats, s: "Across every workspace", t: "var(--t-lav)", i: "users" },
-          { l: "Open jobs", v: jobs, s: "Live roles right now", t: "var(--t-mint)", i: "jobs" },
-          { l: "Candidates", v: cands, s: "Counted only, never readable here", t: "var(--t-sand)", i: "lock" },
-          { l: "Interviews", v: interviews, s: upcoming ? `${upcoming} still ahead` : "None scheduled ahead", t: "var(--t-blue)", i: "calendar" },
-          { l: "Hired", v: hired, s: interviews ? `${pct(hired, interviews)}% of interviews` : "No interviews yet", t: "var(--t-mint)", i: "check" },
+          { l: "Company users", v: users.length || seats, t: "var(--t-lav)", i: "users" },
+          { l: "Total candidates", v: cands, t: "var(--t-sand)", i: "lock" },
+          { l: "Open jobs", v: jobs, t: "var(--t-mint)", i: "jobs" },
+          { l: "Stayed over a year", v: veterans, t: "var(--t-blue)", i: "check" },
         ].map((x) => (
           <Tile key={x.l} pad="p-5">
             <div className="flex items-center gap-3">
@@ -634,30 +716,91 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
                 <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>{x.l}</p>
               </div>
             </div>
-            <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>{x.s}</p>
           </Tile>
         ))}
       </div>
 
+      {/* Row 2b: money in, over three windows. Malaysian days, not UTC. Total
+          revenue is everything Stripe took; top-ups are the slice of it bought
+          as credits, which is why one sits beside the other rather than under
+          it. They are not meant to add up. */}
+      {canRevenue && (
+        <div className="grid gap-4 mt-4 xl:grid-cols-2">
+          <Tile pad="p-5">
+            <TileHead title="Total revenue"
+              right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Subscriptions and top-ups</span>} />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[["This year", "year"], ["This month", "month"], ["Today", "today"]].map(([label, b]) => (
+                <div key={b}>
+                  <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>{label}</p>
+                  <p className="text-[26px] font-bold adm-display tnum leading-tight mt-1" style={{ color: "var(--ink)" }}>
+                    {revLoaded ? ringgit2(myrIn(revTotals, b)) : "—"}
+                  </p>
+                  <p className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                    {revLoaded ? `${countIn(revTotals, b, "payments")} payments` : "Reading Stripe…"}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Only speaks up when it has to: a figure that silently drops
+                non-ringgit takings would be wrong without saying so. */}
+            {otherCcyIn(revTotals).length > 0 && (
+              <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+                Ringgit shown. Also taken in {otherCcyIn(revTotals).join(", ")}.
+              </p>
+            )}
+          </Tile>
+
+          <Tile pad="p-5">
+            <TileHead title="Credit top-ups"
+              right={<span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Included in total</span>} />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[["This year", "year"], ["This month", "month"], ["Today", "today"]].map(([label, b]) => (
+                <div key={b}>
+                  <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>{label}</p>
+                  <p className="text-[26px] font-bold adm-display tnum leading-tight mt-1" style={{ color: "var(--ink)" }}>
+                    {ringgit2(myrIn(topupTotals, b))}
+                  </p>
+                  <p className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                    {countIn(topupTotals, b, "purchases")} purchases
+                  </p>
+                </div>
+              ))}
+            </div>
+            {otherCcyIn(topupTotals).length > 0 && (
+              <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+                Ringgit shown. Also taken in {otherCcyIn(topupTotals).join(", ")}.
+              </p>
+            )}
+          </Tile>
+        </div>
+      )}
+
       {/* Row 3: rank, plan chart, activity feed */}
       <div className="grid gap-4 mt-4 xl:grid-cols-3">
         <Tile>
-          <TileHead title="Top workspaces" right={<SeeAll onClick={() => go("companies")} />} />
-          {ranked.length === 0 ? (
-            <p className="text-sm py-8 text-center" style={{ color: "var(--ink-3)" }}>No workspaces yet.</p>
+          <TileHead title="Expiring soon" right={<SeeAll onClick={() => go("subscriptions")} />} />
+          {expiring.length === 0 ? (
+            <p className="text-sm py-8 text-center" style={{ color: "var(--ink-3)" }}>
+              Nothing expiring in the next 30 days.
+            </p>
           ) : (
             <ul className="space-y-4">
-              {ranked.map((c) => (
+              {expiring.map((c) => (
                 <li key={c.id} className="flex items-center gap-3">
                   <Monogram label={c.name} size={38} soft />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-neutral-900 truncate">{c.name}</p>
-                    <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.plan} · {c.activeJobs} open {c.activeJobs === 1 ? "job" : "jobs"}</p>
-                    <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "#EEF2FB" }}>
-                      <div className="h-full rounded-full" style={{ width: `${pct(c.seats || 0, maxSeats)}%`, background: "#A9C0F5" }} />
-                    </div>
+                    <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.plan} · {c.cycle}</p>
                   </div>
-                  <span className="text-sm font-semibold tnum shrink-0" style={{ color: "var(--ink-2)" }}>{c.seats} seats</span>
+                  {/* Gone already reads differently from going, so it is coloured
+                      differently rather than being one more number in a list. */}
+                  <span className="text-xs font-semibold tnum shrink-0 text-right"
+                    style={{ color: c.daysLeft < 0 ? "var(--c-risk)" : c.daysLeft <= 7 ? "#B45309" : "var(--ink-2)" }}>
+                    {c.daysLeft < 0
+                      ? `Expired ${Math.abs(c.daysLeft)}d ago`
+                      : c.daysLeft === 0 ? "Expires today" : `${c.daysLeft}d left`}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -676,50 +819,32 @@ function Dashboard({ role, companies, users, tickets, audit, planPrices, go }) {
           {companies.length === 0
             ? <p className="text-sm py-12 text-center" style={{ color: "var(--ink-3)" }}>No workspaces yet.</p>
             : <PlanColumns rows={planRows} />}
-          {canRevenue && (
-            <div className="flex items-end justify-between mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
-              <div>
-                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Monthly recurring revenue</p>
-                <p className="text-2xl font-bold adm-display tnum" style={{ color: "var(--ink)" }}>
-                  {revenue ? ringgit(revenue.myr) : "—"}
-                </p>
-              </div>
-              <span className="text-[11px] tnum text-right" style={{ color: "var(--ink-3)" }}>
-                {revenue ? `${revenue.counted} paying` : "Loading prices…"}
-              </span>
-            </div>
-          )}
+          {/* MRR used to sit here. It was a projection: every active company's
+              list price added up, not money anyone had paid. Total revenue above
+              reads real Stripe charges, so this only invited the two to be
+              compared as though they measured the same thing. */}
         </Tile>
 
-        {/* Only the roles the audit_log policy admits: a Support admin would
-            otherwise get an empty card that reads as "nothing happened". */}
-        <Tile className={SETTINGS_TABS.find((t) => t.key === "audit").roles.includes(role) ? "" : "hidden"}>
-          <TileHead title="Admin activity" right={sectionAllowed(role, "settings") && <SeeAll onClick={() => go("settings")} />} />
-          {audit.length === 0 ? (
-            <div className="py-10 text-center">
-              <span className="w-11 h-11 rounded-full inline-flex items-center justify-center" style={{ background: "var(--t-mint)", color: "#166534" }}><Icon name="check" className="w-5 h-5" /></span>
-              <p className="text-sm mt-3" style={{ color: "var(--ink-3)" }}>No admin actions this session.</p>
-              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Anything you change here shows up in this feed.</p>
-            </div>
-          ) : (
-            <ul className="space-y-1">
-              {collapseAudit(audit).slice(0, 5).map((a) => (
-                <li key={a.id} className="flex items-start gap-2.5 py-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0" style={{ background: auditTone(a.action) }} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-snug" style={{ color: "var(--ink-2)" }}>
-                      {auditText(a.action)}
-                      {a.target && <><span style={{ color: "var(--ink-3)" }}> · </span><span className="font-semibold text-neutral-900">{a.target}</span></>}
-                      {a.count > 1 && <span className="tnum text-[11px] font-bold ml-1.5 px-1.5 py-0.5 rounded-full" style={{ background: "var(--app-bg)", color: "var(--ink-3)" }}>×{a.count}</span>}
-                    </p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }} title={a.when || ""}>
-                      {a.actor !== "—" ? `${a.actor} · ` : ""}{a.at}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Every role sees this one. It carries no money and no personal data,
+            unlike the admin activity feed that used to sit here, which had to be
+            hidden from Support because the audit_log policy refuses them. */}
+        <Tile>
+          <TileHead title="Country" right={<SeeAll onClick={() => go("companies")} />} />
+          <WorldMap counts={mapCounts} max={mapMax} />
+          {/* The map cannot show a workspace with no address, and that is the
+              majority until people fill in their billing details. The rows carry
+              the ones the map has to leave out. */}
+          <ul className="space-y-2 mt-4">
+            {countries.map((c) => (
+              <li key={c.label} className="flex items-center justify-between gap-3">
+                <span className="text-sm truncate" style={{ color: c.unknown ? "var(--ink-3)" : "var(--ink-2)" }}>{c.label}</span>
+                <span className="text-sm font-semibold tnum shrink-0" style={{ color: "var(--ink)" }}>{c.n}</span>
+              </li>
+            ))}
+            {countries.length === 0 && (
+              <li className="text-sm py-2 text-center" style={{ color: "var(--ink-3)" }}>No workspaces yet.</li>
+            )}
+          </ul>
         </Tile>
       </div>
     </div>
@@ -1024,11 +1149,46 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
   };
   const dormantCount = companies.filter(isDormant).length;
 
-  const rows = companies
-    .filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
-    .filter((c) => !dormantOnly || isDormant(c));
   const costOf = (id) => aiCostFor(usage.find((u) => u.companyId === id), aiCosts);
   const priced = aiCosts && Object.values(aiCosts).some((v) => v > 0);
+
+  // One row of chips that both counts and filters. An ops console is read by
+  // asking "how many are suspended" and then "which ones", and a count you
+  // cannot click makes you go and type the answer into search instead.
+  const [seg, setSeg] = useState("all");
+  const SEGMENTS = [
+    { key: "all", label: "All", match: () => true },
+    { key: "active", label: "Active", match: (c) => c.status === "active" && !c.compedAt },
+    { key: "trial", label: "Trial", match: (c) => c.status === "trial" },
+    { key: "comped", label: "Comped", match: (c) => !!c.compedAt },
+    { key: "suspended", label: "Suspended", match: (c) => c.status === "suspended", tone: "danger" },
+    { key: "dormant", label: "Dormant", match: isDormant, tone: "warn" },
+  ].map((s) => ({ ...s, n: companies.filter(s.match).length }));
+
+  const [sort, setSort] = useState({ key: "name", dir: "asc" });
+  const onSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
+
+  const sortVal = (c, key) => {
+    switch (key) {
+      case "seats": return c.seats || 0;
+      case "jobs": return c.activeJobs || 0;
+      case "candidates": return c.candidates || 0;
+      // Never-seen sorts as the quietest rather than the busiest: an unknown is
+      // not the same as "active today", and putting it top would hide the real
+      // dormant workspaces underneath it.
+      case "seen": { const d = daysQuiet(c.id); return d == null ? Number.MAX_SAFE_INTEGER : d; }
+      case "ai": return costOf(c.id);
+      default: return String(c.name || "").toLowerCase();
+    }
+  };
+  const rows = companies
+    .filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()))
+    .filter((c) => (dormantOnly ? isDormant(c) : (SEGMENTS.find((s) => s.key === seg) || SEGMENTS[0]).match(c)))
+    .sort((a, a2) => {
+      const x = sortVal(a, sort.key), y = sortVal(a2, sort.key);
+      const cmp = typeof x === "string" ? x.localeCompare(y) : x - y;
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
 
   // Grant or withdraw a free plan. Withdrawing does not suspend: it removes the
   // protection and lets the trial rules apply again.
@@ -1064,43 +1224,92 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
     <div>
       <SectionHead title="">
         <div className="flex items-center gap-2">
-          {dormantCount > 0 && (
-            <button onClick={() => setDormantOnly((v) => !v)} aria-pressed={dormantOnly}
-              className="h-11 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
-              style={{ background: dormantOnly ? "var(--warn-soft)" : "#fff", border: `1px solid ${dormantOnly ? "var(--warn)" : "var(--line)"}`, color: "var(--warn)" }}>
-              <Icon name="warning" className="w-4 h-4" /> Dormant <span className="tnum">{dormantCount}</span>
-            </button>
-          )}
           <label className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies" className="pl-9 pr-3 h-11 rounded-xl text-sm w-56" style={{ border: "1px solid var(--line)", background: "#fff" }} />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies"
+              aria-label="Search companies"
+              className="adm-input pl-9 pr-8 h-11 rounded-xl text-sm w-64" style={{ border: "1px solid var(--line)", background: "#fff" }} />
+            {q && (
+              <button type="button" onClick={() => setQ("")} aria-label="Clear search"
+                className="adm-x absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md inline-flex items-center justify-center" style={{ color: "var(--ink-3)" }}>
+                <Icon name="close" className="w-3.5 h-3.5" />
+              </button>
+            )}
           </label>
         </div>
       </SectionHead>
-      <TableShell head={["Company", "Plan", "Status", "Seats", "Active jobs", "Candidates", "Last seen", "AI this month", "Actions"]}>
+
+      {/* Segments carry the counts, so the shape of the book of business reads
+          off one line before anyone has filtered anything. */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {SEGMENTS.map((s) => {
+          const on = !dormantOnly && seg === s.key;
+          const accent = s.tone === "danger" ? "var(--c-risk)" : s.tone === "warn" ? "var(--warn)" : "var(--brand, #0B2AE0)";
+          return (
+            <button key={s.key} type="button" aria-pressed={on}
+              onClick={() => { setDormantOnly(false); setSeg(s.key); }}
+              className="adm-seg h-9 pl-3 pr-2.5 rounded-full text-[13px] font-semibold inline-flex items-center gap-2"
+              style={{
+                background: on ? accent : "#fff",
+                borderColor: on ? accent : "var(--line)",
+                color: on ? "#fff" : s.n === 0 ? "var(--ink-3)" : "var(--ink-2)",
+              }}>
+              {s.label}
+              <span className="tnum text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{ background: on ? "rgba(255,255,255,0.22)" : "var(--app-bg)", color: on ? "#fff" : "var(--ink-3)" }}>{s.n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <TableShell
+        minWidth={880}
+        sort={sort} onSort={onSort}
+        head={[
+          { label: "Company", key: "name" },
+          "Plan", "Status",
+          { label: "Seats", key: "seats", align: "right" },
+          { label: "Jobs", key: "jobs", align: "right" },
+          { label: "Candidates", key: "candidates", align: "right" },
+          { label: "Last seen", key: "seen", align: "right" },
+          { label: "AI this month", key: "ai", align: "right" },
+          "Actions",
+        ]}>
         {rows.map((c) => {
           const u = usage.find((x) => x.companyId === c.id);
           const cost = costOf(c.id);
+          const quiet = daysQuiet(c.id);
           return (
             <tr key={c.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
               <Td>
-                <button onClick={() => setOpenWs(c)} className="font-semibold text-neutral-900 text-left hover:underline">{c.name}</button>
-                <div className="text-xs" style={{ color: "var(--ink-3)" }}>{c.owner || "No owner on record"}</div>
+                <div className="flex items-center gap-3">
+                  <Monogram label={c.name} size={34} soft />
+                  <div className="min-w-0">
+                    <button onClick={() => setOpenWs(c)} className="adm-link font-semibold text-neutral-900 text-left truncate block max-w-[15rem]">{c.name}</button>
+                    <div className="text-xs truncate max-w-[15rem]" style={{ color: "var(--ink-3)" }}>{c.owner || "No owner on record"}</div>
+                  </div>
+                </div>
               </Td>
               <Td><Badge tone={c.plan === "Enterprise" ? "brand" : "ink"}>{c.plan}</Badge></Td>
               <Td>{c.compedAt ? <Badge tone="brand" dot>comped</Badge> : <StatusBadge value={c.status} />}</Td>
-              <Td className="tnum">{c.seats}</Td>
-              <Td className="tnum">{c.activeJobs}</Td>
-              <Td><span className="inline-flex items-center gap-1.5 tnum"><span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>{c.candidates.toLocaleString()}</span></Td>
-              <Td>
-                {(() => {
-                  const d = daysQuiet(c.id);
-                  if (d == null) return <span className="text-xs" style={{ color: "var(--ink-3)" }}>not recorded</span>;
-                  return <span className="text-sm tnum" style={{ color: isDormant(c) ? "var(--warn)" : "var(--ink-2)" }}>{d === 0 ? "today" : `${d}d ago`}</span>;
-                })()}
+              <Td className="tnum text-right">{c.seats}</Td>
+              <Td className="tnum text-right">{c.activeJobs}</Td>
+              {/* The padlock says these are counted and never readable. It stays
+                  on the row rather than moving to a footnote, because that is
+                  the promise the whole console is built on. */}
+              <Td className="text-right">
+                <span className="inline-flex items-center gap-1.5 tnum" title="Counted only, never readable here">
+                  <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>
+                  {c.candidates.toLocaleString()}
+                </span>
               </Td>
-              <Td>
-                <div className="tnum font-semibold" style={{ color: "var(--ink)" }}>
+              <Td className="text-right">
+                {quiet == null
+                  ? <span className="text-xs" style={{ color: "var(--ink-3)" }}>not recorded</span>
+                  : <span className="text-sm tnum font-medium" style={{ color: isDormant(c) ? "var(--warn)" : "var(--ink-2)" }}>{quiet === 0 ? "today" : `${quiet}d ago`}</span>}
+              </Td>
+              <Td className="text-right">
+                <div className="tnum font-semibold" style={{ color: cost > 0 ? "var(--ink)" : "var(--ink-3)" }}>
                   {priced ? ringgit2(cost) : "—"}
                 </div>
                 <div className="text-xs tnum" style={{ color: "var(--ink-3)" }}>
@@ -1108,7 +1317,7 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
                 </div>
               </Td>
               <Td>
-                <div className="flex gap-2">
+                <div className="flex justify-end gap-2">
                   {/* Comp is offered only where it means something: a paying
                       workspace already has its plan and Stripe owns it. */}
                   {c.compedAt
@@ -1122,6 +1331,27 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
             </tr>
           );
         })}
+        {rows.length === 0 && (
+          <tr>
+            <td colSpan={9} className="px-5 py-14 text-center">
+              <span className="w-11 h-11 rounded-full inline-flex items-center justify-center" style={{ background: "var(--app-bg)", color: "var(--ink-3)" }}>
+                <Icon name="search" className="w-5 h-5" />
+              </span>
+              <p className="text-sm font-semibold mt-3" style={{ color: "var(--ink-2)" }}>
+                {q ? `Nothing matches "${q}"` : "No workspaces in this view"}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+                {q ? "Check the spelling, or clear the search." : "Try a different filter above."}
+              </p>
+              {(q || seg !== "all") && (
+                <button type="button" onClick={() => { setQ(""); setSeg("all"); setDormantOnly(false); }}
+                  className="adm-link text-xs font-semibold mt-3" style={{ color: "var(--brand, #0B2AE0)" }}>
+                  Clear filters
+                </button>
+              )}
+            </td>
+          </tr>
+        )}
       </TableShell>
       {!priced && (
         <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>
@@ -1774,6 +2004,213 @@ function Usage({ role, usage, aiCosts, period, periods, onPeriod }) {
 }
 
 // Rates editor. Sen per AI action, so a fraction of a sen per call is expressible.
+// What we CHARGE for a top-up credit. Deliberately a separate screen from AI
+// costs, which is what we PAY: the two are one keystroke apart and a slip
+// between them is a pricing incident rather than a wrong report.
+//
+// The number typed here is a USD base. Nobody is billed that: the buyer pays it
+// times the currency rate times their plan discount, which is why every row
+// shows what it actually becomes rather than making an admin hold three
+// multiplications in their head.
+const PLAN_DISCOUNT = [
+  { plan: "Launch", mult: 1 },
+  { plan: "Scale", mult: 0.9 },
+  { plan: "Elite", mult: 0.8 },
+];
+const CUR_SYM = { usd: "$", myr: "RM", sgd: "S$" };
+
+function CreditPricing({ role, audit }) {
+  const editable = can(role, "creditprice.edit");
+  const [rows, setRows] = useState(null);          // [{ kind, price_usd_cents, label }]
+  const [rates, setRates] = useState({ usd: 1, myr: 4.09, sgd: 1.29 });
+  const [draft, setDraft] = useState({});          // { kind: "1.00" } while typing
+  const [confirm, setConfirm] = useState(null);    // { kind, label, from, to }
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!hasSupabase) { setRows([]); return; }
+    supabase.from("credit_prices").select("kind, price_usd_cents, label").then(({ data }) => {
+      if (Array.isArray(data)) setRows([...data].sort((a, b) => b.price_usd_cents - a.price_usd_cents));
+    });
+    supabase.from("currency_rates").select("currency, rate").then(({ data }) => {
+      if (!Array.isArray(data)) return;
+      setRates((r) => { const n = { ...r }; data.forEach((x) => { if (Number(x.rate) > 0) n[String(x.currency).toLowerCase()] = Number(x.rate); }); return n; });
+    });
+  }, []);
+
+  // The buyer's price, derived exactly as buy-credits derives it, rounding the
+  // same way. Anything else here would be a preview that lies.
+  const charged = (cents, cur, mult) => Math.max(1, Math.round(cents * (rates[cur] || 1) * mult)) / 100;
+  const money = (n, cur) => `${CUR_SYM[cur]}${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const askSave = (row) => {
+    const raw = draft[row.kind];
+    if (raw == null || raw === "") return;
+    const to = Math.round(Number(raw) * 100);
+    if (!Number.isFinite(to) || to < 0) { setErr("Enter a price of zero or more."); return; }
+    if (to === row.price_usd_cents) { setDraft((d) => ({ ...d, [row.kind]: undefined })); return; }
+    setErr("");
+    setConfirm({ kind: row.kind, label: row.label, from: row.price_usd_cents, to });
+  };
+
+  const save = async () => {
+    if (!confirm || busy) return;
+    setBusy(true); setErr("");
+    const { kind, to, from } = confirm;
+    if (hasSupabase) {
+      const { error } = await supabase.rpc("set_credit_price", { p_kind: kind, p_cents: to });
+      if (error) { setErr(error.message || "Could not save that price."); setBusy(false); return; }
+    }
+    setRows((rs) => rs.map((r) => (r.kind === kind ? { ...r, price_usd_cents: to } : r)));
+    setDraft((d) => ({ ...d, [kind]: undefined }));
+    audit("Set credit price", `${kind}: $${(from / 100).toFixed(2)} → $${(to / 100).toFixed(2)}`);
+    setConfirm(null); setBusy(false);
+  };
+
+  if (rows === null) return <Card pad="p-6"><p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading prices…</p></Card>;
+
+  return (
+    <div>
+      <Card pad="p-4 sm:p-5" className="mb-4">
+        <div className="flex items-start gap-3">
+          <span className="w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0" style={{ background: "var(--t-mint)", color: "var(--ink)" }}>
+            <Icon name="card" className="w-[18px] h-[18px]" />
+          </span>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>This is what customers pay</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>
+              A saved price applies to the next top-up immediately, with no deploy. AI costs, on the other tab, is what a call costs us and changes nothing a customer sees.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <TableShell minWidth={860} head={[
+        "Credit", { label: "Base (USD)", align: "right" },
+        ...PLAN_DISCOUNT.map((p) => ({ label: `${p.plan}${p.mult < 1 ? ` −${Math.round((1 - p.mult) * 100)}%` : ""}`, align: "right" })),
+        editable ? "Save" : "",
+      ]}>
+        {rows.map((r) => {
+          const pending = draft[r.kind] != null && draft[r.kind] !== "" && Math.round(Number(draft[r.kind]) * 100) !== r.price_usd_cents;
+          const shown = pending ? Math.round(Number(draft[r.kind]) * 100) : r.price_usd_cents;
+          return (
+            <tr key={r.kind} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+              <Td>
+                <p className="font-semibold text-neutral-900">{r.label}</p>
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>{r.kind}</p>
+              </Td>
+              <Td className="text-right">
+                {editable ? (
+                  <div className="inline-flex items-center gap-1">
+                    <span className="text-sm" style={{ color: "var(--ink-3)" }}>$</span>
+                    <input type="number" min="0" step="0.05" inputMode="decimal"
+                      aria-label={`Base price for ${r.label} in US dollars`}
+                      value={draft[r.kind] ?? (r.price_usd_cents / 100).toFixed(2)}
+                      onChange={(e) => setDraft((d) => ({ ...d, [r.kind]: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === "Enter") askSave(r); }}
+                      className="adm-input w-24 h-9 rounded-lg px-2 text-sm text-right tnum"
+                      style={{ border: `1px solid ${pending ? "var(--brand-0)" : "var(--line)"}`, background: "#fff", color: "var(--ink)" }} />
+                  </div>
+                ) : (
+                  <span className="tnum font-semibold">${(r.price_usd_cents / 100).toFixed(2)}</span>
+                )}
+              </Td>
+              {/* Ringgit is the currency nearly every workspace is billed in, so
+                  it leads; the others sit under it rather than in more columns. */}
+              {PLAN_DISCOUNT.map((p) => (
+                <Td key={p.plan} className="text-right">
+                  <div className="tnum font-semibold" style={{ color: pending ? "var(--brand)" : "var(--ink)" }}>
+                    {money(charged(shown, "myr", p.mult), "myr")}
+                  </div>
+                  <div className="text-[11px] tnum" style={{ color: "var(--ink-3)" }}>
+                    {money(charged(shown, "usd", p.mult), "usd")} · {money(charged(shown, "sgd", p.mult), "sgd")}
+                  </div>
+                </Td>
+              ))}
+              {editable && (
+                <Td>
+                  <div className="flex justify-end">
+                    <ActionBtn icon="check" disabled={!pending || busy} onClick={() => askSave(r)}>Save</ActionBtn>
+                  </div>
+                </Td>
+              )}
+            </tr>
+          );
+        })}
+      </TableShell>
+
+      {err && <p className="text-sm mt-3" style={{ color: "var(--danger)" }}>{err}</p>}
+      <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>
+        Prices are a USD base. The buyer pays that times the currency rate (Currency rates tab) times their plan discount.
+        {!editable && " Your role can see pricing but not change it."}
+      </p>
+
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }}
+          onClick={() => !busy && setConfirm(null)} role="dialog" aria-modal="true" aria-label="Confirm the new price">
+          <div className="adm-pop w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+            style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-5" style={{ background: "linear-gradient(135deg,#5570F5,#0B2AE0)" }}>
+              <h2 className="text-xl font-bold adm-display text-white leading-snug">Change this price?</h2>
+              <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,.85)" }}>
+                Customers pay the new figure on their next top-up.
+              </p>
+            </div>
+            <div className="px-6 py-5">
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>{confirm.label}</span> changes from{" "}
+            <span className="tnum">${(confirm.from / 100).toFixed(2)}</span> to{" "}
+            <span className="tnum font-semibold" style={{ color: "var(--ink)" }}>${(confirm.to / 100).toFixed(2)}</span> per credit.
+            This applies to the next top-up anyone buys.
+          </p>
+          <div className="mt-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: "var(--app-bg)" }}>
+                  {["Plan", "Now", "After"].map((h, i) => (
+                    <th key={h} className={`px-3 py-2 text-[11px] font-semibold ${i ? "text-right" : "text-left"}`}
+                      style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PLAN_DISCOUNT.map((p) => {
+                  const before = charged(confirm.from, "myr", p.mult);
+                  const after = charged(confirm.to, "myr", p.mult);
+                  return (
+                    <tr key={p.plan} style={{ borderTop: "1px solid var(--line)" }}>
+                      <td className="px-3 py-2" style={{ color: "var(--ink-2)" }}>{p.plan}</td>
+                      <td className="px-3 py-2 text-right tnum" style={{ color: "var(--ink-3)" }}>{money(before, "myr")}</td>
+                      <td className="px-3 py-2 text-right tnum font-semibold"
+                        style={{ color: after > before ? "var(--ok)" : after < before ? "var(--warn)" : "var(--ink)" }}>
+                        {money(after, "myr")}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => setConfirm(null)} disabled={busy}
+              className="h-10 px-4 rounded-xl text-sm font-semibold" style={{ border: "1px solid var(--line)", background: "#fff", color: "var(--ink-2)" }}>
+              Cancel
+            </button>
+            <button onClick={save} disabled={busy}
+              className="h-10 px-4 rounded-xl text-sm font-semibold text-white" style={{ background: "var(--brand)" }}>
+              {busy ? "Saving…" : "Change price"}
+            </button>
+          </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AiCosts({ role, rates, setRates, usage, audit }) {
   const editable = can(role, "aicost.edit");
   // Only what the admin has typed is held in state. Everything else reads
@@ -2837,8 +3274,8 @@ function BookingDates({ role, blocked, setBlocked, audit }) {
         <Card pad="p-4 sm:p-5" className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Date to block</label>
-              <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className={inputCls} style={{ border: "1px solid var(--line)", color: "var(--ink)" }} />
+              <label htmlFor="date-to-block" className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Date to block</label>
+              <DatePicker value={day} onChange={setDay} blockedDays={blocked.map((b) => b.day)} leadDays={3} />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Reason (optional)</label>
@@ -2889,6 +3326,9 @@ export default function AdminPortal() {
   const [usage, setUsage] = useState([]);
   const [aiCosts, setAiCosts] = useState(null);
   const [topups, setTopups] = useState([]);   // credit_purchase_log, this month
+  const [revTotals, setRevTotals] = useState([]); // Stripe charges, today/month/year
+  const [revLoaded, setRevLoaded] = useState(false);
+  const [topupTotals, setTopupTotals] = useState([]); // credit_purchase_log, same windows
   const [activity, setActivity] = useState([]);   // last sign-in per workspace (0162)
   const [settingsTab, setSettingsTab] = useState("rates");
   const [wsTab, setWsTab] = useState("companies");
@@ -2948,6 +3388,13 @@ export default function AdminPortal() {
         compedAt: c.comped_at || null, compedNote: c.comped_note || null,
         interviews: Number(c.interview_count) || 0, hired: Number(c.hired_count) || 0,
         upcoming: Number(c.upcoming_interviews) || 0,
+        // The RPC has always returned this; nothing read it until the overview
+        // needed to say how many workspaces have stayed a year.
+        createdAt: c.created_at || null,
+        // From the billing address (0165), not companies.region, which is free
+        // text nobody has ever written to.
+        country: c.address_country || null,
+        periodEnd: c.current_period_end || null,
       })));
       setSubs(co.map((c) => ({
         companyId: c.id, plan: ADMIN_PLAN_LABEL[c.plan] || c.plan,
@@ -3018,6 +3465,28 @@ export default function AdminPortal() {
     });
     return () => { active = false; };
   }, [admin, period]);
+
+  // Total revenue for the overview: today, this month, this year. Read from
+  // Stripe, which is the only place that holds subscriptions AND top-ups. Not
+  // tied to the month picker, which drives the tables further down.
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    let active = true;
+    supabase.functions.invoke("admin-revenue").then(({ data, error }) => {
+      if (!active) return;
+      if (!error && Array.isArray(data?.rows)) setRevTotals(data.rows);
+      // A support admin is refused by the function, which is not a failure worth
+      // showing: the tile is hidden for that role anyway.
+      setRevLoaded(true);
+    });
+    // Top-ups come from our own log, not from Stripe. Splitting them back out of
+    // the charge list would mean guessing from metadata, since a top-up raises an
+    // invoice like a subscription does.
+    supabase.rpc("admin_topup_revenue_totals").then(({ data, error }) => {
+      if (active && !error && Array.isArray(data)) setTopupTotals(data);
+    });
+    return () => { active = false; };
+  }, [admin]);
 
   // When each workspace was last touched. Thin until 0157 has seen sign-ins.
   useEffect(() => {
@@ -3258,6 +3727,7 @@ export default function AdminPortal() {
         screen = (
           <Settings role={role} tab={active} setTab={setSettingsTab}>
             {active === "rates" && <CurrencyRates role={role} audit={logAudit} />}
+            {active === "credit_prices" && <CreditPricing role={role} audit={logAudit} />}
             {active === "ai_costs" && <AiCosts role={role} rates={aiCosts} setRates={setAiCosts} usage={usage} audit={logAudit} />}
             {active === "flags" && <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />}
             {active === "email_templates" && <EmailTemplatesAdmin role={role} audit={logAudit} />}
@@ -3267,7 +3737,7 @@ export default function AdminPortal() {
         );
         break;
       }
-      default:              screen = <Dashboard role={role} companies={companies} users={users} tickets={tickets} audit={audit} planPrices={planPrices} go={go} />;
+      default:              screen = <Dashboard role={role} companies={companies} users={users} tickets={tickets} audit={audit} planPrices={planPrices} revTotals={revTotals} revLoaded={revLoaded} topupTotals={topupTotals} go={go} />;
     }
   }
 

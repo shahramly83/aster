@@ -35,6 +35,11 @@ async function stripe(path: string, params: Record<string, string>, secret: stri
 // Base per-credit price in USD minor units, by credit kind. The final price is
 // this base times the currency's rate (currency_rates, editable in /admin; USD=1)
 // times the plan discount (Launch 0% · Scale 10% · Elite/Enterprise 20%).
+//
+// The live figures come from credit_prices (0166), editable in /admin. This map
+// is the fallback used only if that read fails: a database hiccup should not
+// stop someone buying, and yesterday's price is a far better answer than an
+// error page. Keep it in step with the seed in that migration.
 const BASE_USD: Record<string, number> = {
   resume_screen: 100, applicant_screen: 100,   // $1.00
   ai_rank: 40, ai_insight: 40,                 // $0.40
@@ -112,9 +117,17 @@ Deno.serve(async (req) => {
       if (r?.currency && Number(r.rate) > 0) rates[String(r.currency).toLowerCase()] = Number(r.rate);
     }
     const rate = rates[cur] ?? 1;
+    // Base price per credit from the admin-editable table, falling back to the
+    // constants above per kind rather than wholesale: one missing row should
+    // not silently reprice the entire basket.
+    const { data: priceRows } = await admin.from("credit_prices").select("kind, price_usd_cents");
+    const base: Record<string, number> = { ...BASE_USD };
+    for (const p of priceRows || []) {
+      if (p?.kind && Number.isFinite(Number(p.price_usd_cents))) base[String(p.kind)] = Number(p.price_usd_cents);
+    }
     // Price every basket line server-side, so a crafted request can't cheat.
     const priced = basket.map(({ kind, qty }) => {
-      const unit = Math.max(1, Math.round(BASE_USD[kind] * rate * mult));
+      const unit = Math.max(1, Math.round(base[kind] * rate * mult));
       return { kind, qty, unit, cents: unit * qty };
     });
 
