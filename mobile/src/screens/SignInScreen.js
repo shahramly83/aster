@@ -291,7 +291,7 @@ export default function SignInScreen() {
                 it; the Maestro flow asserting it is what caught that. Hidden
                 with the keyboard up, where every dp is spoken for. */}
             {kb === 0 && (
-              <Text style={styles.foot}>Password reset and SSO are handled on hireaster.com</Text>
+              <Text style={styles.foot}>Password reset and SSO are handled on the web app</Text>
             )}
           </Rise>
         </View>

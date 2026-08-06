@@ -180,6 +180,11 @@ export default function TeamsScreen({ navigation }) {
   const flat = groups.flatMap((g) => [{ _section: g.role, count: g.members.length }, ...g.members]);
   const total = rows ? rows.length : 0;
 
+  // Everyone on the screen, not just the seat holders. Approvers are teammates
+  // too: branching on rows.length alone told an owner with two approvers that it
+  // was "just you right now", with their names listed directly underneath.
+  const headcount = members.length + apItems.length;
+
   const firstName = profile?.name?.split(" ")[0] || "there";
   const Header = (
     <View style={{ backgroundColor: theme.brand }}>
@@ -201,7 +206,7 @@ export default function TeamsScreen({ navigation }) {
           }
         />
         <View style={styles.summaryWrap}>
-          {rows && rows.length > 1 ? (
+          {rows && headcount > 1 ? (
             // A role breakdown only says something once there is more than one
             // person. Below that it is a single tile stranded in a wide card.
             <View style={styles.summary}>
@@ -216,7 +221,7 @@ export default function TeamsScreen({ navigation }) {
                 );
               })}
             </View>
-          ) : rows && rows.length === 1 ? (
+          ) : rows && headcount === 1 ? (
             // Solo workspace: spend the space on the one thing worth doing here
             // rather than reporting "1 Tenant" back to the only person present.
             <Press onPress={canInvite ? openInvite : undefined} disabled={!canInvite} scaleTo={0.98}
@@ -266,18 +271,13 @@ export default function TeamsScreen({ navigation }) {
             <EmptyState
               icon="users"
               title="No teammates yet"
-              subtitle={canInvite ? "Invite a teammate and they'll get an email to join." : "No teammates yet. Owners and admins can invite them on the web app."}
+              subtitle={canInvite ? "Invite a teammate and they'll get an email to join." : "No teammates yet. Owners and admins can invite them."}
               actionLabel={canInvite ? "Invite a teammate" : undefined}
               onAction={canInvite ? openInvite : undefined}
             />
           </View>
         }
-        ListFooterComponent={rows.length ? (
-          <View style={styles.footer}>
-            <Feather name="info" size={13} color={theme.ink4} />
-            <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Manage roles and seats from the Aster web app.</Text>
-          </View>
-        ) : null}
+        ListFooterComponent={null}
         renderItem={({ item, index }) => {
           if (item._section) {
             const m = metaOf(item._section);
@@ -543,5 +543,4 @@ const styles = StyleSheet.create({
   youTxt: { fontFamily: "Inter_700Bold", fontSize: 10, color: theme.brand },
   roleTag: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
   pending: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.warn, marginTop: 5 },
-  footer: { flexDirection: "row", alignItems: "center", marginHorizontal: space(4), marginTop: space(4), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
 });

@@ -122,8 +122,11 @@ export default function DashboardScreen({ navigation }) {
         right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
       />
 
+      {/* TAB_CLEARANCE alone only just clears the floating tab bar, so the
+          credits card ended up sitting against it. The extra space lets the
+          last card finish before the bar starts. */}
       <ScrollView
-        contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}
+        contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + space(8) }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
         showsVerticalScrollIndicator={false}
       >

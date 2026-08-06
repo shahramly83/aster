@@ -79,6 +79,13 @@ export default function ProfileScreen({ navigation }) {
               </Press>
             ) : <View style={{ width: 40 }} />}
             <Text style={styles.headerTitle}>Settings</Text>
+            {/* Sign out sits in the header rather than at the foot of a scrolling
+                sheet. It was below the fold on most handsets, so the one control
+                people go to Settings for was the hardest one to reach. */}
+            <Press onPress={signOut} haptic="light" style={styles.circleBtn}
+              accessibilityRole="button" accessibilityLabel="Sign out">
+              <Feather name="power" size={19} color={theme.white} />
+            </Press>
           </View>
 
           <View style={styles.profileRow}>
@@ -144,12 +151,6 @@ export default function ProfileScreen({ navigation }) {
               last
             />
           </View>
-
-          {/* Sign out (destructive) */}
-          <Pressable onPress={signOut} style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.85 }]}>
-            <Feather name="log-out" size={18} color={theme.danger} />
-            <Text style={[type.bodyStrong, { color: theme.danger, marginLeft: 10 }]}>Sign out</Text>
-          </Pressable>
 
           {/* Read the real version. This said v0.1.0 while the app shipped 1.0.4,
               so anyone checking which build they were on, including us chasing a
@@ -460,7 +461,7 @@ const styles = StyleSheet.create({
   watermark: { position: "absolute", top: 4, right: -28 },
   headerTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 20, letterSpacing: -0.4, color: theme.white, marginLeft: 14 },
+  headerTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 20, letterSpacing: -0.4, color: theme.white, marginLeft: 14, flex: 1 },
   profileRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), marginTop: space(5) },
   avatarRing: { padding: 3, borderRadius: 36, borderWidth: 2, borderColor: "rgba(255,255,255,0.5)", backgroundColor: "rgba(255,255,255,0.12)" },
   profileName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 20, letterSpacing: -0.4, color: theme.white },
@@ -473,7 +474,6 @@ const styles = StyleSheet.create({
   rowDivider: { borderBottomWidth: 1, borderBottomColor: theme.line2 },
   rowIcon: { width: 38, height: 38, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
 
-  signOut: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: space(7), paddingVertical: space(4), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
   version: { ...type.small, color: theme.ink4, textAlign: "center", marginTop: space(5) },
 
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },

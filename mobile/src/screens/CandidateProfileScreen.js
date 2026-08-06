@@ -693,6 +693,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // out while the panel is still voting on them. Gated on the panel existing, not
   // on whether a poll has run, so it does not reappear the moment one does.
   const panelLedScheduling = manager && !!panelCount;
+  // Rescheduling keeps whatever arrangement the interview already had. Read from
+  // the interview's own attendee snapshot (HM first, then any panel), not from
+  // the role's panel: interviewers added to the role afterwards did not sit in
+  // this interview, and a solo one stays solo. reschedule keeps attendees, so
+  // the snapshot survives.
+  const reschedWasPanel = panel.length > 1;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -1228,7 +1234,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     <Button title="Vote & confirm" icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(4) }} />
                   </>
                 ) : (
-                  /* HM-initiated reschedule (e.g. no-show): run a fresh poll */
+                  /* HM-initiated reschedule (e.g. no-show): arrange it again the
+                     way it was arranged the first time. */
                   <>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
@@ -1236,23 +1243,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         <Text style={[type.bodyStrong, { color: theme.ink }]}>{manager ? "Rescheduling" : `${nameOf().split(" ")[0]} asked to reschedule`}</Text>
                         <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
                           {manager
-                            ? `${interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}Run a fresh panel availability poll, then propose new times.`
+                            ? `${interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}${reschedWasPanel
+                                ? "Collect the panel's availability again, then offer new times."
+                                : `Pick a few new times and send them to ${nameOf().split(" ")[0]} to choose from.`}`
                             : "New times are being arranged. You'll be notified once booked."}
                         </Text>
                       </View>
                     </View>
-                    {/* Step 1 is the primary button and step 2 is subordinate. It
-                        used to be the other way round: "1 · Vote" was a pale tint and
-                        "2 · Propose times" was solid blue, so the strongest thing on
-                        the card was the step you are meant to do second, and people
-                        tapped it first. */}
-                    <Button title={manager ? "1 · Panel availability" : "Panel availability"} icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
-                    {manager ? (
-                      <>
-                        <Button title="2 · Propose times to candidate" icon="calendar" variant="ghost" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} />
-                        <Text style={styles.stepHint}>Vote first, so you only send times the panel can make.</Text>
-                      </>
-                    ) : null}
+                    {/* One button, because there is only one way this interview was
+                        ever run. The numbered pair here predated panel-led
+                        scheduling and offered "propose times" as a way around the
+                        panel, on a card that had just said to poll them. */}
+                    {manager && !reschedWasPanel ? (
+                      <Button title="Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(3) }} />
+                    ) : (
+                      <Button title="Panel availability" icon="users" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                    )}
                   </>
                 )
               ) : pendingInvite ? (
