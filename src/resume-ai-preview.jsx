@@ -10613,6 +10613,117 @@ const JOURNEY_BAR_GRAD = {
   Rejected:    JOURNEY_GREY,
 };
 
+// This month, with the interview days marked.
+// ---------------------------------------------------------------------------
+// The card used to list the next three interviews, which answered "who is
+// next" but never "how busy am I". A month answers the second at a glance.
+//
+// Current month only, by choice. Anything later is counted underneath rather
+// than left invisible: a calendar that silently omits next week's interview is
+// worse than no calendar.
+//
+// The detail opens on hover AND on focus, and every marked day is a real
+// button. Hover alone would put this out of reach of anyone on a phone or a
+// keyboard, which is most of the people reading a dashboard on the move.
+const DOW_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
+function InterviewMonth({ interviews = [], onOpen }) {
+  const [openKey, setOpenKey] = useState(null);
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const todayDate = today.getDate();
+
+  const byDay = new Map();
+  let later = 0;
+  for (const iv of interviews) {
+    if (!iv?.start) continue;
+    if (iv.start.getFullYear() === y && iv.start.getMonth() === m) {
+      const d = iv.start.getDate();
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(iv);
+    } else later += 1;
+  }
+
+  const first = new Date(y, m, 1);
+  const lead = (first.getDay() + 6) % 7;              // Monday-first
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < lead; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+
+  const hhmm = (d) => d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" });
+  const range = (iv) => (iv.end ? `${hhmm(iv.start)} – ${hhmm(iv.end)}` : hhmm(iv.start));
+
+  return (
+    <div className="flex-1 flex flex-col">
+      <div className="grid grid-cols-7 mb-1">
+        {DOW_SHORT.map((d, i) => (
+          <div key={i} className="h-6 flex items-center justify-center text-[10px] font-semibold" style={{ color: "var(--ink-3)" }} aria-hidden="true">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-y-1">
+        {cells.map((d, i) => {
+          if (d == null) return <div key={`e${i}`} className="h-9" />;
+          const list = byDay.get(d);
+          const isToday = d === todayDate;
+          const open = openKey === d;
+          if (!list) {
+            return (
+              <div key={d} className="h-9 flex items-center justify-center text-[12px] tnum"
+                style={{ color: isToday ? "var(--brand)" : "var(--ink-3)", fontWeight: isToday ? 700 : 400 }}>
+                {d}
+              </div>
+            );
+          }
+          return (
+            <div key={d} className="h-9 relative flex items-center justify-center">
+              <button type="button"
+                onMouseEnter={() => setOpenKey(d)} onMouseLeave={() => setOpenKey((k) => (k === d ? null : k))}
+                onFocus={() => setOpenKey(d)} onBlur={() => setOpenKey((k) => (k === d ? null : k))}
+                onClick={() => onOpen?.()}
+                aria-label={`${list.length} interview${list.length > 1 ? "s" : ""} on the ${d}: ${list.map((iv) => `${iv.candidateName} ${range(iv)}`).join(", ")}`}
+                className="w-8 h-8 rounded-lg text-[12px] tnum font-bold inline-flex items-center justify-center transition-colors"
+                style={{ background: "var(--brand)", color: "#fff" }}>
+                {d}
+                {list.length > 1 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full text-[9px] font-bold inline-flex items-center justify-center"
+                    style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--brand)" }}>{list.length}</span>
+                )}
+              </button>
+
+              {open && (
+                <div role="tooltip"
+                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-30 w-52 rounded-xl p-2.5 text-left pointer-events-none"
+                  style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 12px 30px -12px rgba(18,19,42,.35)" }}>
+                  {list.slice(0, 3).map((iv, n) => (
+                    <div key={iv.candidateId} className={n ? "mt-2 pt-2" : ""} style={n ? { borderTop: "1px solid var(--line)" } : undefined}>
+                      <p className="text-[12px] font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
+                      <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{iv.jobTitle}</p>
+                      <p className="text-[11px] font-medium tnum mt-0.5" style={{ color: "var(--brand)" }}>{range(iv)}</p>
+                    </div>
+                  ))}
+                  {list.length > 3 && (
+                    <p className="text-[11px] mt-2 pt-2" style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}>+{list.length - 3} more that day</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Never let the month hide an interview that exists. */}
+      <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+        {byDay.size === 0
+          ? (later > 0 ? `Nothing this month. ${later} scheduled later.` : "No interviews scheduled yet.")
+          : `${[...byDay.values()].reduce((s, l) => s + l.length, 0)} this month${later > 0 ? `, ${later} later` : ""}`}
+      </p>
+    </div>
+  );
+}
+
 function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, questionsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
@@ -11079,39 +11190,12 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     </div>
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead(
-                        "Upcoming Interviews",
+                        `Interviews · ${new Date().toLocaleString("en-US", { month: "long" })}`,
                         shownInterviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
                       )}
-                      {shownInterviews.length === 0 ? (
-                        <div className="py-10 text-center flex-1 flex flex-col items-center justify-center">
-                          <span className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                            <Icon name="calendar" className="w-5 h-5" />
-                          </span>
-                          <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-1 flex-1">
-                          {shownInterviews.slice(0, 3).map((iv) => (
-                            <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-neutral-50 text-left transition-colors">
-                              <CandidateAvatar name={iv.candidateName} seed={iv.candidateName === "Candidate" ? iv.candidateId : iv.candidateName} hasPhoto={false} size={36} />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
-                                {/* Wraps rather than truncating. The role is what
-                                    says which interview this is, and "Backend
-                                    Engineer (Nod..." adds nothing the name above
-                                    it has not already said. */}
-                                <p className="text-xs leading-snug" style={{ color: "var(--ink-3)" }}>{iv.jobTitle}</p>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                                  <Icon name="calendar" className="w-3 h-3" /> {iv.month} {iv.day}
-                                </span>
-                                <p className="text-xs mt-1 font-medium tnum" style={{ color: "var(--ink-2)" }}>{iv.time}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      {/* The month, with the booked days marked. Hovering or
+                          focusing one names the candidate and the time. */}
+                      <InterviewMonth interviews={shownInterviews} onOpen={() => navigate("interviews")} />
                     </div>
                   </div>
                 </div>
@@ -18013,6 +18097,9 @@ function scheduledInterviewsFrom(bookings, candidates) {
         month: start.toLocaleString("en-US", { month: "short" }),
         day: String(start.getDate()),
         time: start.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" }),
+        // Carried through so a calendar can say "2:00 - 3:00 pm" rather than
+        // just when it starts. Absent on older bookings, so callers fall back.
+        end: b.confirmedSlot.end ? new Date(b.confirmedSlot.end) : null,
         provider: (b.provider || "google") === "microsoft" ? "Teams" : "Google Meet",
       };
     })
