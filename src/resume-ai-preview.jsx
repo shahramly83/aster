@@ -25254,9 +25254,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {!contextJobId && (
           <div className="mt-2 mb-6 rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
             <div className="flex items-start gap-3">
-              <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]">
-                <Icon name="briefcase" className="w-4 h-4" />
-              </span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{isHired ? `${firstName} is already hired` : `Invite ${firstName} to apply`}</h2>
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
