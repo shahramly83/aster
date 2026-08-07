@@ -10685,7 +10685,6 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
   const shownInterviews = upcomingInterviews;
   // Total apply-page views across every posting (cumulative; per-view timestamps
   // aren't kept, so this isn't date-scoped).
-  const totalJobViews = jobs.reduce((s, j) => s + (j.viewStats?.total || 0), 0);
 
   // The six headline KPIs. Deltas are real where we have the history (candidates,
   // open roles, applications) and absent where we don't.
@@ -10892,6 +10891,59 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
           </div>
           <div className="order-3 lg:order-1 lg:col-span-2 flex flex-col min-w-0">
             {(() => {
+              // The headline stats, drawn as tinted cards: a pill saying what
+              // kind of number it is, the name at display size, and the figure
+              // itself sitting on a rule at the foot.
+              //
+              // The bar is only drawn where a real denominator exists (hires out
+              // of the pool, open roles out of every role posted). A bar with a
+              // made-up total would be decoration pretending to be data, so
+              // Total candidates gets the track and no fill: it is the total.
+              const STAT_TONE = {
+                win:  { bg: "#E9F9F0", pill: "#0F7B44", bar: "#16A34A", pillBg: "#FFFFFF" },
+                pool: { bg: "#E9EFFC", pill: "#1E40AF", bar: "var(--brand)", pillBg: "#FFFFFF" },
+                open: { bg: "#EDE9FB", pill: "#5B21B6", bar: "#7C3AED", pillBg: "#FFFFFF" },
+              };
+              const statCard = (k) => {
+                const t = STAT_TONE[k.tone] || STAT_TONE.pool;
+                const pctFill = k.of > 0 ? Math.min(100, Math.round((k.value / k.of) * 100)) : 0;
+                return (
+                  <button key={k.label} onClick={k.onClick}
+                    className="text-left w-full rounded-2xl sm:rounded-3xl p-4 sm:p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col"
+                    style={{ background: t.bg }}>
+                    <span className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      style={{ background: t.pillBg, color: t.pill }}>
+                      <Icon name={k.icon} className="w-3.5 h-3.5" />{k.pill}
+                    </span>
+
+                    {/* Two lines on purpose, as on the admin cards: one long line
+                        sets the type smaller and loses the only scale here. */}
+                    <p className="mt-4 text-[22px] sm:text-[26px] font-bold font-display leading-[1.12] whitespace-pre-line" style={{ color: "var(--ink)" }}>
+                      {k.label}
+                    </p>
+                    <p className="text-[11px] mt-2 mb-4 flex-1" style={{ color: "var(--ink-2)" }}>{k.ofLabel}</p>
+
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.75)" }}>
+                      {pctFill > 0 && <div className="h-full rounded-full" style={{ width: `${pctFill}%`, background: t.bar }} />}
+                    </div>
+                    <div className="flex items-end justify-between gap-2 mt-2.5">
+                      <span className="text-[11px] font-medium inline-flex items-center gap-1.5" style={{ color: "var(--ink-2)" }}>
+                        {typeof k.delta === "number" && k.delta !== 0 ? (
+                          <span className="font-semibold" style={{ color: k.delta > 0 ? "#15803D" : "#B91C1C" }}>
+                            {k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%
+                          </span>
+                        ) : <span aria-hidden="true" />}
+                      </span>
+                      <span className="font-bold font-display tnum leading-none text-[26px]" style={{ color: "var(--ink)" }}>
+                        {k.value}{k.of > 0 && <span className="text-base font-semibold" style={{ color: "var(--ink-3)" }}>/{k.of}</span>}
+                      </span>
+                    </div>
+                    <span aria-hidden="true" className="absolute top-4 right-4 opacity-50" style={{ color: "var(--ink-2)" }}>
+                      <Icon name="arrowUpRight" className="w-4 h-4" />
+                    </span>
+                  </button>
+                );
+              };
               const heroCard = (k) => (
                 <button onClick={k.onClick} className={`text-left w-full rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark || k.green ? "act-shadow" : "border act-shadow"}`} style={k.green ? { background: "#ECFDF5", border: "1px solid #A7F3D0" } : k.dark ? { background: "var(--brand-soft)", border: "1px solid #CBD8F5" } : { background: "#fff", borderColor: "var(--line)" }}>
                   <div className="flex items-start justify-between gap-2">
@@ -10936,11 +10988,28 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                   {/* Stats, 2×2 at every width. One per row on phones meant four
                       full-width cards, each mostly padding, for four numbers, and
                       pushed everything below them a screen further down. */}
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
-                    {heroCard({ ...kpis[5], greenIcon: true })}
-                    {heroCard(kpis[0])}
-                    {heroCard({ label: "Open positions", value: openJobsInRange, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
-                    {heroCard({ label: "Total Views", value: totalJobViews, icon: "eye", onClick: () => goToJobs(null) })}
+                  {/* Three, not four. Total Views counted page loads, which is
+                      the one number here nobody hires from. */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
+                    {statCard({
+                      pill: "Hired", tone: "win", icon: "hire",
+                      label: "Total\nhires", value: stats.hiresThisMonth,
+                      of: totalCandidatesInRange, ofLabel: "of everyone in the pool",
+                      onClick: () => goToCandidates({ hired: true }),
+                    })}
+                    {statCard({
+                      pill: "In pool", tone: "pool", icon: "users",
+                      label: "Total\ncandidates", value: totalCandidatesInRange,
+                      delta: deltas.totalCandidates, ofLabel: "everyone you have on file",
+                      onClick: () => navigate("search"),
+                    })}
+                    {statCard({
+                      pill: "Live", tone: "open", icon: "jobs",
+                      label: "Open\npositions", value: openJobsInRange,
+                      of: jobs.length, ofLabel: "of every role you have posted",
+                      delta: deltas.openJobs,
+                      onClick: () => goToJobs("open"),
+                    })}
                   </div>
 
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
