@@ -10647,19 +10647,19 @@ const CLOUD_D = "M8 18.5a3.8 3.8 0 0 1 .3-7.6 5.2 5.2 0 0 1 10 1.2 3.2 3.2 0 0 1
 function WeatherGlyph({ kind, day = true }) {
   const c = "w-9 h-9";
   const sun = (cx, cy, r) => <circle cx={cx} cy={cy} r={r} fill="#FDB022" stroke="#FDB022" />;
-  // A crescent, cut by a second circle rather than drawn by hand, so it stays
-  // clean at 36px where a hand-tuned arc goes muddy.
-  const moon = (cx, cy, r, id) => (
-    <g>
-      <defs>
-        <mask id={id}>
-          <rect x="0" y="0" width="24" height="24" fill="#fff" />
-          <circle cx={cx + r * 0.62} cy={cy - r * 0.55} r={r * 0.95} fill="#000" />
-        </mask>
-      </defs>
-      <circle cx={cx} cy={cy} r={r} fill="#94A3F5" mask={`url(#${id})`} />
-    </g>
-  );
+  // One filled path, not a circle with a hole cut in it. The mask version left a
+  // white bite where the cutting circle sat, because a mask removes the shape
+  // rather than revealing what is behind it. A crescent is a shape; draw it.
+  //
+  // Sized and placed by transform off a 24-unit crescent, so the same geometry
+  // serves the large clear-night moon and the small one behind a cloud, and both
+  // keep the same weight. Warm pale gold: a blue moon on a blue-tinted card
+  // disappeared into it.
+  const MOON_D = "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z";
+  const moon = (cx, cy, size) => {
+    const s = size / 24;
+    return <path d={MOON_D} fill="#F2C879" transform={`translate(${cx - 12 * s} ${cy - 12 * s}) scale(${s})`} />;
+  };
 
   // Rain: the cloud and the water, whatever the hour. Nobody needs a moon to
   // know it is raining, and stacking one behind the drops only muddies them.
@@ -10680,7 +10680,7 @@ function WeatherGlyph({ kind, day = true }) {
         <g stroke="#FDB022"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" /></g>
       </svg>
     ) : (
-      <svg viewBox="0 0 24 24" className={c} fill="none">{moon(12, 12, 5.4, "wx-moon-clear")}</svg>
+      <svg viewBox="0 0 24 24" className={c} fill="none">{moon(12, 12, 19)}</svg>
     );
   }
 
@@ -10688,7 +10688,7 @@ function WeatherGlyph({ kind, day = true }) {
   // the moon behind it by night.
   return (
     <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      {day ? sun(8.5, 8.5, 3.2) : moon(8.5, 8.5, 3.4, "wx-moon-cloudy")}
+      {day ? sun(8.5, 8.5, 3.2) : moon(8.6, 8.2, 11)}
       <path d={CLOUD_D} fill="#E2E8F0" stroke="#94A3B8" />
     </svg>
   );
