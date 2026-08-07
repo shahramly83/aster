@@ -10734,18 +10734,25 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
   const time = clock(myZone);
   const sky = wx ? (WMO[wx.code] || WMO[3]) : null;
 
+  // Every line of text starts at the same left edge. The icon used to sit before
+  // the time, which gave the card two competing left margins: the date against
+  // the padding, the clock indented behind a glyph. Moving it right keeps one
+  // column of text and lets the icon float, which is an icon's job here.
   return (
     <div className="relative rounded-2xl p-4 mb-5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-      <p className="text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>{weekday}</p>
-      <p className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{date}</p>
-      <div className="flex items-center gap-3 mt-3">
-        {sky ? <WeatherGlyph kind={sky.icon} /> : <span className="w-9 h-9" aria-hidden="true" />}
+      <p className="text-[10px] font-bold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.07em" }}>{weekday}</p>
+      <p className="text-[15px] font-bold font-display leading-tight mt-1" style={{ color: "var(--ink)" }}>{date}</p>
+
+      <div className="flex items-center justify-between gap-3 mt-4">
         <div className="min-w-0">
-          <p className="text-lg font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{time}</p>
-          <p className="text-[11px] mt-1 truncate" style={{ color: "var(--ink-3)" }}>
+          <p className="text-[22px] font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{time}</p>
+          <p className="text-[11px] mt-1.5 truncate" style={{ color: "var(--ink-3)" }}>
             {wx ? `${wx.temp}°${wx.unit} · ${sky.label} in ${city}` : (city ? city : "Add a billing address for local weather")}
           </p>
         </div>
+        {/* Only when there is weather to draw. An empty 36px spacer held the
+            gap open on a card that had nothing to put in it. */}
+        {sky && <span className="shrink-0"><WeatherGlyph kind={sky.icon} /></span>}
       </div>
 
       {!sameZone && wsCity && (
