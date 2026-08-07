@@ -11393,7 +11393,14 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     shortcut into a screen that will just refuse them. They still see
                     the plan and their credit usage, which they need. */}
                 {isOwner(profile?.role) && (
-                  <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-11 h-11 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                  {/* The same plain arrow every other card on this page uses to
+                      mean "there is more of this through here". A filled brand
+                      circle made a link to the billing screen the loudest thing
+                      in the rail, above the numbers it sits over. */}
+                  <button onClick={() => navigate("billing")} aria-label="Manage plan" title="Manage plan"
+                    className="shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                    <Icon name="arrowUpRight" className="w-5 h-5" />
+                  </button>
                 )}
               </div>
               {/* stylised plan card */}
