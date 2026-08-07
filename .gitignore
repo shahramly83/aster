@@ -64,3 +64,6 @@ mobile/store-screens/out/
 # is linked right now. Regenerated on every CLI call, so tracking it just made
 # every deploy show up as a code change.
 supabase/.temp/
+
+# Local screenshot scratch scripts, not part of the app
+.aster-*.mjs
