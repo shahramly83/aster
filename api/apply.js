@@ -69,7 +69,10 @@ export default async function handler(req, res) {
     const d = job.details || {};
     // Location and type when the role carries them, because "Kuala Lumpur ·
     // Full time" is most of what someone decides on from a feed.
-    const bits = [d.location, d.employment_type || d.type].filter(Boolean);
+    // The database keeps these as enum-ish keys ("full_time"), which is fine in
+    // a dropdown and reads as a leaked column name on LinkedIn.
+    const human = (s) => String(s).replace(/[_-]+/g, " ").replace(/^./, (m) => m.toUpperCase());
+    const bits = [d.location, (d.employment_type || d.type) && human(d.employment_type || d.type)].filter(Boolean);
     const meta = bits.join(" · ");
     const company = job.company_name || "";
     const title = company ? `${job.title} at ${company}` : job.title;
