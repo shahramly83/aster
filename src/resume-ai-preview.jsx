@@ -10926,7 +10926,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                 const pctFill = k.of > 0 ? Math.min(100, Math.round((k.value / k.of) * 100)) : 0;
                 return (
                   <button key={k.label} onClick={k.onClick}
-                    className="text-left w-full rounded-2xl sm:rounded-3xl p-4 sm:p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col"
+                    className="text-left w-full rounded-2xl sm:rounded-3xl p-4 sm:p-5 relative overflow-hidden act-shadow transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-lg flex flex-col"
                     style={{ background: t.bg }}>
                     <span className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11px] font-bold"
                       style={{ background: t.pillBg, color: t.pill }}>
