@@ -10664,24 +10664,48 @@ function WeatherGlyph({ kind }) {
   );
 }
 
-function LocalNowCard({ city, country, timezone }) {
+function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
   const [now, setNow] = useState(() => new Date());
-  const [wx, setWx] = useState(null);   // { temp, code }
+  const [wx, setWx] = useState(null);   // { temp, code, unit }
+  // Where the viewer is, from their IP via Vercel's edge headers. Null until it
+  // answers, and null forever if it cannot: the workspace's own city is the
+  // fallback, so the card is never empty waiting on a network call.
+  const [here, setHere] = useState(null);
 
-  // Once a minute is enough for a clock showing minutes, and it costs nothing.
+  // Once every 30s is enough for a clock showing minutes, and it costs nothing.
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
+    let live = true;
+    fetch("/api/where")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live && d?.city) setHere(d); })
+      .catch(() => { /* fall back to the workspace city */ });
+    return () => { live = false; };
+  }, []);
+
+  const city = here?.city || wsCity;
+  const country = here?.country || wsCountry;
+
+  useEffect(() => {
     if (!city) return;
     let live = true;
     (async () => {
       try {
-        const q = encodeURIComponent(country ? `${city}, ${country}` : city);
-        const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=en&format=json`).then((r) => r.json());
-        const hit = g?.results?.[0];
+        // Vercel already gave us coordinates, so skip geocoding when we have
+        // them: one request instead of two, and no chance of a name lookup
+        // landing on the wrong Springfield.
+        let hit = here?.latitude != null && here?.longitude != null
+          ? { latitude: here.latitude, longitude: here.longitude }
+          : null;
+        if (!hit) {
+          const q = encodeURIComponent(country ? `${city}, ${country}` : city);
+          const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=en&format=json`).then((r) => r.json());
+          hit = g?.results?.[0] || null;
+        }
         if (!hit || !live) return;
         // Fahrenheit for the three countries that use it, Celsius everywhere
         // else. Read off the country the workspace gave us rather than the
@@ -10694,12 +10718,20 @@ function LocalNowCard({ city, country, timezone }) {
       } catch { /* weather is decoration: never surface a failure */ }
     })();
     return () => { live = false; };
-  }, [city, country]);
+  }, [city, country, here]);
 
-  const tzOpts = timezone ? { timeZone: timezone } : {};
+  // The viewer's clock leads, because it is the one they are living in. The
+  // workspace's is kept underneath whenever the two differ, because agreeing an
+  // interview time across countries is the whole reason a clock is on a hiring
+  // dashboard at all. Same zone, and the second line would be noise.
+  const myZone = here?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const clock = (zone) => now.toLocaleTimeString("en-GB", { timeZone: zone, hour: "numeric", minute: "2-digit", hour12: true });
+  const sameZone = !wsZone || !myZone || clock(myZone) === clock(wsZone);
+
+  const tzOpts = myZone ? { timeZone: myZone } : {};
   const weekday = now.toLocaleDateString("en-GB", { ...tzOpts, weekday: "long" });
   const date = now.toLocaleDateString("en-GB", { ...tzOpts, day: "numeric", month: "long", year: "numeric" });
-  const time = now.toLocaleTimeString("en-GB", { ...tzOpts, hour: "numeric", minute: "2-digit", hour12: true });
+  const time = clock(myZone);
   const sky = wx ? (WMO[wx.code] || WMO[3]) : null;
 
   return (
@@ -10715,6 +10747,13 @@ function LocalNowCard({ city, country, timezone }) {
           </p>
         </div>
       </div>
+
+      {!sameZone && wsCity && (
+        <div className="flex items-center justify-between gap-2 mt-3 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+          <span className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{wsCity}</span>
+          <span className="text-[11px] font-semibold tnum shrink-0" style={{ color: "var(--ink-2)" }}>{clock(wsZone)}</span>
+        </div>
+      )}
     </div>
   );
 }
