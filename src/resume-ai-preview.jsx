@@ -490,6 +490,11 @@ async function selectAllRows(build) {
   }
 }
 
+// True when the last hydrate could not read the workspace's candidates or
+// applications. Screens that would otherwise show an empty state read this, so
+// "nothing here" and "we could not load it" stop looking identical.
+let workspaceLoadFailed = false;
+
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
@@ -508,6 +513,18 @@ async function loadWorkspaceData(companyId) {
   // real (empty) workspace: load its candidates so imports show even before any
   // job is posted.
   if (jobsRes.error) return null;
+
+  // The same rule for the two lists a workspace is actually made of. Only the
+  // jobs error used to abort, so a failed candidates query fell through as
+  // `candRes.data || []` and Talent Pool rendered "No candidates found" — a
+  // sentence that reads as "your resumes are gone" rather than "we could not
+  // reach the server". Nothing distinguished the two, in the UI or the logs.
+  if (candRes.error || appRes.error) {
+    console.error("loadWorkspaceData failed:", candRes.error?.message || appRes.error?.message);
+    workspaceLoadFailed = true;
+    return null;   // keep whatever is on screen rather than replacing it with nothing
+  }
+  workspaceLoadFailed = false;
 
   // Apply-page view stats keyed by job id: { total, uniques, sources:{src:count} }.
   const viewsByJob = {};
@@ -15881,7 +15898,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
             </>) : (<>
-              {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}".` : "Import resumes to start searching.", null) : (<>
+              {list.length === 0 ? (
+                workspaceLoadFailed && !q
+                  ? emptyState("We couldn't load your candidates", "This is a connection problem, not an empty database. Refresh the page to try again.", null)
+                  : emptyState("No candidates found", q ? `Nothing matches "${query}".` : "Import resumes to start searching.", null)
+              ) : (<>
                 <p className="text-sm mt-4 mb-1" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> candidate{list.length === 1 ? "" : "s"}</p>
                 <div className="grid sm:grid-cols-2 gap-3 mt-3">
                   {browseItems.map((c) => browseCard(c))}
