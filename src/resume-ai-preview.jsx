@@ -11227,7 +11227,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
 
           {/* Right dark panel, plan card + quick actions + recent candidates */}
           <div className="order-1 lg:order-2 lg:col-span-1 min-w-0">
-            <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+            <div className="rounded-3xl p-5 relative overflow-hidden grain flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(var(--brand-rgb),0.35) 0%, transparent 60%)" }} />
               <div className="relative flex items-center justify-between">
                 <div>
@@ -16244,7 +16244,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const scoped = roleFilter ? apps.filter((a) => a.jobId === roleFilter) : [];
   const counts = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
   scoped.forEach((a) => { if (counts[a.stage] != null) counts[a.stage]++; });
-  const exits = counts.rejected + counts.declined;
 
   // Anyone already dealt with is out of this list: it is for deciding who to look
   // at next, and a hired or rejected candidate is not that. Clicking a funnel bar
@@ -16474,21 +16473,9 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
             pixels of scrolling before the candidates. It scrolls sideways now,
             which keeps the shape and the arrows meaningful. */}
         <div className="flex flex-nowrap items-stretch gap-2 sm:gap-0 overflow-x-auto no-scrollbar -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">{funnelEls}</div>
-        {exits > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
-            <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Exited</span>
-            {/* A chip per exit that actually happened. "0 rejected" sat next to
-                "1 declined" as though nobody being turned down were a statistic
-                worth a red dot. The row only appears when there is an exit at
-                all, so it can never end up empty. */}
-            {counts.rejected > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(220,38,38,.1)", color: "#DC2626" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#DC2626" }} /> {counts.rejected} rejected</span>
-            )}
-            {counts.declined > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(107,114,128,.12)", color: "#6B7280" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#9CA3AF" }} /> {counts.declined} declined</span>
-            )}
-          </div>
-        )}
+        {/* The Exited row lived here. Rejected and declined are already in the
+            Candidates Journey on the dashboard, and repeating them under the
+            funnel gave a single declined candidate a row and a rule of its own. */}
       </div>
 
       {/* Candidate table */}
