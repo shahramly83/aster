@@ -10628,9 +10628,13 @@ const JOURNEY_BAR_GRAD = {
 // no secret to keep and no edge function to deploy. Every failure here is
 // silent by design: a weather service being down must never put an error on
 // someone's dashboard.
+// "sun" and "partly" swap to a moon after dark; "cloud" and "rain" do not,
+// because an overcast sky looks the same at either hour.
 const WMO = {
   0: { label: "Clear", icon: "sun" }, 1: { label: "Mostly clear", icon: "sun" },
-  2: { label: "Partly cloudy", icon: "cloud" }, 3: { label: "Overcast", icon: "cloud" },
+  // Overcast is not partly cloudy. It used to draw the same sun-behind-cloud,
+  // which promised a break in the sky that the code explicitly denies.
+  2: { label: "Partly cloudy", icon: "partly" }, 3: { label: "Overcast", icon: "cloud" },
   45: { label: "Fog", icon: "cloud" }, 48: { label: "Fog", icon: "cloud" },
   51: { label: "Drizzle", icon: "rain" }, 53: { label: "Drizzle", icon: "rain" }, 55: { label: "Drizzle", icon: "rain" },
   61: { label: "Rain", icon: "rain" }, 63: { label: "Rain", icon: "rain" }, 65: { label: "Heavy rain", icon: "rain" },
@@ -10638,13 +10642,33 @@ const WMO = {
   80: { label: "Showers", icon: "rain" }, 81: { label: "Showers", icon: "rain" }, 82: { label: "Heavy showers", icon: "rain" },
   95: { label: "Thunderstorm", icon: "rain" }, 96: { label: "Thunderstorm", icon: "rain" }, 99: { label: "Thunderstorm", icon: "rain" },
 };
-function WeatherGlyph({ kind }) {
+const CLOUD_D = "M8 18.5a3.8 3.8 0 0 1 .3-7.6 5.2 5.2 0 0 1 10 1.2 3.2 3.2 0 0 1-.3 6.4H8Z";
+function WeatherGlyph({ kind, day = true }) {
   const c = "w-9 h-9";
+  const sun = (cx, cy, r) => <circle cx={cx} cy={cy} r={r} fill="#FDB022" stroke="#FDB022" />;
+  // A crescent, cut by a second circle rather than drawn by hand, so it stays
+  // clean at 36px where a hand-tuned arc goes muddy.
+  const moon = (cx, cy, r, id) => (
+    <g>
+      <defs>
+        <mask id={id}>
+          <rect x="0" y="0" width="24" height="24" fill="#fff" />
+          <circle cx={cx + r * 0.62} cy={cy - r * 0.55} r={r * 0.95} fill="#000" />
+        </mask>
+      </defs>
+      <circle cx={cx} cy={cy} r={r} fill="#94A3F5" mask={`url(#${id})`} />
+    </g>
+  );
+
   if (kind === "sun") {
-    return (
+    return day ? (
       <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-        <circle cx="12" cy="12" r="4.2" fill="#FDB022" stroke="#FDB022" />
+        {sun(12, 12, 4.2)}
         <g stroke="#FDB022"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" /></g>
+      </svg>
+    ) : (
+      <svg viewBox="0 0 24 24" className={c} fill="none">
+        {moon(12, 12, 5.4, "wx-moon-clear")}
       </svg>
     );
   }
@@ -10656,10 +10680,18 @@ function WeatherGlyph({ kind }) {
       </svg>
     );
   }
+  if (kind === "partly") {
+    return (
+      <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+        {day ? sun(8.5, 8.5, 3.2) : moon(8.5, 8.5, 3.4, "wx-moon-partly")}
+        <path d={CLOUD_D} fill="#E2E8F0" stroke="#94A3B8" />
+      </svg>
+    );
+  }
+  // Overcast and fog: cloud only, at any hour.
   return (
     <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <circle cx="8.5" cy="8.5" r="3.2" fill="#FDB022" stroke="#FDB022" />
-      <path d="M8 18.5a3.8 3.8 0 0 1 .3-7.6 5.2 5.2 0 0 1 10 1.2 3.2 3.2 0 0 1-.3 6.4H8Z" fill="#E2E8F0" stroke="#94A3B8" />
+      <path d={CLOUD_D} fill="#E2E8F0" stroke="#94A3B8" />
     </svg>
   );
 }
@@ -10713,8 +10745,16 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
         // the dashboard from Kuala Lumpur, which is the number that team talks in.
         const unit = /united states|usa|^u\.?s\.?a?$|liberia|myanmar|burma/i.test(String(country || "").trim())
           ? "fahrenheit" : "celsius";
-        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code&temperature_unit=${unit}`).then((r) => r.json());
-        if (live && w?.current) setWx({ temp: Math.round(w.current.temperature_2m), code: w.current.weather_code, unit: unit === "fahrenheit" ? "F" : "C" });
+        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code,is_day&temperature_unit=${unit}`).then((r) => r.json());
+        if (live && w?.current) setWx({
+          temp: Math.round(w.current.temperature_2m),
+          code: w.current.weather_code,
+          unit: unit === "fahrenheit" ? "F" : "C",
+          // Straight from the API for that latitude, rather than guessing from
+          // the clock: sunset is not 6pm everywhere, and in June it is not 6pm
+          // anywhere far enough north.
+          day: w.current.is_day !== 0,
+        });
       } catch { /* weather is decoration: never surface a failure */ }
     })();
     return () => { live = false; };
@@ -10752,7 +10792,7 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
         </div>
         {/* Only when there is weather to draw. An empty 36px spacer held the
             gap open on a card that had nothing to put in it. */}
-        {sky && <span className="shrink-0"><WeatherGlyph kind={sky.icon} /></span>}
+        {sky && <span className="shrink-0"><WeatherGlyph kind={sky.icon} day={wx.day} /></span>}
       </div>
 
       {!sameZone && wsCity && (
