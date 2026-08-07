@@ -19,4 +19,36 @@ Disallow: /schedule
 Disallow: /apply
 Disallow: /admin
 
+# Link-preview crawlers are not search engines: they fetch one URL because a
+# person is about to share it, and they read nothing but the head. Blocking them
+# from /apply meant every job a company posted to LinkedIn previewed as Aster's
+# own marketing page, because the crawler was refused the page and fell back to
+# the site root. Search engines keep the rules above; these do not index.
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: Slackbot-LinkExpanding
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: Discordbot
+Allow: /
+
 Sitemap: https://hireaster.com/sitemap.xml
