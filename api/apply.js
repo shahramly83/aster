@@ -85,6 +85,12 @@ export default async function handler(req, res) {
     if (meta) img.searchParams.set("meta", meta);
     if (job.logo_url) img.searchParams.set("logo", job.logo_url);
 
+    // Warm the card before the crawler asks for it. It reads the head, then
+    // fetches og:image moments later; without this that fetch is the one paying
+    // the renderer's cold start, times out, and the crawler falls back to any
+    // image it can scrape off the page. Not awaited: the HTML must not wait.
+    fetch(img.toString(), { headers: { "user-agent": "aster-prewarm" } }).catch(() => {});
+
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${esc(title)}</title>`);
     html = setMeta(html, "name", "description", desc);
     html = setMeta(html, "property", "og:title", title);

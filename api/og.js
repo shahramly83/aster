@@ -92,7 +92,17 @@ export default function handler(req) {
           el("div", { key: "b2", style: { fontWeight: 600, color: BRAND } }, "hireaster.com"),
         ]),
       ]),
-      { width: 1200, height: 630 },
+      {
+        width: 1200, height: 630,
+        // The renderer is WASM and a cold start costs ~12s, which is far past
+        // the few seconds a link-preview crawler waits before giving up and
+        // grabbing whatever image it can find on the page instead. The card is
+        // a pure function of the query string, so cache it hard and let the
+        // cold start happen once per edge rather than once per share.
+        headers: {
+          "cache-control": "public, immutable, no-transform, max-age=31536000, s-maxage=31536000",
+        },
+      },
     );
   } catch (e) {
     // A broken card must never take the whole share preview down with it: fall
