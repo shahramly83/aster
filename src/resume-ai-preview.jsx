@@ -10613,6 +10613,112 @@ const JOURNEY_BAR_GRAD = {
   Rejected:    JOURNEY_GREY,
 };
 
+// Where you are, right now: the date, a running clock, and the weather.
+// ---------------------------------------------------------------------------
+// The clock earns its place in a hiring tool because interviews get booked
+// against it. The weather does not, and is there because a dashboard opened
+// every morning is allowed one warm thing on it.
+//
+// Location comes from the workspace's billing city, never from the browser's
+// geolocation: asking someone to grant location access so a card can say
+// "31°C" is a poor trade. No city on file simply means no weather, and the
+// clock stands alone.
+//
+// Open-Meteo needs no key and is called straight from the browser, so there is
+// no secret to keep and no edge function to deploy. Every failure here is
+// silent by design: a weather service being down must never put an error on
+// someone's dashboard.
+const WMO = {
+  0: { label: "Clear", icon: "sun" }, 1: { label: "Mostly clear", icon: "sun" },
+  2: { label: "Partly cloudy", icon: "cloud" }, 3: { label: "Overcast", icon: "cloud" },
+  45: { label: "Fog", icon: "cloud" }, 48: { label: "Fog", icon: "cloud" },
+  51: { label: "Drizzle", icon: "rain" }, 53: { label: "Drizzle", icon: "rain" }, 55: { label: "Drizzle", icon: "rain" },
+  61: { label: "Rain", icon: "rain" }, 63: { label: "Rain", icon: "rain" }, 65: { label: "Heavy rain", icon: "rain" },
+  71: { label: "Snow", icon: "rain" }, 73: { label: "Snow", icon: "rain" }, 75: { label: "Snow", icon: "rain" },
+  80: { label: "Showers", icon: "rain" }, 81: { label: "Showers", icon: "rain" }, 82: { label: "Heavy showers", icon: "rain" },
+  95: { label: "Thunderstorm", icon: "rain" }, 96: { label: "Thunderstorm", icon: "rain" }, 99: { label: "Thunderstorm", icon: "rain" },
+};
+function WeatherGlyph({ kind }) {
+  const c = "w-9 h-9";
+  if (kind === "sun") {
+    return (
+      <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+        <circle cx="12" cy="12" r="4.2" fill="#FDB022" stroke="#FDB022" />
+        <g stroke="#FDB022"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" /></g>
+      </svg>
+    );
+  }
+  if (kind === "rain") {
+    return (
+      <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+        <path d="M7 15.5a3.8 3.8 0 0 1 .3-7.6 5.2 5.2 0 0 1 10 1.2A3.2 3.2 0 0 1 17 15.5H7Z" fill="#CBD5E1" stroke="#94A3B8" />
+        <g stroke="var(--brand)"><path d="M9 18.2l-.7 1.6M12.4 18.2l-.7 1.6M15.8 18.2l-.7 1.6" /></g>
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <circle cx="8.5" cy="8.5" r="3.2" fill="#FDB022" stroke="#FDB022" />
+      <path d="M8 18.5a3.8 3.8 0 0 1 .3-7.6 5.2 5.2 0 0 1 10 1.2 3.2 3.2 0 0 1-.3 6.4H8Z" fill="#E2E8F0" stroke="#94A3B8" />
+    </svg>
+  );
+}
+
+function LocalNowCard({ city, country, timezone }) {
+  const [now, setNow] = useState(() => new Date());
+  const [wx, setWx] = useState(null);   // { temp, code }
+
+  // Once a minute is enough for a clock showing minutes, and it costs nothing.
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!city) return;
+    let live = true;
+    (async () => {
+      try {
+        const q = encodeURIComponent(country ? `${city}, ${country}` : city);
+        const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=en&format=json`).then((r) => r.json());
+        const hit = g?.results?.[0];
+        if (!hit || !live) return;
+        // Fahrenheit for the three countries that use it, Celsius everywhere
+        // else. Read off the country the workspace gave us rather than the
+        // viewer's browser: a US company stays in °F when its recruiter opens
+        // the dashboard from Kuala Lumpur, which is the number that team talks in.
+        const unit = /united states|usa|^u\.?s\.?a?$|liberia|myanmar|burma/i.test(String(country || "").trim())
+          ? "fahrenheit" : "celsius";
+        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code&temperature_unit=${unit}`).then((r) => r.json());
+        if (live && w?.current) setWx({ temp: Math.round(w.current.temperature_2m), code: w.current.weather_code, unit: unit === "fahrenheit" ? "F" : "C" });
+      } catch { /* weather is decoration: never surface a failure */ }
+    })();
+    return () => { live = false; };
+  }, [city, country]);
+
+  const tzOpts = timezone ? { timeZone: timezone } : {};
+  const weekday = now.toLocaleDateString("en-GB", { ...tzOpts, weekday: "long" });
+  const date = now.toLocaleDateString("en-GB", { ...tzOpts, day: "numeric", month: "long", year: "numeric" });
+  const time = now.toLocaleTimeString("en-GB", { ...tzOpts, hour: "numeric", minute: "2-digit", hour12: true });
+  const sky = wx ? (WMO[wx.code] || WMO[3]) : null;
+
+  return (
+    <div className="relative rounded-2xl p-4 mb-5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+      <p className="text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>{weekday}</p>
+      <p className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{date}</p>
+      <div className="flex items-center gap-3 mt-3">
+        {sky ? <WeatherGlyph kind={sky.icon} /> : <span className="w-9 h-9" aria-hidden="true" />}
+        <div className="min-w-0">
+          <p className="text-lg font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{time}</p>
+          <p className="text-[11px] mt-1 truncate" style={{ color: "var(--ink-3)" }}>
+            {wx ? `${wx.temp}°${wx.unit} · ${sky.label} in ${city}` : (city ? city : "Add a billing address for local weather")}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // This month, with the interview days marked.
 // ---------------------------------------------------------------------------
 // The card used to list the next three interviews, which answered "who is
@@ -11229,6 +11335,10 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
           <div className="order-1 lg:order-2 lg:col-span-1 min-w-0">
             <div className="rounded-3xl p-5 relative overflow-hidden grain flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(var(--brand-rgb),0.35) 0%, transparent 60%)" }} />
+              {/* Where you are today, before what you have used and who is new. */}
+              <div className="relative">
+                <LocalNowCard city={profile?.addressParts?.city} country={profile?.addressParts?.country} timezone={profile?.companyTimezone} />
+              </div>
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
@@ -11353,45 +11463,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                 )}
               </div>
 
-              {/* The rail used to stop here and leave a white gap beside a taller
-                  left column. A banner fills it, but a fixed advert in a tool
-                  someone opens every morning becomes furniture within a week, so
-                  this promotes whatever that workspace is actually up against:
-                  the plan ceiling it has hit, the credits about to run out, or
-                  the team it has not invited yet. */}
-              {(() => {
-                const L = planLimits(plan);
-                const atRoleCap = L.maxJobs !== Infinity && stats.openJobs >= L.maxJobs;
-                const lowCredit = [
-                  { label: "AI Rank credits", used: matchRunsUsed, cap: L.aiRunsPerMonth },
-                  { label: "applicant screening", used: applicantParseUsage.used, cap: applicantParseUsage.limit ?? L.parseApplicant },
-                  { label: "bulk upload screening", used: parseUsage.used, cap: parseUsage.limit ?? L.resumeUploads },
-                ].find((c) => c.cap && c.cap !== Infinity && c.used / c.cap >= 0.8 && c.used < c.cap);
-                // No role posted yet is the one state where nothing else on this
-                // dashboard can fill up, so it gets its own nudge.
-                const noRoles = stats.openJobs === 0;
-
-                const banner = atRoleCap
-                  ? { tag: "Plan", title: `All ${L.maxJobs} of your roles are live`, body: "Move up a plan to post more at once, and keep the ones you have running.", cta: "See plans", go: () => navigate("billing") }
-                  : lowCredit
-                    ? { tag: "Credits", title: `Running low on ${lowCredit.label}`, body: `${lowCredit.used} of ${lowCredit.cap} used this month. Top up before it stops mid-shortlist.`, cta: "Top up", go: () => navigate("billing") }
-                    : noRoles
-                      ? { tag: "Start", title: "Post your first role", body: "Applicants land straight in your pipeline, screened and ranked before you open them.", cta: "Post a job", go: () => navigate("newJob") }
-                      : { tag: "Reach", title: "Put your roles where people look", body: "Share an apply link, or drop the job board straight onto your own site.", cta: "See your roles", go: () => goToJobs("open") };
-
-                return (
-                  <div className="relative mt-6 rounded-2xl p-4 overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand) 0%, #3550EE 55%, #5570F5 100%)" }}>
-                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.22)", color: "#fff", letterSpacing: "0.08em" }}>{banner.tag}</span>
-                    <p className="text-sm font-bold font-display mt-2.5 leading-snug" style={{ color: "#fff" }}>{banner.title}</p>
-                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.82)" }}>{banner.body}</p>
-                    <button onClick={banner.go}
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-transform hover:-translate-y-0.5"
-                      style={{ background: "#fff", color: "var(--brand)" }}>
-                      {banner.cta} <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                );
-              })()}
+              {/* A marketing banner sat here. Removed at Shah's call. */}
             </div>
           </div>
         </div>
