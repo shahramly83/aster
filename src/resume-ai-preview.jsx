@@ -10796,7 +10796,10 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
     .sort((a, b) => b.value - a.value);
   const sourceTotal = sourceSegments.reduce((s, r) => s + r.value, 0);
   // Show the top 5 sources by default; "Show all" reveals the rest.
-  const shownSources = showAllSources ? sourceSegments : sourceSegments.slice(0, 5);
+  // Three, then the rest behind a tap. Five rows of legend against a donut that
+  // small left the last two slices thinner than their own swatch, and the card
+  // is read for "where do most of them come from", not for the tail.
+  const shownSources = showAllSources ? sourceSegments : sourceSegments.slice(0, 3);
   const shownSourceTotal = shownSources.reduce((s, r) => s + r.value, 0);
 
   const donutBody = (segments, total, emptyTitle, emptySub) =>
@@ -11129,8 +11132,8 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
               <div className={cardClass}>
                 {sectionHead(
                   "Application Source",
-                  sourceSegments.length > 5 ? (
-                    <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : "Show all"} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
+                  sourceSegments.length > 3 ? (
+                    <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : `Show all ${sourceSegments.length}`} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
                   ) : null
                 )}
                 {donutBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
@@ -16390,8 +16393,16 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         {exits > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
             <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Exited</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(220,38,38,.1)", color: "#DC2626" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#DC2626" }} /> {counts.rejected} rejected</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(107,114,128,.12)", color: "#6B7280" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#9CA3AF" }} /> {counts.declined} declined</span>
+            {/* A chip per exit that actually happened. "0 rejected" sat next to
+                "1 declined" as though nobody being turned down were a statistic
+                worth a red dot. The row only appears when there is an exit at
+                all, so it can never end up empty. */}
+            {counts.rejected > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(220,38,38,.1)", color: "#DC2626" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#DC2626" }} /> {counts.rejected} rejected</span>
+            )}
+            {counts.declined > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(107,114,128,.12)", color: "#6B7280" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#9CA3AF" }} /> {counts.declined} declined</span>
+            )}
           </div>
         )}
       </div>
