@@ -10739,7 +10739,7 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
   // the padding, the clock indented behind a glyph. Moving it right keeps one
   // column of text and lets the icon float, which is an icon's job here.
   return (
-    <div className="relative rounded-2xl p-4 mb-5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+    <div className="relative mb-5 pb-5" style={{ borderBottom: "1px solid var(--line)" }}>
       <p className="text-[10px] font-bold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.07em" }}>{weekday}</p>
       <p className="text-[15px] font-bold font-display leading-tight mt-1" style={{ color: "var(--ink)" }}>{date}</p>
 
