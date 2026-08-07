@@ -11475,11 +11475,17 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     // Two separate pools: what applicants spend, and what bulk CV
                     // uploads spend. They were one counter, so a busy job advert
                     // silently used up the customer's upload allowance.
-                    { label: "Applicant Screening", used: applicantParseUsage.used, limit: applicantParseUsage.limit ?? L.parseApplicant },
-                    { label: "Bulk upload screening", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
-                    { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
-                    { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
-                    { label: "AI Questions credits", used: questionsUsed, limit: L.interviewQuestionsPerMonth },
+                    // A colour each, so five identical blue bars stop reading as
+                    // one striped block and a row can be found by its colour
+                    // rather than by reading every label. Each is the lightest
+                    // shade of its hue that still clears 3:1 against the track:
+                    // lighter looked better on a full bar and vanished on "2 of
+                    // 500", which is the case that matters most.
+                    { label: "Applicant Screening", used: applicantParseUsage.used, limit: applicantParseUsage.limit ?? L.parseApplicant, tint: "#3B82F6" },
+                    { label: "Bulk upload screening", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads, tint: "#8B5CF6" },
+                    { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth, tint: "#059669" },
+                    { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth, tint: "#DB2777" },
+                    { label: "AI Questions credits", used: questionsUsed, limit: L.interviewQuestionsPerMonth, tint: "#0284C7" },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
                   return (
@@ -11505,7 +11511,12 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                                 <span className="text-xs font-medium tnum" style={{ color: reached ? "#B45309" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${Math.min(it.used, it.limit)} / ${it.limit}`}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-                                <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#FBBF24" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                                {/* Nothing used draws nothing. The old floor of
+                                    4% gave "0 / 30" a filled sliver, which reads
+                                    as "started" on a pool nobody has touched. */}
+                                {(unlimited || it.used > 0) && (
+                                  <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#B45309" : it.tint }} />
+                                )}
                               </div>
                             </div>
                           );
