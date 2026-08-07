@@ -11352,6 +11352,46 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                   </div>
                 )}
               </div>
+
+              {/* The rail used to stop here and leave a white gap beside a taller
+                  left column. A banner fills it, but a fixed advert in a tool
+                  someone opens every morning becomes furniture within a week, so
+                  this promotes whatever that workspace is actually up against:
+                  the plan ceiling it has hit, the credits about to run out, or
+                  the team it has not invited yet. */}
+              {(() => {
+                const L = planLimits(plan);
+                const atRoleCap = L.maxJobs !== Infinity && stats.openJobs >= L.maxJobs;
+                const lowCredit = [
+                  { label: "AI Rank credits", used: matchRunsUsed, cap: L.aiRunsPerMonth },
+                  { label: "applicant screening", used: applicantParseUsage.used, cap: applicantParseUsage.limit ?? L.parseApplicant },
+                  { label: "bulk upload screening", used: parseUsage.used, cap: parseUsage.limit ?? L.resumeUploads },
+                ].find((c) => c.cap && c.cap !== Infinity && c.used / c.cap >= 0.8 && c.used < c.cap);
+                // No role posted yet is the one state where nothing else on this
+                // dashboard can fill up, so it gets its own nudge.
+                const noRoles = stats.openJobs === 0;
+
+                const banner = atRoleCap
+                  ? { tag: "Plan", title: `All ${L.maxJobs} of your roles are live`, body: "Move up a plan to post more at once, and keep the ones you have running.", cta: "See plans", go: () => navigate("billing") }
+                  : lowCredit
+                    ? { tag: "Credits", title: `Running low on ${lowCredit.label}`, body: `${lowCredit.used} of ${lowCredit.cap} used this month. Top up before it stops mid-shortlist.`, cta: "Top up", go: () => navigate("billing") }
+                    : noRoles
+                      ? { tag: "Start", title: "Post your first role", body: "Applicants land straight in your pipeline, screened and ranked before you open them.", cta: "Post a job", go: () => navigate("newJob") }
+                      : { tag: "Reach", title: "Put your roles where people look", body: "Share an apply link, or drop the job board straight onto your own site.", cta: "See your roles", go: () => goToJobs("open") };
+
+                return (
+                  <div className="relative mt-6 rounded-2xl p-4 overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand) 0%, #3550EE 55%, #5570F5 100%)" }}>
+                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.22)", color: "#fff", letterSpacing: "0.08em" }}>{banner.tag}</span>
+                    <p className="text-sm font-bold font-display mt-2.5 leading-snug" style={{ color: "#fff" }}>{banner.title}</p>
+                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.82)" }}>{banner.body}</p>
+                    <button onClick={banner.go}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-transform hover:-translate-y-0.5"
+                      style={{ background: "#fff", color: "var(--brand)" }}>
+                      {banner.cta} <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
