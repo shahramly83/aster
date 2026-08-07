@@ -11420,7 +11420,11 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   if (!open) return null;
   const mult = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
   const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
-  const unitOf = (base) => base * mult;
+  // Round to whole sen per credit, then multiply, exactly as buy-credits does:
+  // Math.max(1, Math.round(usd_cents * rate * mult)). Multiplying first and
+  // rounding the total quoted RM368.10 for 100 applicant credits where Stripe
+  // then charged RM368.00, because 3.681 a credit is 368 sen once, not 36810.
+  const unitOf = (base) => Math.max(0.01, Math.round(base * mult * 100) / 100);
   const meta = CREDIT_KINDS.find((c) => c.k === kind) || CREDIT_KINDS[0];
 
   // Basket lines with quantities, priced. In single mode it's just the one kind.

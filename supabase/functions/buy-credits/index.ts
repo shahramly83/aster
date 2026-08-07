@@ -121,15 +121,23 @@ Deno.serve(async (req) => {
     // constants above per kind rather than wholesale: one missing row should
     // not silently reprice the entire basket.
     const { data: priceRows } = await admin.from("credit_prices").select("kind, price_usd_cents");
-    const base: Record<string, number> = { ...BASE_USD };
+    // Named unitUsd, not base: `base` further down is the return URL.
+    const unitUsd: Record<string, number> = { ...BASE_USD };
     for (const p of priceRows || []) {
-      if (p?.kind && Number.isFinite(Number(p.price_usd_cents))) base[String(p.kind)] = Number(p.price_usd_cents);
+      if (p?.kind && Number.isFinite(Number(p.price_usd_cents))) unitUsd[String(p.kind)] = Number(p.price_usd_cents);
     }
     // Price every basket line server-side, so a crafted request can't cheat.
     const priced = basket.map(({ kind, qty }) => {
-      const unit = Math.max(1, Math.round(base[kind] * rate * mult));
+      // An unknown kind would make this NaN and Stripe would reject the whole
+      // session with nothing pointing at which line was wrong.
+      const usd = unitUsd[kind] ?? BASE_USD[kind];
+      if (!Number.isFinite(usd)) return { kind, qty, unit: NaN, cents: NaN };
+      const unit = Math.max(1, Math.round(usd * rate * mult));
       return { kind, qty, unit, cents: unit * qty };
     });
+    if (priced.some((p) => !Number.isFinite(p.cents))) {
+      return json({ error: "One of those credit types is not for sale." }, 400);
+    }
 
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
     if (!secret) return json({ error: "billing not configured" }, 503);
