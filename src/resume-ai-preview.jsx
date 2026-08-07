@@ -11449,8 +11449,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                   a dashboard whose job is the numbers around it, and it is not a
                   button: nothing here is meant to be pressed. Ink on the tint
                   clears 4.5:1 comfortably, where white on it would not. */}
-              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand-soft)", border: "1px solid rgba(var(--brand-rgb),0.16)" }}>
-                <svg viewBox="199 244 104 104" aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 w-[220px] h-[220px] opacity-[0.10]" fill="var(--brand)"><path d={ASTER_MARK_PATH} /></svg>
+              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden act-shadow" style={{ background: "var(--brand-soft)" }}>
                 <div className="relative flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <span className="block font-display font-bold tracking-tight truncate" style={{ color: "var(--ink)" }}>{company}</span>
