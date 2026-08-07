@@ -17741,7 +17741,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                             <div className="flex items-center gap-3 min-w-0">
                               <CandidateAvatar name={r.name} hasPhoto={r.kind === "owner" && ownerIsYou && !!avatarUrl} src={r.kind === "owner" && ownerIsYou ? avatarUrl : null} size={36} showPhotoDot={false} />
                               <span className="min-w-0">
-                                <span className="text-sm font-semibold truncate block" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span>
+                                {/* Same size and weight as the email beside it.
+                                    Semibold made the column read a size larger
+                                    than it is, and a team list is names being
+                                    scanned, not a heading per row. */}
+                                <span className="text-sm truncate block" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span>
                                 {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
                               </span>
                             </div>
