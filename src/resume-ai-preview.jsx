@@ -10628,14 +10628,15 @@ const JOURNEY_BAR_GRAD = {
 // no secret to keep and no edge function to deploy. Every failure here is
 // silent by design: a weather service being down must never put an error on
 // someone's dashboard.
-// "sun" and "partly" swap to a moon after dark; "cloud" and "rain" do not,
-// because an overcast sky looks the same at either hour.
+// Three shapes: clear, cloudy, rain. Rain is rain at any hour; the other two
+// carry the sun by day and the moon by night, so the glyph always says which
+// it is. Strictly, an overcast sky hides the moon, but the icon's second job is
+// telling you the time of day at a glance, and a bare grey cloud looks the same
+// at 2pm as at 2am.
 const WMO = {
-  0: { label: "Clear", icon: "sun" }, 1: { label: "Mostly clear", icon: "sun" },
-  // Overcast is not partly cloudy. It used to draw the same sun-behind-cloud,
-  // which promised a break in the sky that the code explicitly denies.
-  2: { label: "Partly cloudy", icon: "partly" }, 3: { label: "Overcast", icon: "cloud" },
-  45: { label: "Fog", icon: "cloud" }, 48: { label: "Fog", icon: "cloud" },
+  0: { label: "Clear", icon: "clear" }, 1: { label: "Mostly clear", icon: "clear" },
+  2: { label: "Partly cloudy", icon: "cloudy" }, 3: { label: "Overcast", icon: "cloudy" },
+  45: { label: "Fog", icon: "cloudy" }, 48: { label: "Fog", icon: "cloudy" },
   51: { label: "Drizzle", icon: "rain" }, 53: { label: "Drizzle", icon: "rain" }, 55: { label: "Drizzle", icon: "rain" },
   61: { label: "Rain", icon: "rain" }, 63: { label: "Rain", icon: "rain" }, 65: { label: "Heavy rain", icon: "rain" },
   71: { label: "Snow", icon: "rain" }, 73: { label: "Snow", icon: "rain" }, 75: { label: "Snow", icon: "rain" },
@@ -10660,18 +10661,8 @@ function WeatherGlyph({ kind, day = true }) {
     </g>
   );
 
-  if (kind === "sun") {
-    return day ? (
-      <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-        {sun(12, 12, 4.2)}
-        <g stroke="#FDB022"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" /></g>
-      </svg>
-    ) : (
-      <svg viewBox="0 0 24 24" className={c} fill="none">
-        {moon(12, 12, 5.4, "wx-moon-clear")}
-      </svg>
-    );
-  }
+  // Rain: the cloud and the water, whatever the hour. Nobody needs a moon to
+  // know it is raining, and stacking one behind the drops only muddies them.
   if (kind === "rain") {
     return (
       <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -10680,17 +10671,24 @@ function WeatherGlyph({ kind, day = true }) {
       </svg>
     );
   }
-  if (kind === "partly") {
-    return (
+
+  // Clear: the sun or the moon, alone.
+  if (kind === "clear") {
+    return day ? (
       <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-        {day ? sun(8.5, 8.5, 3.2) : moon(8.5, 8.5, 3.4, "wx-moon-partly")}
-        <path d={CLOUD_D} fill="#E2E8F0" stroke="#94A3B8" />
+        {sun(12, 12, 4.2)}
+        <g stroke="#FDB022"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" /></g>
       </svg>
+    ) : (
+      <svg viewBox="0 0 24 24" className={c} fill="none">{moon(12, 12, 5.4, "wx-moon-clear")}</svg>
     );
   }
-  // Overcast and fog: cloud only, at any hour.
+
+  // Cloudy, overcast and fog: the same cloud, with the sun behind it by day and
+  // the moon behind it by night.
   return (
     <svg viewBox="0 0 24 24" className={c} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      {day ? sun(8.5, 8.5, 3.2) : moon(8.5, 8.5, 3.4, "wx-moon-cloudy")}
       <path d={CLOUD_D} fill="#E2E8F0" stroke="#94A3B8" />
     </svg>
   );
