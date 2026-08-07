@@ -10923,8 +10923,13 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     </p>
                     <p className="text-[11px] mt-2 mb-4 flex-1" style={{ color: "var(--ink-2)" }}>{k.ofLabel}</p>
 
-                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.75)" }}>
-                      {pctFill > 0 && <div className="h-full rounded-full" style={{ width: `${pctFill}%`, background: t.bar }} />}
+                    {/* A meter only where something is being used up. Without a
+                        ceiling this is a rule under the number, not a bar at
+                        100%: a full green bar on "1 hire" claimed a target had
+                        been met that nobody had set. */}
+                    <div className={k.of > 0 ? "h-1.5 rounded-full overflow-hidden" : "h-px"}
+                      style={{ background: k.of > 0 ? "rgba(255,255,255,0.75)" : "rgba(18,19,42,0.10)" }}>
+                      {k.of > 0 && pctFill > 0 && <div className="h-full rounded-full" style={{ width: `${pctFill}%`, background: t.bar }} />}
                     </div>
                     <div className="flex items-end justify-between gap-2 mt-2.5">
                       <span className="text-[11px] font-medium inline-flex items-center gap-1.5" style={{ color: "var(--ink-2)" }}>
@@ -10994,7 +10999,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     {statCard({
                       pill: "Hired", tone: "win", icon: "hire",
                       label: "Total\nhires", value: stats.hiresThisMonth,
-                      of: totalCandidatesInRange, ofLabel: "of everyone in the pool",
+                      ofLabel: "people you have hired",
                       onClick: () => goToCandidates({ hired: true }),
                     })}
                     {statCard({
@@ -11006,7 +11011,11 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     {statCard({
                       pill: "Live", tone: "open", icon: "jobs",
                       label: "Open\npositions", value: openJobsInRange,
-                      of: jobs.length, ofLabel: "of every role you have posted",
+                      // The only one of the three with a real ceiling: the plan
+                      // caps open roles. Hires and candidates have none, so a
+                      // denominator there would have to be invented.
+                      of: planLimits(plan).maxJobs,
+                      ofLabel: `of the ${planLimits(plan).maxJobs} your plan allows`,
                       delta: deltas.openJobs,
                       onClick: () => goToJobs("open"),
                     })}
