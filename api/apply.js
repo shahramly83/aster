@@ -37,6 +37,21 @@ function setMeta(html, attr, name, value) {
   return html.replace(/<\/head>/i, `  <meta ${attr}="${name}" content="${esc(value)}" />\n</head>`);
 }
 
+// The same role is reachable at the apex and at every workspace subdomain, and
+// now that /apply is crawlable those would compete as duplicates of each other.
+// The apex is named as the canonical one because it is the host the jobs
+// sitemap can list: a sitemap may only carry URLs on its own host unless every
+// subdomain is separately verified in Search Console.
+const APEX_ROOT = (process.env.VITE_APEX_ROOT || "hireaster.com").toLowerCase();
+
+function canonicalOrigin(origin) {
+  const host = origin.replace(/^https?:\/\//, "").toLowerCase();
+  // A preview deploy has no relationship to the apex, so it keeps its own host
+  // rather than pointing its pages at production.
+  if (host !== APEX_ROOT && !host.endsWith(`.${APEX_ROOT}`)) return origin;
+  return `https://${APEX_ROOT}`;
+}
+
 export default async function handler(req, res) {
   const proto = req.headers["x-forwarded-proto"] || "https";
   const host = req.headers["x-forwarded-host"] || req.headers.host || "hireaster.com";
@@ -86,7 +101,7 @@ export default async function handler(req, res) {
     const company = job.company_name || "";
     const title = company ? `${job.title} at ${company}` : job.title;
     const desc = [meta, `Apply for ${job.title}${company ? ` at ${company}` : ""}.`].filter(Boolean).join(" · ");
-    const url = `${origin}/apply/${id}`;
+    const url = `${canonicalOrigin(origin)}/apply/${id}`;
 
     const img = new URL(`${origin}/api/og`);
     img.searchParams.set("title", job.title);
@@ -124,6 +139,14 @@ export default async function handler(req, res) {
     // jobPostingLd returns null for anything that should not be listed (closed,
     // expired, out of credits, or missing a field Google requires), and no
     // markup is strictly better than markup that fails validation.
+    // Names one address for a page reachable at both the apex and the
+    // workspace subdomain, so the two are not indexed as competing duplicates.
+    if (/<link[^>]+rel=["']canonical["']/i.test(html)) {
+      html = html.replace(/(<link[^>]+rel=["']canonical["'][^>]*href=["'])[^"']*(["'])/i, `$1${esc(url)}$2`);
+    } else {
+      html = html.replace(/<\/head>/i, `  <link rel="canonical" href="${esc(url)}" />\n</head>`);
+    }
+
     const ld = jobPostingLd(job, url);
     if (ld) {
       // </script> inside a JSON string would end this block early and spill the

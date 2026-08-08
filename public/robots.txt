@@ -16,8 +16,13 @@ Disallow: /billing
 Disallow: /profile
 Disallow: /settings
 Disallow: /schedule
-Disallow: /apply
 Disallow: /admin
+
+# /apply is the one public screen in that list: it is the page a candidate is
+# sent to, not an authenticated app screen, and it carries JobPosting markup for
+# Google for Jobs. Blocking it here told Google not to read the very pages the
+# markup is on. Roles that should not be listed are held back individually
+# instead: a closed, expired or unpublished role serves noindex and no markup.
 
 # Link-preview crawlers are not search engines: they fetch one URL because a
 # person is about to share it, and they read nothing but the head. Blocking them
@@ -52,3 +57,5 @@ User-agent: Discordbot
 Allow: /
 
 Sitemap: https://hireaster.com/sitemap.xml
+# Open roles, rebuilt on every request so a closed role leaves it immediately.
+Sitemap: https://hireaster.com/sitemap-jobs.xml

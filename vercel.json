@@ -3,6 +3,7 @@
     { "source": "/apply/:id", "destination": "/api/apply?id=:id" },
     { "source": "/feed/jobs.xml", "destination": "/api/feed" },
     { "source": "/feed/jooble.xml", "destination": "/api/feed?dialect=jooble" },
+    { "source": "/sitemap-jobs.xml", "destination": "/api/jobs-sitemap" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
