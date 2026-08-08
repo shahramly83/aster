@@ -9971,6 +9971,28 @@ function TrialPromoStrip({ accent }) {
 // Settings), so they match the Jobs / Candidate Search layout: a gradient canvas,
 // the TopBar header, and an optional right-hand usage/credit rail. Pass `rail` to
 // get the two-column grid; omit it for a single full-width column.
+// Countries for the billing address, as a list rather than a free-text box.
+// Typing it by hand produced "KL / Singapore" on a Malaysian company, and this
+// field is not decoration: it becomes the country on the Stripe invoice, the
+// shading on the admin map, and whether the dashboard shows C or F.
+//
+// Names come from Intl at runtime off these ISO codes, so there is no 200-line
+// table of strings to drift, and every name is the canonical English one the
+// map and Stripe already expect. Historical and non-country codes are excluded.
+const ADDR_COUNTRY_CODES = "AD AE AF AG AI AL AM AO AR AS AT AU AW AZ BA BB BD BE BF BG BH BI BJ BM BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CK CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NZ OM PA PE PF PG PH PK PL PM PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SK SL SM SN SO SR ST SV SY SZ TC TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ");
+// Malaysia and Singapore first: between them they are nearly every workspace,
+// and a 225-item alphabetical list makes the common case the slowest to reach.
+const ADDR_COUNTRY_TOP = ["MY", "SG"];
+const ADDR_COUNTRY_NAMES = (() => {
+  let dn = null;
+  try { dn = new Intl.DisplayNames(["en"], { type: "region" }); } catch { /* older engine */ }
+  if (!dn) return [];
+  const name = (c) => { try { return dn.of(c) || c; } catch { return c; } };
+  const rest = ADDR_COUNTRY_CODES.filter((c) => !ADDR_COUNTRY_TOP.includes(c))
+    .map(name).sort((a, b) => a.localeCompare(b));
+  return [...ADDR_COUNTRY_TOP.map(name), ...rest];
+})();
+
 function AccountShell({ title, subtitle, rail, children, navigate, profile, avatarUrl, activities, onOpenNotifications, hideBack = false, backTo = "dashboard", backLabel = "Dashboard" }) {
   return (
     <div
@@ -22971,7 +22993,24 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
             </div>
             <div>
               <label htmlFor="pf-country" className={labelClass} style={{ color: "var(--ink-2)" }}>Country</label>
-              <input id="pf-country" value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
+              {/* A select, not a text box. Anything already saved that is not
+                  in the list is kept as its own option rather than silently
+                  blanked: a workspace that typed "M'sia" years ago should see
+                  what it has, and be able to correct it, not lose it on open. */}
+              {ADDR_COUNTRY_NAMES.length ? (
+                <select id="pf-country" value={dAddr.country || ""} autoComplete="country-name"
+                  onChange={(e) => setAddr({ country: e.target.value })} className={inputClass}>
+                  <option value="">Select a country…</option>
+                  {dAddr.country && !ADDR_COUNTRY_NAMES.includes(dAddr.country) && (
+                    <option value={dAddr.country}>{dAddr.country} (not a recognised country)</option>
+                  )}
+                  {ADDR_COUNTRY_NAMES.map((n, i) => (
+                    <option key={n} value={n}>{n}</option>
+                  )).flatMap((el, i) => (i === ADDR_COUNTRY_TOP.length ? [<option key="sep" disabled>──────────</option>, el] : [el]))}
+                </select>
+              ) : (
+                <input id="pf-country" value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
+              )}
             </div>
             <div className="sm:col-span-2">
               <label htmlFor="pf-regno" className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
