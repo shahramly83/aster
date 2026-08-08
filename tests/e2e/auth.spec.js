@@ -3,7 +3,7 @@
 // (no E2E_ALLOW_WRITES needed).
 import { test, expect } from "@playwright/test";
 import { env, hasCreds, needCreds } from "./helpers/env.js";
-import { signIn, signOut } from "./helpers/auth.js";
+import { signIn, signOut, goToApp } from "./helpers/auth.js";
 
 test.describe("login form", () => {
   test("shows the form and a link to sign up / reset", async ({ page }) => {
@@ -41,8 +41,14 @@ test.describe("signed-in session", () => {
 
   test("tenant can sign in and reach the dashboard", async ({ page }) => {
     await signIn(page, "tenant");
-    await page.goto("/dashboard", { waitUntil: "load" });
-    await page.waitForTimeout(1200);
+    // Navigated client-side, not with a cold page.goto. A fresh load of a
+    // protected route has to restore the session from localStorage first, and
+    // until that finishes the route guard sees an unauthenticated visitor and
+    // sends it to /login. The old version raced that with a fixed 1200ms wait
+    // against a live database and lost, which read as "sign-in is broken" when
+    // sign-in had in fact just succeeded on the line above. goToApp exists for
+    // exactly this and documents it.
+    await goToApp(page, "/dashboard");
     expect(new URL(page.url()).pathname).toBe("/dashboard");
     // Dashboard chrome is present (not the marketing header).
     await expect(page.getByRole("button", { name: /notifications/i })).toBeVisible();

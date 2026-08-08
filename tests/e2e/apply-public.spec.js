@@ -17,6 +17,27 @@ const applyPath = (q = "") => `/apply/${env.applyJobId}${q}`;
 test.describe("apply page", () => {
   test.skip(!env.applyJobId, "Set E2E_APPLY_JOB_ID to an OPEN job in the test workspace.");
 
+  // A job id goes stale quietly: the role gets closed, or its workspace is
+  // suspended, and the id in .env.e2e keeps pointing at nothing. Every spec here
+  // then fails on a missing heading, which reads as "the apply page is broken"
+  // rather than "the fixture is gone". Check once and say which it is.
+  //
+  // The page fetches the role client-side and shows a spinner first, so this has
+  // to WAIT for one of the two end states. Checking visibility straight after
+  // goto only ever sees the spinner and decides nothing.
+  test.beforeEach(async ({ page }) => {
+    await page.goto(applyPath(), { waitUntil: "load" });
+    const missing = page.getByRole("heading", { name: /job not found/i });
+    const loaded = page.getByText(/apply for this role/i);
+    await Promise.race([
+      missing.waitFor({ state: "visible", timeout: 20_000 }),
+      loaded.waitFor({ state: "visible", timeout: 20_000 }),
+    ]).catch(() => { /* neither appeared; let the spec fail on its own assertion */ });
+    if (await missing.isVisible().catch(() => false)) {
+      test.skip(true, `E2E_APPLY_JOB_ID (${env.applyJobId}) no longer resolves to an open role. Point it at a currently open job.`);
+    }
+  });
+
   test("renders the role, the upload box, and the Aster credit", async ({ page }) => {
     await page.goto(applyPath(), { waitUntil: "load" });
 
