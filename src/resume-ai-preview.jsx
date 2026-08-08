@@ -11107,7 +11107,11 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
     </div>
   );
 
-  const donutColors = ["#6C8CF5", "#93C5FD", "#A5B4FC", "#C7D2FE", "#DCE4FB"];
+  // One ramp for both ring charts, applied by rank. They sit side by side and
+  // ask the same question, so two palettes made them look like two unrelated
+  // things. Darkest first, so the biggest share is also the heaviest colour and
+  // the ranking survives even in grayscale.
+  const donutColors = ["#0B2AE0", "#3B82F6", "#7DA2FA", "#A5B4FC", "#C7D2FE"];
   // Blue family for the Top Roles gauge: distinct but all on-brand blues/cyans.
   const gaugeColors = ["#0B2AE0", "#2563EB", "#3B82F6", "#38BDF8", "#0EA5E9"];
 
@@ -11125,15 +11129,18 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source: distribution of where applicants came from.
-  const sourcePalette = { "Career Page": "#0B2AE0", LinkedIn: "#3B82F6", Referral: "#93C5FD", JobStreet: "#A5B4FC", Indeed: "#6366F1", Glassdoor: "#22C55E", Database: "#C7D2FE", Others: "#D1D5DB" };
   const sourceCounts = {};
   allApplicants.filter(appIsInRange).forEach((a) => {
     const src = a.source || "Others";
     sourceCounts[src] = (sourceCounts[src] || 0) + 1;
   });
   const sourceSegments = Object.entries(sourceCounts)
-    .map(([label, value]) => ({ label, value, color: sourcePalette[label] || "#D1D5DB" }))
-    .sort((a, b) => b.value - a.value);
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    // Coloured by rank, like the roles chart, rather than a fixed colour per
+    // source name. A source's colour now moves if it overtakes another, which
+    // is the cost of the two cards matching; the legend names every one.
+    .map((r, i) => ({ ...r, color: donutColors[i % donutColors.length] }));
   const sourceTotal = sourceSegments.reduce((s, r) => s + r.value, 0);
   // Show the top 5 sources by default; "Show all" reveals the rest.
   // Three, then the rest behind a tap. Five rows of legend against a donut that
