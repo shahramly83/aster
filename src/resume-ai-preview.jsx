@@ -11142,6 +11142,48 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
   const shownSources = showAllSources ? sourceSegments : sourceSegments.slice(0, 3);
   const shownSourceTotal = shownSources.reduce((s, r) => s + r.value, 0);
 
+  // Concentric arcs, one ring per role, instead of one ring cut into slices.
+  //
+  // A donut asks you to compare the angles of three wedges that all start from
+  // different places; rings put every share on its own track from the same
+  // twelve o'clock, so 44 against 33 is a length you can read rather than an
+  // angle you have to judge. Outermost is the largest, so the ranking reads
+  // from the outside in.
+  const ringsBody = (segments, total, emptyTitle, emptySub) =>
+    total === 0 ? (
+      <div className="py-8 text-center">
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>{emptyTitle}</p>
+        <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>{emptySub}</p>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4 sm:gap-5">
+        <svg viewBox="0 0 132 132" className="w-[132px] h-[132px] shrink-0" role="img"
+          aria-label={segments.map((s) => `${s.label}: ${s.value} of ${total}`).join(", ")}>
+          {segments.slice(0, 3).map((s, i) => {
+            const r = 56 - i * 17;                 // outermost ring is the biggest share
+            const c = 2 * Math.PI * r;
+            const pct = Math.min(1, (s.value || 0) / total);
+            return (
+              <g key={s.label} transform="rotate(-90 66 66)">
+                <circle cx="66" cy="66" r={r} fill="none" stroke="#EEEFF5" strokeWidth="10" />
+                {pct > 0 && (
+                  <circle cx="66" cy="66" r={r} fill="none" stroke={s.color} strokeWidth="10"
+                    strokeLinecap="round" strokeDasharray={`${(c * pct).toFixed(2)} ${c.toFixed(2)}`} />
+                )}
+              </g>
+            );
+          })}
+          <text x="66" y="63" textAnchor="middle" className="font-display" style={{ fontSize: 19, fontWeight: 700, fill: "var(--ink)" }}>{total}</text>
+          <text x="66" y="78" textAnchor="middle" style={{ fontSize: 9.5, fill: "var(--ink-3)" }}>Total</text>
+        </svg>
+        <div className="w-full sm:flex-1 space-y-2 min-w-0">
+          {segments.map((s) => (
+            <LegendRow key={s.label} color={s.color} label={s.label} value={`${s.value} (${Math.round((s.value / total) * 100)}%)`} />
+          ))}
+        </div>
+      </div>
+    );
+
   const donutBody = (segments, total, emptyTitle, emptySub) =>
     total === 0 ? (
       <div className="py-8 text-center">
@@ -11440,7 +11482,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
                   ) : null
                 )}
-                {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
+                {ringsBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
               </div>
               <div className={cardClass}>
                 {sectionHead(
