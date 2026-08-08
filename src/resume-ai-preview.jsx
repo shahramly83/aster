@@ -13301,6 +13301,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const draftMissing = !title.trim() && !location.trim()
     ? "Fill in the job title and location first"
     : !title.trim() ? "Fill in the job title first" : "Fill in the location first";
+  // Whether the Draft button does anything. Kept as a value rather than the
+  // button's `disabled` attribute so the button stays hoverable and focusable
+  // and can still explain itself; see the button for why that matters.
+  const draftLocked = aiBusy || !draftReady || draftCredits <= 0;
   const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
   const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "onsite");
   const [openings, setOpenings] = useState(initialJob?.openings ?? 1); // how many people to hire
@@ -13468,10 +13472,17 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
               style={{ background: "#FDF3DC", color: "#8A6410", border: "1px solid #EBD08C", letterSpacing: "0.08em" }}>
               Premium
             </span>
-            <button type="button" onClick={draftWithAi}
+            {/* Marked disabled to assistive tech rather than with the attribute.
+                A disabled button emits no pointer events and cannot take focus,
+                so neither the hover on the wrapper nor the focus handler below
+                could ever open the tooltip: the hint explaining WHY the button
+                is locked was unreachable in precisely the state that needs it.
+                The click is guarded instead, so the button is still inert. */}
+            <button type="button"
+              onClick={() => { if (!draftLocked) draftWithAi(); }}
+              aria-disabled={draftLocked}
               onFocus={() => setDraftTip(true)} onBlur={() => setDraftTip(false)}
-              disabled={aiBusy || !draftReady || draftCredits <= 0}
-              className="adm-gold inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+              className={`adm-gold inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all${draftLocked ? " opacity-45 cursor-not-allowed" : ""}`}
               style={{ background: "#FDF3DC", color: "#8A6410", border: "1px solid #EBD08C" }}>
               <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
               {aiBusy ? "Drafting…" : <>Draft with AI <span className="opacity-45">·</span> <span className="tnum">{draftCredits}</span> credit{draftCredits === 1 ? "" : "s"}</>}
