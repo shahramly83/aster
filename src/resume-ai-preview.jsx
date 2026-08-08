@@ -3200,11 +3200,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "rgba(255,255,255,0.82)", lineHeight: 1.6 }}>
               Aster reads every resume, scores each applicant against the role, and books the interviews. A two-week shortlist now takes an afternoon.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button onClick={() => goTrial()} className="font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] hover:opacity-95" style={{ background: "#fff", color: "var(--brand)" }}>
+            <div className="mt-8 flex items-center gap-3">
+              <button onClick={() => goTrial()} className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] hover:opacity-95" style={{ background: "#fff", color: "var(--brand)" }}>
                 Start free trial
               </button>
-              <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/10" style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.28)" }}>
+              <a href="#pricing" className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/10" style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.28)" }}>
                 See pricing
               </a>
             </div>
@@ -3971,14 +3971,17 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 4vw, 2.75rem)", letterSpacing: "-0.02em", textWrap: "balance" }}>Ready to make your next hire?</h2>
             <p className="mt-3 max-w-md mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Post your first role in minutes. No credit card required.</p>
 
-            {/* proof stats as bordered glass chips */}
-            <div className="mt-9 grid grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
+            {/* Proof stats as bordered glass chips. One per row on phones: three
+                columns at that width left each chip too narrow for its label, so
+                "Saved weekly per recruiter" broke across three lines and the
+                three chips ended up different heights. */}
+            <div className="mt-9 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
               {[
                 { to: 3, suffix: "×", label: "Faster shortlists" },
                 { to: 12, suffix: "h", label: "Saved weekly per recruiter" },
                 { to: 2, suffix: " wks", label: "Sooner to hire" },
               ].map((s) => (
-                <div key={s.label} className="rounded-2xl px-2 sm:px-4 py-4" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.16)" }}>
+                <div key={s.label} className="rounded-2xl px-4 py-4" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.16)" }}>
                   <p className="font-display font-bold text-white tnum leading-none whitespace-nowrap" style={{ fontSize: "clamp(1.35rem, 5vw, 2.1rem)", letterSpacing: "-0.02em" }}>
                     <CountUp to={s.to} />{s.suffix}
                   </p>
@@ -3987,11 +3990,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               ))}
             </div>
 
-            <div className="mt-9 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3">
-              <button onClick={() => goTrial()} className="w-full sm:w-auto text-center font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
+            <div className="mt-9 flex items-stretch sm:items-center justify-center gap-3">
+              <button onClick={() => goTrial()} className="inline-flex items-center justify-center flex-1 basis-0 min-w-0 sm:flex-none text-center font-semibold px-4 sm:px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
                 Create your workspace
               </button>
-              <a href="#pricing" className="w-full sm:w-auto text-center px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
+              <a href="#pricing" className="inline-flex items-center justify-center flex-1 basis-0 min-w-0 sm:flex-none text-center px-4 sm:px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
                 See pricing
               </a>
             </div>
@@ -6183,9 +6186,9 @@ function ProductCTA({ navigate }) {
           <div className="relative">
             <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
             <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Create your workspace and let Aster read, score and schedule for you. Free for 14 days, no card required.</p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button onClick={() => navigate("signup")} className="font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>Start free trial</button>
-              <button onClick={() => navigate("landing")} className="px-6 py-3 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>See pricing</button>
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <button onClick={() => navigate("signup")} className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>Start free trial</button>
+              <button onClick={() => navigate("landing")} className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center px-6 py-3 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>See pricing</button>
             </div>
           </div>
         </div>
@@ -8908,7 +8911,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
           </>)}
 
           {signupTrial && (
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <div className="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5">
               {[["check", "No credit card"], ["clock", "2-minute setup"], ["lock", "Your data stays private"]].map(([ic, label]) => (
                 <span key={label} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
                   <Icon name={ic} className="w-3.5 h-3.5" />
@@ -8924,7 +8927,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             </p>
           )}
 
-          <p className="text-[12px] mt-5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          <p className="text-[12px] mt-5 leading-relaxed text-center sm:text-left" style={{ color: "var(--ink-2)" }}>
             By creating an account you agree to Aster's{" "}
             <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Terms</a> and{" "}
             <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Privacy Policy</a>.
