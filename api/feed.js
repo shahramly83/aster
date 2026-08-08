@@ -42,6 +42,13 @@ const cdata = (s) => `<![CDATA[${String(s ?? "").replace(/]]>/g, "]]]]><![CDATA[
 
 const tag = (name, value) => `      <${name}>${cdata(value)}</${name}>`;
 
+// An attribute value is not text content: CDATA is illegal there and a parser
+// rejects the whole document on the unescaped "<" that starts it. Attributes
+// take entity escaping and nothing else.
+const attr = (s) => String(s ?? "")
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+
 // "full_time" is a database key. Aggregators match on their own vocabulary, and
 // an unrecognised value is treated as no value at all, so the job silently
 // loses its filter placement rather than erroring.
@@ -139,7 +146,7 @@ function renderJooble(jobs, origin, source) {
     // candidates.
     const region = [p.city, p.state, p.country].filter(Boolean).join(", ");
     return [
-      `    <job id="${cdata(j.id)}">`,
+      `    <job id="${attr(j.id)}">`,
       tag("name", j.title),
       tag("link", applyUrl(origin, j, source)),
       tag("region", region),

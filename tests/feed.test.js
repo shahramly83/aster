@@ -45,20 +45,63 @@ const run = async (query = {}) => {
   return res;
 };
 
-// Strip CDATA, then walk the tags. Catches the failure that matters most: a
-// description containing "]]>" ending its own block early and leaving the rest
-// of the document as stray markup.
-function tagsBalance(xml) {
-  const stripped = xml.replace(/<!\[CDATA\[[\s\S]*?]]>/g, "");
+// A real well-formedness walk, not a regex sweep.
+//
+// The version this replaces stripped CDATA sections before looking at anything,
+// which erased the one construct that was actually broken: a CDATA block inside
+// an attribute value. The feed shipped malformed and every test passed, because
+// the helper deleted the evidence before checking. So this walks the document in
+// order and distinguishes where it is: text, CDATA, or inside a tag's
+// attributes, where a raw "<" is illegal and ends the parse.
+export function xmlErrors(xml) {
+  const errs = [];
   const stack = [];
-  for (const m of stripped.matchAll(/<\/?([a-zA-Z][\w.-]*)[^>]*?(\/?)>/g)) {
-    const [full, name, selfClose] = m;
-    if (full.startsWith("<?") || selfClose) continue;
-    if (full.startsWith("</")) { if (stack.pop() !== name) return false; }
-    else stack.push(name);
+  let i = 0;
+  while (i < xml.length) {
+    const lt = xml.indexOf("<", i);
+    if (lt < 0) break;
+    if (xml.startsWith("<![CDATA[", lt)) {
+      const end = xml.indexOf("]]>", lt);
+      if (end < 0) { errs.push("unterminated CDATA"); break; }
+      i = end + 3; continue;
+    }
+    if (xml.startsWith("<!--", lt)) {
+      const end = xml.indexOf("-->", lt);
+      if (end < 0) { errs.push("unterminated comment"); break; }
+      i = end + 3; continue;
+    }
+    if (xml.startsWith("<?", lt)) {
+      const end = xml.indexOf("?>", lt);
+      if (end < 0) { errs.push("unterminated declaration"); break; }
+      i = end + 2; continue;
+    }
+    // A tag. Scan to its ">", tracking quotes so a ">" inside an attribute does
+    // not end it early, and rejecting a raw "<" inside a quoted value.
+    let quote = null, gt = -1;
+    for (let j = lt + 1; j < xml.length; j++) {
+      const c = xml[j];
+      if (quote) {
+        if (c === quote) quote = null;
+        else if (c === "<") errs.push(`unescaped '<' in an attribute value near "${xml.slice(lt, lt + 40)}"`);
+        continue;
+      }
+      if (c === '"' || c === "'") { quote = c; continue; }
+      if (c === ">") { gt = j; break; }
+    }
+    if (gt < 0) { errs.push("unterminated tag"); break; }
+    const body = xml.slice(lt + 1, gt);
+    const name = (body.match(/^\/?\s*([a-zA-Z][\w.-]*)/) || [])[1];
+    if (!name) errs.push(`unnamed tag near "${xml.slice(lt, lt + 30)}"`);
+    else if (body.startsWith("/")) {
+      if (stack.pop() !== name) errs.push(`closing </${name}> does not match`);
+    } else if (!body.endsWith("/")) stack.push(name);
+    i = gt + 1;
   }
-  return stack.length === 0;
+  if (stack.length) errs.push(`unclosed: ${stack.join(", ")}`);
+  return errs;
 }
+
+const tagsBalance = (xml) => xmlErrors(xml).length === 0;
 
 let rows;
 beforeEach(() => {
@@ -85,6 +128,23 @@ describe("job feed", () => {
     expect(body).toContain("<jobs>");
     expect(body).toContain("<name><![CDATA[Warehouse Supervisor]]></name>");
     expect(tagsBalance(body)).toBe(true);
+  });
+
+  // This shipped broken: the id was wrapped in CDATA, which is legal in text
+  // content and illegal in an attribute, so Chrome and every XML parser refused
+  // the whole document on line 3. An attribute takes entity escaping only.
+  it("escapes jooble's job id as an attribute, never as CDATA", async () => {
+    const { body } = await run({ dialect: "jooble" });
+    expect(body).toContain(`<job id="${JOB.id}">`);
+    expect(body).not.toContain('id="<![CDATA[');
+    expect(xmlErrors(body)).toEqual([]);
+  });
+
+  it("keeps the id an attribute even when it contains quotes or markup", async () => {
+    rows = [{ ...JOB, id: `x"><script>&` }];
+    const { body } = await run({ dialect: "jooble" });
+    expect(body).toContain('<job id="x&quot;&gt;&lt;script&gt;&amp;">');
+    expect(xmlErrors(body)).toEqual([]);
   });
 
   // <region> is what Jooble positions a listing from, so leaving the country out
