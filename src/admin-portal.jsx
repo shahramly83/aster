@@ -2313,7 +2313,18 @@ function Promos({ role, companies = [], audit }) {
             <div className="px-6 py-5">
               {confirm.kind === "create" ? (
                 <ul className="text-sm space-y-1.5" style={{ color: "var(--ink-2)" }}>
-                  <li><b style={{ color: "var(--ink)" }}>{form.percent_off}% off</b> {form.duration === "forever" ? "every payment" : form.duration === "repeating" ? "for 12 months" : "the first payment"}, on monthly and yearly.</li>
+                  {/* Which cycles this can be typed on is a setting now, so the
+                      sentence has to read it. Hardcoded "on monthly and yearly"
+                      kept telling people that after they had set it to yearly
+                      only, which is exactly the sort of confident wrong detail
+                      a confirmation dialog must not carry. */}
+                  <li>
+                    <b style={{ color: "var(--ink)" }}>{form.percent_off}% off</b>{" "}
+                    {form.duration === "forever" ? "every payment" : form.duration === "repeating" ? "for 12 months" : "the first payment"}
+                    {banner.cycles === "both" ? ", on monthly and yearly."
+                      : banner.cycles === "yearly" ? ", on yearly checkout only."
+                      : ". No checkout offers a code box right now, so nobody can redeem it until you turn one on."}
+                  </li>
                   <li>Expires: <b style={{ color: "var(--ink)" }}>{form.expires_at ? new Date(form.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "never"}</b></li>
                   <li>Redemptions: <b style={{ color: "var(--ink)" }}>{form.max_redemptions || "unlimited"}</b></li>
                   <li>Who: <b style={{ color: "var(--ink)" }}>{form.company_id ? (companies.find((c) => c.id === form.company_id)?.name || "one workspace") : form.first_time_only ? "anyone, first purchase only" : "anyone"}</b></li>
