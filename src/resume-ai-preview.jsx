@@ -2395,10 +2395,13 @@ function PipelinePreview() {
           <span className="text-[9px] font-medium" style={{ color: "var(--ink-3)" }}>Shared</span>
         </span>
       </div>
-      {/* kanban columns, stretched to fill the panel height */}
+      {/* Kanban columns, stretched to fill the panel height, and top-aligned
+          rather than centred: each column holds a different number of chips, so
+          centring floated the label and count to a different height in every
+          column and the row read as broken instead of as one board. */}
       <div className="grid grid-cols-4 gap-1.5 flex-1">
         {COLS.map((col, i) => (
-          <div key={col.name} className="rounded-lg p-1.5 flex flex-col justify-center" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+          <div key={col.name} className="rounded-lg p-1.5 flex flex-col justify-start" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
             <p className="text-[7px] font-semibold uppercase truncate mb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.03em" }}>{col.name}</p>
             <p className="text-lg font-bold font-display tnum leading-none mb-1.5" style={{ color: col.color }}><CountUp to={col.n} delay={i * 150} loop /></p>
             <div className="space-y-1">
@@ -4527,7 +4530,6 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 
           {/* actions, right */}
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <button onMouseEnter={closeMenus} onClick={() => navigate("login")} className={`hidden sm:block ${navHover} ${linkC}`} style={{ color: navActive }}>Sign in</button>
             {blueNav
               ? (scrolled
                   ? <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 brand-gradient text-white shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>
@@ -4688,7 +4690,6 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             </div>
 
             <div className="mt-1 space-y-2.5">
-              <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border transition-colors" style={blueNav ? { borderColor: "var(--line-strong)", color: "var(--ink)", background: "#fff" } : { borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
               <button onClick={() => { setMenuOpen(false); cta(); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white shadow-[0_12px_28px_-12px_rgba(var(--brand-rgb),0.7)]">Get started</button>
             </div>
           </nav>
@@ -4985,7 +4986,6 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
           <div className="md:col-span-2">
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}><Icon name="hire" className="w-3.5 h-3.5" /> Get started</p>
             <ul className="space-y-2.5 text-sm">
-              <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
               <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
             </ul>
           </div>
