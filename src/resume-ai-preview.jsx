@@ -11109,9 +11109,10 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
 
   // One ramp for both ring charts, applied by rank. They sit side by side and
   // ask the same question, so two palettes made them look like two unrelated
-  // things. Darkest first, so the biggest share is also the heaviest colour and
-  // the ranking survives even in grayscale.
-  const donutColors = ["#0B2AE0", "#3B82F6", "#7DA2FA", "#A5B4FC", "#C7D2FE"];
+  // things. Light throughout, deepening slightly toward the largest share: the
+  // rings are the quiet part of these cards and the legend beside them carries
+  // the numbers.
+  const donutColors = ["#6C8CF5", "#93C5FD", "#A5B4FC", "#C7D2FE", "#DCE4FB"];
   // Blue family for the Top Roles gauge: distinct but all on-brand blues/cyans.
   const gaugeColors = ["#0B2AE0", "#2563EB", "#3B82F6", "#38BDF8", "#0EA5E9"];
 
