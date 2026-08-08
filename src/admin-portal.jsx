@@ -2032,7 +2032,7 @@ function Promos({ role, companies = [], audit }) {
   const [codes, setCodes] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [banner, setBanner] = useState({ code: "", headline: "", enabled: true });
+  const [banner, setBanner] = useState({ code: "", headline: "", enabled: true, cycles: "yearly" });
   const [bannerSaved, setBannerSaved] = useState(false);
   const [form, setForm] = useState({ code: "", percent_off: "10", duration: "once", expires_at: "", max_redemptions: "", first_time_only: false, company_id: "" });
   const [confirm, setConfirm] = useState(null);   // { kind: "create" | "toggle", ... }
@@ -2046,17 +2046,17 @@ function Promos({ role, companies = [], audit }) {
   useEffect(() => {
     if (!hasSupabase) { setCodes([]); return; }
     load();
-    supabase.from("promo_banner").select("code, headline, enabled").maybeSingle().then(({ data }) => {
-      if (data) setBanner({ code: data.code || "", headline: data.headline || "", enabled: !!data.enabled });
+    supabase.from("promo_banner").select("code, headline, enabled, promo_cycles").maybeSingle().then(({ data }) => {
+      if (data) setBanner({ code: data.code || "", headline: data.headline || "", enabled: !!data.enabled, cycles: data.promo_cycles || "yearly" });
     });
   }, []); // eslint-disable-line
 
   const saveBanner = async () => {
     setBusy(true); setErr("");
-    const { error } = await supabase.rpc("set_promo_banner", { p_code: banner.code || null, p_headline: banner.headline, p_enabled: banner.enabled });
+    const { error } = await supabase.rpc("set_promo_banner", { p_code: banner.code || null, p_headline: banner.headline, p_enabled: banner.enabled, p_cycles: banner.cycles });
     setBusy(false);
     if (error) { setErr(error.message || "Could not save the banner."); return; }
-    audit("Set promo banner", banner.enabled ? (banner.code || "none") : `${banner.code || "none"} (hidden)`);
+    audit("Set promo banner", `${banner.enabled ? (banner.code || "none") : `${banner.code || "none"} (hidden)`} · codes on ${banner.cycles}`);
     setBannerSaved(true); setTimeout(() => setBannerSaved(false), 2000);
   };
 
@@ -2128,6 +2128,38 @@ function Promos({ role, companies = [], audit }) {
         <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
           Leave the code empty, or untick, and the banner disappears rather than advertising something that fails at checkout.
         </p>
+
+        {/* Which checkouts offer a code box at all. This is the only reliable
+            way to keep an offer to one cycle: a Stripe coupon restricts by
+            product, and monthly and yearly share the same three, so no coupon
+            can tell them apart. */}
+        <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--ink-2)" }}>Where the code box appears</p>
+          <div className="inline-flex rounded-xl p-1 gap-1" style={{ background: "var(--app-bg)" }}>
+            {[
+              { key: "yearly", label: "Yearly only" },
+              { key: "both", label: "Monthly and yearly" },
+              { key: "none", label: "Off" },
+            ].map((o) => {
+              const on = banner.cycles === o.key;
+              return (
+                <button key={o.key} type="button" disabled={!editable} aria-pressed={on}
+                  onClick={() => setBanner((b) => ({ ...b, cycles: o.key }))}
+                  className="h-8 px-3 rounded-lg text-[12px] font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: on ? "#fff" : "transparent", color: on ? "var(--brand)" : "var(--ink-2)", boxShadow: on ? "0 1px 2px rgba(18,19,42,.10)" : "none" }}>
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>
+            {banner.cycles === "yearly"
+              ? "Monthly checkout has no promo field, so a yearly offer cannot be used on a monthly plan."
+              : banner.cycles === "both"
+                ? "A code typed at monthly checkout will apply. Nothing in Stripe can keep a yearly offer off a monthly plan while both share the same products."
+                : "No promo field on any checkout. Existing discounts on live subscriptions are unaffected."}
+          </p>
+        </div>
       </Card>
 
       {editable && (

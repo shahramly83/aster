@@ -145,6 +145,18 @@ Deno.serve(async (req) => {
       .from("profiles").select("company_id, email, role").eq("id", user.id).maybeSingle();
     const companyId = prof?.company_id;
     if (!companyId) return json({ error: "no company for user" }, 403);
+
+    // Whether this cycle offers a promo code box (0169, set in /admin). Read
+    // with the service-role client so RLS cannot leave it undefined. A failed
+    // read falls back to yearly-only, which is the safe direction: worst case a
+    // yearly buyer cannot type a code, rather than a monthly buyer getting one
+    // that was never meant for them.
+    let promoCycles = "yearly";
+    try {
+      const { data: pb } = await admin.from("promo_banner").select("promo_cycles").maybeSingle();
+      if (pb?.promo_cycles) promoCycles = String(pb.promo_cycles);
+    } catch { /* keep the default */ }
+    const promoAllowed = promoCycles === "both" || (promoCycles === "yearly" && c === "yearly");
     // Billing belongs to the account owner alone. A hiring manager is 'admin', and
     // admins used to pass this check: any recruiter could upgrade, downgrade or
     // CANCEL the company's subscription.
@@ -462,18 +474,13 @@ Deno.serve(async (req) => {
       "metadata[company_id]": companyId,
       "metadata[plan]": plan,
       "metadata[cycle]": c,
-      // Open on both cycles. This used to be yearly-only, because a Stripe
-      // coupon restricts by PRODUCT rather than by price, so a coupon scoped to
-      // the three plans discounts a monthly subscription just as happily, and a
-      // promotion code's minimum_amount cannot separate them either (Elite
-      // monthly costs more than Launch yearly). Closing the box on monthly was
-      // the only reliable place to draw that line.
-      //
-      // Deliberately reopened so targeted and win-back codes can apply to a
-      // monthly plan. The line is now drawn per code instead: give a
-      // yearly-only offer a max_redemptions and an expiry, or restrict it to
-      // one customer, rather than relying on the box being absent.
-      allow_promotion_codes: "true",
+      // Set in /admin (0169), not here. A Stripe coupon restricts by PRODUCT
+      // and Aster's monthly and yearly prices share the same three products, so
+      // no coupon can tell the cycles apart and minimum_amount cannot either
+      // (Elite monthly costs more than Launch yearly). Whether the box exists
+      // on a monthly checkout is therefore the only reliable cycle control we
+      // have, which is why it is a setting rather than a constant.
+      allow_promotion_codes: promoAllowed ? "true" : "false",
       success_url: `${base}/billing?checkout=success`,
       cancel_url: `${base}/billing?checkout=cancel`,
     }, secret);
