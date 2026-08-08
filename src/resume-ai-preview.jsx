@@ -13131,12 +13131,19 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
     });
     setAiBusy(false);
     if (error || data?.error) {
-      let code = data?.error || "";
-      try { const b = await error?.context?.json?.(); code = b?.error || code; } catch { /* not JSON */ }
+      let code = data?.error || "", detail = data?.detail || "";
+      try { const b = await error?.context?.json?.(); code = b?.error || code; detail = b?.detail || detail; } catch { /* not JSON */ }
       if (code === "no_credits") { setDraftCredits(0); setBuyDraftOpen(true); return; }
-      setAiNote({ bad: true, msg: code === "generate_failed"
-        ? "The draft didn't come back. No credit was used, try again."
-        : "Couldn't draft that one. No credit was used." });
+      // Name the reason. A catch-all here hid a real fault twice, and the one
+      // person who could act on it was reading "couldn't draft that one".
+      const said = {
+        generate_failed: "The draft didn't come back. No credit was used, try again.",
+        no_api_key: "AI drafting isn't configured on the server yet. No credit was used.",
+        no_title: "Add a job title first.",
+        unauthorized: "Your session expired. Sign in again.",
+      }[code];
+      setAiNote({ bad: true, msg: said || `Couldn't draft that one (${code || "unknown error"}). No credit was used.` });
+      console.error("generate-job-draft failed:", code, detail || "");
       return;
     }
     const d = data.draft || {};

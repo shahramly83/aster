@@ -117,9 +117,15 @@ Deno.serve(async (req) => {
       }),
     });
     if (!resp.ok) {
-      console.error("anthropic error", resp.status, await resp.text());
+      // Pass Anthropic's own words back. A bad model id, a rate limit and a
+      // missing credit balance are three very different problems and they were
+      // all arriving as "generate_failed".
+      const body = await resp.text();
+      console.error("anthropic error", resp.status, body);
       await refund(paid.companyId, "job_draft", paid.source);
-      return json({ error: "generate_failed" }, 502);
+      let detail = body.slice(0, 200);
+      try { detail = JSON.parse(body)?.error?.message ?? detail; } catch { /* not JSON */ }
+      return json({ error: "generate_failed", detail, status: resp.status }, 502);
     }
 
     const data = await resp.json();
