@@ -53,6 +53,29 @@ const JOB_TYPE = {
 
 const REMOTE_TYPE = { remote: "Fully remote", hybrid: "Hybrid remote" };
 
+// Aggregators expect an ISO-3166 alpha-2 country code and treat a full country
+// name as an unknown region, which drops the job out of every country-filtered
+// search. companies.address_country holds whichever the customer's billing form
+// produced, and in practice that is a mix ("MY" on some rows, "Malaysia" on
+// others), so it cannot be passed through raw.
+//
+// Only the markets Aster actually sells into are mapped. Anything unrecognised
+// falls through unchanged rather than being guessed at: a wrong country is
+// worse than one the aggregator ignores.
+const COUNTRY_CODE = {
+  malaysia: "MY", singapore: "SG", indonesia: "ID", thailand: "TH",
+  philippines: "PH", vietnam: "VN", "viet nam": "VN", brunei: "BN",
+  "hong kong": "HK", india: "IN", australia: "AU", "new zealand": "NZ",
+  "united kingdom": "GB", "united states": "US", "united arab emirates": "AE",
+};
+
+function countryCode(raw) {
+  const v = String(raw || "").trim();
+  if (!v) return "";
+  if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
+  return COUNTRY_CODE[v.toLowerCase()] || v;
+}
+
 // Monthly, because that is what generate-job-draft produces and what the apply
 // page shows. A range published as an annual figure by mistake is the kind of
 // error that reaches candidates before it reaches us.
@@ -116,12 +139,32 @@ function descriptionHtml(d) {
   return out.join("");
 }
 
+// Same default as the app's APEX_ROOT, so the two agree on what a workspace
+// address looks like.
+const APEX_ROOT = (process.env.VITE_APEX_ROOT || "hireaster.com").toLowerCase();
+
+// The link an aggregator publishes is the company's, not Aster's, so it points
+// at the workspace's own address (<slug>.hireaster.com) exactly like every
+// other apply link the product hands out. A candidate on Adzuna should see the
+// employer they are applying to, not their ATS vendor.
+//
+// The apex is the fallback for a workspace with no slug, and for any host that
+// is not the apex at all (a preview deploy), where a made-up subdomain would
+// simply fail to resolve.
+function applyOrigin(origin, slug) {
+  const s = String(slug || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!s) return origin;
+  const host = origin.replace(/^https?:\/\//, "").toLowerCase();
+  if (host !== APEX_ROOT && !host.endsWith(`.${APEX_ROOT}`)) return origin;
+  return `https://${s}.${APEX_ROOT}`;
+}
+
 // One aggregator per feed URL (?source=adzuna), so every applicant arrives
 // already tagged with the site that sent them and the existing source reporting
 // answers "which board is actually worth it" with no extra work.
-function applyUrl(origin, id, source) {
+function applyUrl(origin, job, source) {
   const s = String(source || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24);
-  return `${origin}/apply/${id}${s ? `?source=${s}` : ""}`;
+  return `${applyOrigin(origin, job.company_slug)}/apply/${job.id}${s ? `?source=${s}` : ""}`;
 }
 
 function renderSource(jobs, origin, source) {
@@ -133,12 +176,12 @@ function renderSource(jobs, origin, source) {
       tag("title", j.title),
       tag("date", new Date(j.created_at).toISOString()),
       tag("referencenumber", j.id),
-      tag("url", applyUrl(origin, j.id, source)),
+      tag("url", applyUrl(origin, j, source)),
       tag("company", j.company_name),
       tag("sourcename", "Aster"),
       tag("city", p.city),
       tag("state", p.state),
-      tag("country", p.country),
+      tag("country", countryCode(p.country)),
       tag("description", descriptionHtml(d)),
       tag("salary", salaryLabel(d)),
       tag("jobtype", JOB_TYPE[String(d.employment_type || "").toLowerCase()] || ""),
@@ -168,9 +211,9 @@ function renderJooble(jobs, origin, source) {
     return [
       `    <job id="${cdata(j.id)}">`,
       tag("name", j.title),
-      tag("link", applyUrl(origin, j.id, source)),
+      tag("link", applyUrl(origin, j, source)),
       tag("region", region),
-      tag("country", p.country),
+      tag("country", countryCode(p.country)),
       tag("company", j.company_name),
       tag("description", descriptionHtml(d)),
       tag("salary", salaryLabel(d)),

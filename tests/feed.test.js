@@ -135,14 +135,46 @@ describe("job feed", () => {
     expect(bare).toContain("<salary><![CDATA[]]></salary>");
   });
 
-  it("tags the apply link with the aggregator that sent the visitor", async () => {
+  // The employer's own address, not ours. A candidate on Adzuna should see the
+  // company they are applying to rather than the ATS behind it.
+  it("points the apply link at the workspace's own subdomain", async () => {
     const { body } = await run({ source: "adzuna" });
-    expect(body).toContain(`https://hireaster.com/apply/${JOB.id}?source=adzuna`);
+    expect(body).toContain(`https://acme.hireaster.com/apply/${JOB.id}?source=adzuna`);
+  });
+
+  it("falls back to the apex when a workspace has no slug", async () => {
+    rows = [{ ...JOB, company_slug: null }];
+    const { body } = await run();
+    expect(body).toContain(`https://hireaster.com/apply/${JOB.id}`);
+  });
+
+  // A preview deploy has no wildcard DNS, so a slug subdomain there would not
+  // resolve at all.
+  it("does not invent a subdomain on a non-apex host", async () => {
+    const res = mockRes();
+    await handler({ headers: { host: "aster-preview.vercel.app" }, query: {} }, res);
+    expect(res.body).toContain(`https://aster-preview.vercel.app/apply/${JOB.id}`);
+    expect(res.body).not.toContain("acme.aster-preview");
   });
 
   it("refuses a source that would forge a query string", async () => {
     const { body } = await run({ source: "adzuna&utm=x" });
     expect(body).toContain(`?source=adzunautmx`);
+  });
+
+  // Aggregators filter by ISO country code and treat a full country name as an
+  // unknown region, which drops the job out of every country-scoped search.
+  it("emits an ISO country code, whichever form the address holds", async () => {
+    const { body } = await run();
+    expect(body).toContain("<country><![CDATA[MY]]></country>");
+
+    rows = [{ ...JOB, address_country: "Malaysia" }];
+    const { body: named } = await run();
+    expect(named).toContain("<country><![CDATA[MY]]></country>");
+
+    rows = [{ ...JOB, address_country: "sg" }];
+    const { body: lower } = await run();
+    expect(lower).toContain("<country><![CDATA[SG]]></country>");
   });
 
   it("maps employment type to the aggregators' vocabulary", async () => {
