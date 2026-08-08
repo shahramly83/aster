@@ -2037,10 +2037,23 @@ function Promos({ role, companies = [], audit }) {
   const [form, setForm] = useState({ code: "", percent_off: "10", duration: "once", expires_at: "", max_redemptions: "", first_time_only: false, company_id: "" });
   const [confirm, setConfirm] = useState(null);   // { kind: "create" | "toggle", ... }
 
+  // supabase.functions.invoke throws away the response body on a non-2xx, so
+  // `error.message` is always the same useless "Edge Function returned a
+  // non-2xx status code". The real reason, including whatever Stripe said, is
+  // on error.context. Read it, or every failure here looks identical.
+  const reasonFrom = async (error, data) => {
+    if (data?.error) return [data.error, data.detail].filter(Boolean).join(" · ");
+    try {
+      const body = await error?.context?.json?.();
+      if (body?.error) return [body.error, body.detail].filter(Boolean).join(" · ");
+    } catch { /* not JSON */ }
+    return error?.message || "Something went wrong.";
+  };
+
   const load = async () => {
     setErr("");
     const { data, error } = await supabase.functions.invoke("admin-promos", { body: { action: "list" } });
-    if (error || data?.error) { setErr(data?.error || "Could not load promo codes."); setCodes([]); return; }
+    if (error || data?.error) { setErr(await reasonFrom(error, data)); setCodes([]); return; }
     setCodes(data.codes || []);
   };
   useEffect(() => {
@@ -2073,7 +2086,7 @@ function Promos({ role, companies = [], audit }) {
       },
     });
     setBusy(false);
-    if (error || data?.error) { setErr(data?.error || error?.message || "Could not create that code."); setConfirm(null); return; }
+    if (error || data?.error) { setErr(await reasonFrom(error, data)); setConfirm(null); return; }
     audit("Created promo code", `${data.code} · ${data.percent_off}% off${data.target ? ` · ${data.target} only` : ""}`);
     setForm((f) => ({ ...f, code: "", max_redemptions: "", expires_at: "", company_id: "" }));
     setConfirm(null);
@@ -2084,7 +2097,7 @@ function Promos({ role, companies = [], audit }) {
     setBusy(true); setErr("");
     const { data, error } = await supabase.functions.invoke("admin-promos", { body: { action: "set_active", id: p.id, active: !p.active } });
     setBusy(false);
-    if (error || data?.error) { setErr(data?.error || "Could not update that code."); setConfirm(null); return; }
+    if (error || data?.error) { setErr(await reasonFrom(error, data)); setConfirm(null); return; }
     audit(p.active ? "Switched off promo code" : "Switched on promo code", p.code);
     setConfirm(null);
     load();

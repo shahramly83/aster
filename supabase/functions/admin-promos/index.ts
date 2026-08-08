@@ -149,7 +149,10 @@ Deno.serve(async (req) => {
         couponParams.duration_in_months = String(months);
       }
       const coupon = await stripe("coupons", secret, couponParams);
-      if (!coupon.ok) return json({ error: "could not create the discount", detail: coupon.data?.error?.message || null }, 502);
+      if (!coupon.ok) {
+        console.error("stripe coupon create failed", JSON.stringify(coupon.data));
+        return json({ error: "could not create the discount", detail: coupon.data?.error?.message || JSON.stringify(coupon.data?.error || coupon.data).slice(0, 300) }, 502);
+      }
 
       const promoParams: Record<string, string> = { coupon: coupon.data.id, code };
       if (body?.expires_at) {
@@ -176,10 +179,10 @@ Deno.serve(async (req) => {
       if (!promo.ok) {
         // The coupon is already created at this point. Say so, rather than
         // leaving an admin to wonder what state Stripe is in.
+        console.error("stripe promotion_code create failed", JSON.stringify(promo.data));
         return json({
           error: "could not create the code",
-          detail: promo.data?.error?.message || null,
-          orphan_coupon: coupon.data.id,
+          detail: (promo.data?.error?.message || JSON.stringify(promo.data?.error || promo.data).slice(0, 300)) + ` (coupon ${coupon.data.id} was created and is now unused)`,
         }, 502);
       }
 
