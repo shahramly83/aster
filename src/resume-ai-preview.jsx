@@ -21797,18 +21797,31 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
                       Scheduled{pendingChange?.date ? ` · ${pendingChange.date}` : ""}
                     </button>
                   ) : (
-                  <button
-                    onClick={() => choosePlan(p)}
-                    disabled={changeBusy}
-                    className={`w-full rounded-xl text-sm font-semibold py-2.5 transition-all disabled:opacity-60 ${
-                      solid
-                        ? "brand-gradient text-white hover:opacity-90 hover:-translate-y-px"
-                        : "border hover:bg-neutral-50"
-                    }`}
-                    style={solid ? undefined : { borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
-                  >
-                    {label}
-                  </button>
+                  (() => {
+                    // The plan you are already paying for, on the cycle you are
+                    // already on, cannot be bought again: choosePlan returns
+                    // without a word, so the button looked live and did nothing.
+                    // Same condition, said out loud instead.
+                    const isCurrent = !onTrial && p.key === plan && cycle === planCycle && p.key !== "enterprise";
+                    return (
+                      <button
+                        onClick={() => choosePlan(p)}
+                        disabled={changeBusy || isCurrent}
+                        title={isCurrent ? "You are already on this plan" : undefined}
+                        className={`w-full rounded-xl text-sm font-semibold py-2.5 transition-all disabled:opacity-60 ${
+                          isCurrent ? "cursor-default"
+                            : solid
+                              ? "brand-gradient text-white hover:opacity-90 hover:-translate-y-px"
+                              : "border hover:bg-neutral-50"
+                        }`}
+                        style={isCurrent
+                          ? { background: "rgba(0,0,0,0.04)", color: "var(--ink-3)", border: "1px solid var(--line)" }
+                          : solid ? undefined : { borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                      >
+                        {isCurrent ? "Your current plan" : label}
+                      </button>
+                    );
+                  })()
                   )}
                 </div>
               );
