@@ -207,7 +207,12 @@ function renderJooble(jobs, origin, source) {
   const rows = jobs.map((j) => {
     const d = j.details || {};
     const p = placeOf(j);
-    const region = [p.city, p.state].filter(Boolean).join(", ") || p.country;
+    // <region> is the field Jooble places a job from, so the country belongs in
+    // the string itself: "Seri Kembangan, Selangor" alone leaves the listing to
+    // be positioned by inference. The readable country name is used here rather
+    // than the ISO code that <country> carries, because this field is shown to
+    // candidates.
+    const region = [p.city, p.state, p.country].filter(Boolean).join(", ");
     return [
       `    <job id="${cdata(j.id)}">`,
       tag("name", j.title),

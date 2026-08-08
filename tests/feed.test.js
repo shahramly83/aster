@@ -87,6 +87,14 @@ describe("job feed", () => {
     expect(tagsBalance(body)).toBe(true);
   });
 
+  // <region> is what Jooble positions a listing from, so leaving the country out
+  // of it means the placement is inferred rather than stated.
+  it("names the country inside jooble's region string", async () => {
+    rows = [{ ...JOB, address_country: "Malaysia" }];
+    const { body } = await run({ dialect: "jooble" });
+    expect(body).toContain("<region><![CDATA[Shah Alam, Selangor, Malaysia]]></region>");
+  });
+
   // The description is HTML-escaped on the way in, so "]]>" cannot survive to
   // close its own block there. The title, company name and location are not:
   // they go into CDATA verbatim, which makes them the field that can actually
