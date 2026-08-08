@@ -44,8 +44,9 @@ const BASE_USD: Record<string, number> = {
   resume_screen: 100, applicant_screen: 100,   // $1.00
   ai_rank: 40, ai_insight: 40,                 // $0.40
   interview_questions: 40,                     // $0.40, same as the other per-generation AI credits
+  job_draft: 200,                              // $2.00: Opus, and it writes the whole posting
 };
-const CREDIT_KINDS = ["resume_screen", "applicant_screen", "ai_rank", "ai_insight", "interview_questions"];
+const CREDIT_KINDS = ["resume_screen", "applicant_screen", "ai_rank", "ai_insight", "interview_questions", "job_draft"];
 const DEFAULT_RATE: Record<string, number> = { usd: 1, myr: 4.09, sgd: 1.29 };
 // Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
 // and the app names (launch/scale/elite), since companies.plan can hold either.
@@ -61,6 +62,7 @@ const PRODUCT_NAME: Record<string, string> = {
   ai_rank: "AI Rank credits",
   ai_insight: "AI Insight credits",
   interview_questions: "AI Question credits",
+  job_draft: "AI job drafting credits",
 };
 
 Deno.serve(async (req) => {

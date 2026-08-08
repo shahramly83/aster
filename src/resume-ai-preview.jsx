@@ -11899,6 +11899,7 @@ const CREDIT_KINDS = [
   { k: "ai_rank", label: "AI Rank", sub: "Rank & shortlist" },
   { k: "ai_insight", label: "AI Insight", sub: "Candidate deep-dive" },
   { k: "interview_questions", label: "AI Questions", sub: "Tailored interview questions" },
+  { k: "job_draft", label: "AI job drafting", sub: "A whole posting from its title" },
 ];
 // Base per-credit price in USD; the shown price is this times the currency's rate
 // (currency_rates, editable in /admin) times the plan discount. buy-credits does
@@ -11907,7 +11908,7 @@ const CREDIT_KINDS = [
 // (0166) so the first paint before the fetch lands is not a lie, then replaced
 // by the live table below. buy-credits reads the same table server-side, which
 // is what keeps the quoted price and the charged price the same number.
-let CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4 };
+let CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4, job_draft: 2 };
 function setCreditPrices(rows) {
   for (const r of rows || []) {
     const k = String(r?.kind || "");
@@ -13092,6 +13093,56 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const willConsumeCredit = !editing || initialJob?.status !== "open";
   const publishBlocked = jobPostBlocked && willConsumeCredit;
   const [createErr, setCreateErr] = useState(null);
+  // AI drafting. Sold only as a top-up credit, so the button reads its purchased
+  // balance rather than a plan allowance: there is no allowance on any plan.
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState(null);      // { msg, bad }
+  const [draftCredits, setDraftCredits] = useState(0);
+  useEffect(() => {
+    if (!hasSupabase) return;
+    supabase.rpc("get_job_draft_usage").then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) setDraftCredits(Number(row.purchased) || 0);
+    }).catch(() => { /* button simply shows as locked */ });
+  }, []);
+
+  const draftWithAi = async () => {
+    if (aiBusy || !title.trim()) return;
+    if (draftCredits <= 0) { onBuyDraftCredits?.(); return; }
+    setAiBusy(true); setAiNote(null);
+    const { data, error } = await supabase.functions.invoke("generate-job-draft", {
+      body: { title: title.trim(), location: location || null },
+    });
+    setAiBusy(false);
+    if (error || data?.error) {
+      let code = data?.error || "";
+      try { const b = await error?.context?.json?.(); code = b?.error || code; } catch { /* not JSON */ }
+      if (code === "no_credits") { setDraftCredits(0); onBuyDraftCredits?.(); return; }
+      setAiNote({ bad: true, msg: code === "generate_failed"
+        ? "The draft didn't come back. No credit was used, try again."
+        : "Couldn't draft that one. No credit was used." });
+      return;
+    }
+    const d = data.draft || {};
+    // Fill, never overwrite something already typed: the person may have set a
+    // location or a salary deliberately before pressing this.
+    if (d.department && !department) setDepartment(String(d.department));
+    if (d.location && !location) setLocation(String(d.location));
+    if (d.employment_type) setEmploymentType(String(d.employment_type));
+    if (d.work_mode) setRemoteType(String(d.work_mode));
+    if (Array.isArray(d.seniority) ? d.seniority.length : d.seniority) {
+      setSeniorityLevels(Array.isArray(d.seniority) ? d.seniority : [String(d.seniority)]);
+    }
+    if (Array.isArray(d.key_skills) && d.key_skills.length && !skills.length) setSkills(d.key_skills.map(String).slice(0, 12));
+    if (d.salary_min && !salaryMin) setSalaryMin(String(Math.round(Number(d.salary_min))));
+    if (d.salary_max && !salaryMax) setSalaryMax(String(Math.round(Number(d.salary_max))));
+    if (d.description && !description) setDescription(String(d.description));
+    setDraftCredits((n) => Math.max(0, n - 1));
+    setAiNote({ bad: false, msg: d.salary_note
+      ? `Drafted. Salary is an estimate: ${String(d.salary_note)}. Check every field before publishing.`
+      : "Drafted. Check every field, especially salary, before publishing." });
+  };
+
   const [title, setTitle] = useState(initialJob?.title || "");
   const [department, setDepartment] = useState(initialJob?.department || "");
   const [location, setLocation] = useState(initialJob?.location || "");
@@ -13207,8 +13258,31 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="njf-title" className={labelClass}>Title</label>
+        <div className="flex items-end justify-between gap-3 mb-1">
+          <label htmlFor="njf-title" className={labelClass} style={{ marginBottom: 0 }}>Title</label>
+          {/* Gold, and locked until there are credits. This is the one paid-only
+              feature in the product, so it should look unlike every blue button
+              around it and say plainly that it is bought rather than included. */}
+          <button type="button" onClick={draftWithAi}
+            disabled={aiBusy || !title.trim()}
+            title={draftCredits > 0
+              ? `Write the whole posting from the title · 1 credit (${draftCredits} left)`
+              : "Buy a credit to draft this with AI"}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition-all disabled:opacity-50 hover:-translate-y-px"
+            style={{
+              background: "linear-gradient(135deg,#F4C561,#E0A32E 55%,#C98A1C)",
+              color: "#3B2A05",
+              boxShadow: "0 6px 16px -8px rgba(201,138,28,.9)",
+            }}>
+            <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
+            {aiBusy ? "Drafting…" : draftCredits > 0 ? "Draft with AI" : "Draft with AI"}
+            {draftCredits > 0 && <span className="tnum font-semibold opacity-70">{draftCredits}</span>}
+          </button>
+        </div>
         <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
+        {aiNote && (
+          <p className="text-[11px] mt-1.5" style={{ color: aiNote.bad ? "var(--danger, #B42318)" : "var(--ink-3)" }}>{aiNote.msg}</p>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
@@ -20132,7 +20206,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
 
   const [sending, setSending] = useState(false);
   const [slots, setSlots] = useState([]);      // ISO start strings the HM proposes
-  const [confirmedOffline, setConfirmedOffline] = useState(false); // panel confirmed the times
   // Scheduling normally starts from an interviewer's request. The hiring manager
   // can also start it themselves via "Schedule on my own".
   const [selfSchedule, setSelfSchedule] = useState(startSolo);
@@ -20500,21 +20573,13 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             )}
           </div>
 
-          {/* Offline-confirm guardrail: HR checks the times with the panel first,
-              so whatever the candidate picks is final (no back-and-forth). */}
-          {slots.length > 0 && (
-            <label className="flex items-start gap-2.5 mb-3 cursor-pointer select-none group">
-              <span className="mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors group-hover:border-[color:var(--brand)]"
-                style={confirmedOffline ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "rgba(var(--brand-rgb),0.5)" }}>
-                {confirmedOffline && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
-              </span>
-              <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="sr-only" />
-              <span className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>I've checked these times with the interviewers who'll attend. The candidate only sees times the panel can make, so whichever they pick is final.</span>
-            </label>
-          )}
+          {/* A tickbox used to ask whether the times had been cleared with the
+              panel. The panel availability screen answers that properly now, so
+              it was asking people to promise something the product already
+              knows, and it gated Send behind that promise. */}
 
           {(() => {
-            const sendDisabled = sending || slots.length === 0 || !confirmedOffline;
+            const sendDisabled = sending || slots.length === 0;
             return (
               <button
                 onClick={attemptSend}

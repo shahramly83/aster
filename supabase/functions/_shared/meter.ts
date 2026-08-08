@@ -12,16 +12,19 @@
 // parameter and resolve the company from the caller's own JWT.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export type Meter = "ai_rank" | "ai_insight" | "interview_questions" | "see_why";
+export type Meter = "ai_rank" | "ai_insight" | "interview_questions" | "see_why" | "job_draft";
 
 // ai_rank and ai_insight support purchased top-up credits: consume_* spends the
 // monthly pool first, then any purchased balance of the matching kind, and reports
 // which via `source`. The other meters have no top-up yet and use the plain
 // bump/refund pair.
-const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "consume_ai_insight", interview_questions: "consume_interview_questions", see_why: "bump_see_why" };
-const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for" };
+const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "consume_ai_insight", interview_questions: "consume_interview_questions", see_why: "bump_see_why", job_draft: "consume_job_draft" };
+const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for", job_draft: "refund_job_draft_for" };
 // Which purchased credit kind backs each meter.
-const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank", ai_insight: "ai_insight", interview_questions: "interview_questions" };
+// job_draft has NO monthly allowance on any plan, so it is purchased-only: the
+// limit is 0, consume_job_draft never finds monthly room, and every call comes
+// out of the purchased balance.
+const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank", ai_insight: "ai_insight", interview_questions: "interview_questions", job_draft: "job_draft" };
 // Legacy monthly-only meter to fall back to if the top-up-aware consume_* RPC
 // isn't deployed yet (partial migration). Keeps the feature working; it just
 // won't draw from purchased credits until the migration lands.

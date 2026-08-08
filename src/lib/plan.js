@@ -15,6 +15,8 @@ export const PLAN_LIMITS = {
     maxJobs: 1, seats: Infinity,
     parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
     aiRunsPerMonth: 5, aiInsightsPerMonth: 5, interviewQuestionsPerMonth: 5,
+    // Sold only as top-up credits, so no plan includes any.
+    jobDraftsPerMonth: 0,
     // Plans differ ONLY by job-post quantity (maxJobs) and the AI/screening credit
     // allowances above. Everything a customer can SEE (AI Rank result depth, the
     // candidate database, applicant lists, skill/industry filters) is unlimited on
@@ -29,6 +31,8 @@ export const PLAN_LIMITS = {
     maxJobs: 5, seats: Infinity,
     parseApplicant: 500, resumeUploads: 50,
     aiRunsPerMonth: 30, aiInsightsPerMonth: 100, interviewQuestionsPerMonth: 30,
+    // Sold only as top-up credits, so no plan includes any.
+    jobDraftsPerMonth: 0,
     // Infinity like every other tier. Scale was the one plan left holding a
     // result-depth cap after those gates were dropped, so a Scale workspace still
     // met "10 more matches hidden — upgrade for the full ranking" on a ranking it
@@ -43,6 +47,8 @@ export const PLAN_LIMITS = {
     maxJobs: 10, seats: Infinity,
     parseApplicant: 1000, resumeUploads: 100,
     aiRunsPerMonth: 100, aiInsightsPerMonth: 300, interviewQuestionsPerMonth: 100,
+    // Sold only as top-up credits, so no plan includes any.
+    jobDraftsPerMonth: 0,
     aiMatches: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
@@ -53,6 +59,9 @@ export const PLAN_LIMITS = {
     maxJobs: Infinity, seats: Infinity,
     parseApplicant: Infinity, resumeUploads: Infinity,
     aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, interviewQuestionsPerMonth: Infinity,
+    // Zero even here: AI job drafting is sold as credits, not bundled. Enterprise
+    // gets unlimited of everything else, so this is the one line worth noticing.
+    jobDraftsPerMonth: 0,
     aiMatches: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,

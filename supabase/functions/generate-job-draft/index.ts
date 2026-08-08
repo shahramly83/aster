@@ -1,0 +1,142 @@
+// Supabase Edge Function: generate-job-draft
+// ---------------------------------------------------------------------------
+// Writes a whole job posting from its title, so a hiring manager starts from a
+// draft to correct rather than an empty form.
+//
+// Opus, not the Haiku the other AI features run on. This is the only one whose
+// output is customer-facing prose that goes out under the company's name on a
+// public page, and it is charged accordingly: sold only as a top-up credit,
+// with no monthly allowance on any plan (0170).
+//
+// Charged BEFORE the model call and refunded if our call fails, the same order
+// as generate-interview-questions: a credit taken for nothing is worse than a
+// call we swallow the cost of.
+//
+// Returns a draft for the form to fill in. Nothing is saved: the person still
+// reviews every field and presses Create.
+//
+// Secrets: ANTHROPIC_API_KEY, and the meter's service-role access
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { charge, refund, logSpend } from "../_shared/meter.ts";
+
+const MODEL = "claude-opus-5";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (b: unknown, s = 200) =>
+  new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
+
+// Salary is included at Shah's direction. The prompt is explicit that it is a
+// market estimate for the stated location, because a range that is quietly
+// wrong is the one field on this form that costs real money once the posting is
+// public. The UI labels it as an estimate for the same reason.
+const PROMPT = `You write job postings for a recruitment product. Given a role title and a company's context, produce a complete, accurate, ready-to-review draft.
+
+Return ONLY a JSON object, no prose around it, with exactly these keys:
+{
+  "department": string,
+  "location": string,
+  "employment_type": "Full-time" | "Part-time" | "Contract" | "Internship" | "Temporary",
+  "work_mode": "On-site" | "Hybrid" | "Remote",
+  "seniority": one of ["Junior","Mid","Senior","Lead","Principal"],
+  "key_skills": string[]  // 6 to 10, the specific things you would rank a CV against
+  "salary_min": number,   // whole units of the given currency, per month
+  "salary_max": number,
+  "salary_note": string,  // one short line saying what the range is based on
+  "description": string   // markdown: what the role is, what they will do, what is required, what is nice to have
+}
+
+Rules:
+- Write for the country and city given. Salary must be a realistic MONTHLY range for that market and seniority, in the currency given, not a US figure converted.
+- If the title is vague, choose the most common reading and say so in the first line of the description.
+- key_skills are things a resume can be matched against: tools, languages, domains. Not "communication" or "team player".
+- description is 150 to 300 words. No emoji. No "rockstar", "ninja", "wear many hats".
+- Never invent a company benefit, an office perk, or a legal entitlement you were not given.`;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+
+  try {
+    const token = req.headers.get("Authorization") || "";
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: token } } },
+    );
+    const { data: { user }, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !user) return json({ error: "unauthorized" }, 401);
+
+    const body = await req.json().catch(() => ({}));
+    const title = String(body?.title || "").trim().slice(0, 120);
+    if (!title) return json({ error: "no_title" }, 400);
+
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: prof } = await admin.from("profiles").select("company_id, role").eq("id", user.id).maybeSingle();
+    if (!prof?.company_id) return json({ error: "no company for user" }, 403);
+    if (!["owner", "admin"].includes(prof.role || "")) {
+      return json({ error: "Only an owner or hiring manager can draft a job." }, 403);
+    }
+
+    const { data: co } = await admin
+      .from("companies").select("name, address_city, address_country, preferred_currency")
+      .eq("id", prof.company_id).maybeSingle();
+
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
+    if (!apiKey) return json({ error: "no_api_key" }, 500);
+
+    // Charge first, refund below if the model call fails.
+    const paid = await charge(token, "job_draft");
+    if (!paid.ok) {
+      // No monthly pool exists for this kind, so "limit_reached" here always
+      // means "no purchased credits left". Say that, not "you hit your limit".
+      const status = paid.error === "limit_reached" ? 402 : 503;
+      return json({ error: paid.error === "limit_reached" ? "no_credits" : paid.error }, status);
+    }
+    await logSpend({
+      companyId: paid.companyId, kind: "job_draft", pool: paid.source ?? null,
+      label: `AI job draft: ${title}`,
+    });
+
+    const context = {
+      company: co?.name ?? null,
+      city: co?.address_city ?? null,
+      country: co?.address_country ?? null,
+      currency: String(co?.preferred_currency || "myr").toUpperCase(),
+      requested_location: String(body?.location || "").slice(0, 80) || null,
+    };
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 2000,
+        messages: [{ role: "user", content: `${PROMPT}\n\nRole title: ${title}\n\nCompany context (JSON):\n${JSON.stringify(context)}` }],
+      }),
+    });
+    if (!resp.ok) {
+      console.error("anthropic error", resp.status, await resp.text());
+      await refund(paid.companyId, "job_draft", paid.source);
+      return json({ error: "generate_failed" }, 502);
+    }
+
+    const data = await resp.json();
+    const text = data?.content?.[0]?.text ?? "";
+    // The model is told to return only JSON, but a stray sentence either side
+    // should cost the customer nothing: pull the object out rather than failing.
+    const match = text.match(/\{[\s\S]*\}/);
+    let draft: Record<string, unknown> | null = null;
+    try { draft = match ? JSON.parse(match[0]) : null; } catch { draft = null; }
+    if (!draft || !draft.description) {
+      await refund(paid.companyId, "job_draft", paid.source);
+      return json({ error: "generate_failed" }, 502);
+    }
+
+    return json({ ok: true, draft, currency: context.currency });
+  } catch (e) {
+    console.error("generate-job-draft", e);
+    return json({ error: "generate_failed" }, 500);
+  }
+});
