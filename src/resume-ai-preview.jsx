@@ -13101,13 +13101,6 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [aiNote, setAiNote] = useState(null);      // { msg, bad }
   const [draftCredits, setDraftCredits] = useState(0);
   const [buyDraftOpen, setBuyDraftOpen] = useState(false);
-  // Drafting needs both: the title says what the role is, the location decides
-  // the salary range and the market the description is written for. Without a
-  // location the model guesses a country, which is the wrong thing to guess.
-  const draftReady = !!title.trim() && !!location.trim();
-  const draftMissing = !title.trim() && !location.trim()
-    ? "Fill in the job title and location first"
-    : !title.trim() ? "Fill in the job title first" : "Fill in the location first";
   // Re-read the balance whenever the buy sheet closes, so a purchase unlocks the
   // button without a page reload.
   const refreshDraftCredits = () => {
@@ -13172,6 +13165,14 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [title, setTitle] = useState(initialJob?.title || "");
   const [department, setDepartment] = useState(initialJob?.department || "");
   const [location, setLocation] = useState(initialJob?.location || "");
+
+  // Drafting needs both: the title says what the role is, the location decides
+  // the salary range and the market the description is written for. Without a
+  // location the model guesses a country, which is the wrong thing to guess.
+  const draftReady = !!title.trim() && !!location.trim();
+  const draftMissing = !title.trim() && !location.trim()
+    ? "Fill in the job title and location first"
+    : !title.trim() ? "Fill in the job title first" : "Fill in the location first";
   const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
   const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "onsite");
   const [openings, setOpenings] = useState(initialJob?.openings ?? 1); // how many people to hire
