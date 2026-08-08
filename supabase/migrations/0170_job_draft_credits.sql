@@ -109,9 +109,10 @@ end $$;
 grant execute on function public.get_job_draft_usage() to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Sold at USD 2.00 a draft: this one runs on Opus rather than the Haiku the
--- other AI features use, and it writes the whole posting.
+-- Sold at USD 0.50 a draft. Opus costs more per call than the Haiku the other
+-- features run on, so the margin here is thinner than on a 40-cent AI Rank
+-- credit, but it is still comfortably above cost.
 -- ---------------------------------------------------------------------------
 insert into public.credit_prices (kind, price_usd_cents, label)
-values ('job_draft', 200, 'AI job drafting')
+values ('job_draft', 50, 'AI job drafting')
 on conflict (kind) do nothing;

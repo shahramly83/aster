@@ -11908,7 +11908,7 @@ const CREDIT_KINDS = [
 // (0166) so the first paint before the fetch lands is not a lie, then replaced
 // by the live table below. buy-credits reads the same table server-side, which
 // is what keeps the quoted price and the charged price the same number.
-let CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4, job_draft: 2 };
+let CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4, job_draft: 0.5 };
 function setCreditPrices(rows) {
   for (const r of rows || []) {
     const k = String(r?.kind || "");
@@ -13098,6 +13098,16 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState(null);      // { msg, bad }
   const [draftCredits, setDraftCredits] = useState(0);
+  const [buyDraftOpen, setBuyDraftOpen] = useState(false);
+  // Re-read the balance whenever the buy sheet closes, so a purchase unlocks the
+  // button without a page reload.
+  const refreshDraftCredits = () => {
+    if (!hasSupabase) return;
+    supabase.rpc("get_job_draft_usage").then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) setDraftCredits(Number(row.purchased) || 0);
+    }).catch(() => { /* leave it locked */ });
+  };
   useEffect(() => {
     if (!hasSupabase) return;
     supabase.rpc("get_job_draft_usage").then(({ data }) => {
@@ -13108,7 +13118,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
 
   const draftWithAi = async () => {
     if (aiBusy || !title.trim()) return;
-    if (draftCredits <= 0) { onBuyDraftCredits?.(); return; }
+    if (draftCredits <= 0) { setBuyDraftOpen(true); return; }
     setAiBusy(true); setAiNote(null);
     const { data, error } = await supabase.functions.invoke("generate-job-draft", {
       body: { title: title.trim(), location: location || null },
@@ -13117,7 +13127,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
     if (error || data?.error) {
       let code = data?.error || "";
       try { const b = await error?.context?.json?.(); code = b?.error || code; } catch { /* not JSON */ }
-      if (code === "no_credits") { setDraftCredits(0); onBuyDraftCredits?.(); return; }
+      if (code === "no_credits") { setDraftCredits(0); setBuyDraftOpen(true); return; }
       setAiNote({ bad: true, msg: code === "generate_failed"
         ? "The draft didn't come back. No credit was used, try again."
         : "Couldn't draft that one. No credit was used." });
@@ -13283,6 +13293,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
         {aiNote && (
           <p className="text-[11px] mt-1.5" style={{ color: aiNote.bad ? "var(--danger, #B42318)" : "var(--ink-3)" }}>{aiNote.msg}</p>
         )}
+        {/* Opened from the locked button. Fixed position, so it sits over the job
+            modal rather than inside its scroll area. */}
+        <BuyCreditsModal open={buyDraftOpen} plan={plan} kind="job_draft"
+          onClose={() => { setBuyDraftOpen(false); refreshDraftCredits(); }} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
