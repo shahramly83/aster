@@ -13101,6 +13101,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [aiNote, setAiNote] = useState(null);      // { msg, bad }
   const [draftCredits, setDraftCredits] = useState(0);
   const [buyDraftOpen, setBuyDraftOpen] = useState(false);
+  const [draftTip, setDraftTip] = useState(false);
   // Re-read the balance whenever the buy sheet closes, so a purchase unlocks the
   // button without a page reload.
   const refreshDraftCredits = () => {
@@ -13290,33 +13291,57 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           {/* Gold, and locked until there are credits. This is the one paid-only
               feature in the product, so it should look unlike every blue button
               around it and say plainly that it is bought rather than included. */}
-          {/* The action and the purchase are two controls, not one. Folding them
-              together meant the button changed job depending on the balance, and
-              the count only appeared once you had some. Draft always says what a
-              draft costs and what is left; Buy is always there and never needs
-              the form filled in.
+          {/* Matches the credit meters elsewhere: gold is the one thing that is
+              bought rather than included, so only the Draft button wears it, and
+              Buy is the same brand pill it is on every other meter. Gold on gold
+              made two related controls fight each other.
 
-              One gold for both: the labels already say which is which, and two
-              fills made a pair of related controls look unrelated. */}
-          <div className="shrink-0 flex items-center gap-1.5">
+              The hint is the app's own popover, not a native title attribute:
+              the black OS tooltip belongs to no design and cannot be read by
+              anyone on a touch screen. */}
+          <div className="shrink-0 relative flex items-center gap-2"
+            onMouseEnter={() => setDraftTip(true)} onMouseLeave={() => setDraftTip(false)}>
+            {/* Says what it is before you read the price. This is the only paid
+                feature in the product and nothing else in the form is gold, so
+                the word does the explaining the colour cannot. */}
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full select-none"
+              style={{ background: "#FDF3DC", color: "#8A6410", border: "1px solid #EBD08C", letterSpacing: "0.08em" }}>
+              Premium
+            </span>
             <button type="button" onClick={draftWithAi}
+              onFocus={() => setDraftTip(true)} onBlur={() => setDraftTip(false)}
               disabled={aiBusy || !draftReady || draftCredits <= 0}
-              title={draftCredits <= 0
-                ? "No credits left. Buy some to draft with AI."
-                : draftReady
-                  ? `Writes the whole posting from the title. Uses 1 credit, ${draftCredits} left.`
-                  : draftMissing}
               className="adm-gold inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
               style={{ background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }}>
               <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
               {aiBusy ? "Drafting…" : <>Draft with AI <span className="opacity-45">·</span> <span className="tnum">{draftCredits}</span> credit{draftCredits === 1 ? "" : "s"}</>}
             </button>
             <button type="button" onClick={() => setBuyDraftOpen(true)}
-              title="Buy AI drafting credits. Opens checkout."
-              className="adm-gold inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[12px] font-bold transition-all"
-              style={{ background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }}>
+              className="shrink-0 text-[11px] font-bold rounded-full px-3 py-1.5 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">
               Buy
             </button>
+
+            {draftTip && (
+              <div className="absolute z-40 right-0 top-full mt-2 w-64 rounded-xl bg-white p-3.5 act-panel-in text-left" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+                <span className="absolute -top-1.5 right-6 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+                <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI job drafting</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                  {draftCredits <= 0
+                    ? "You have no drafts left. Buy credits to write a whole posting from its title and location."
+                    : !draftReady
+                      ? `${draftMissing}. The location decides the salary range and the market it is written for.`
+                      : "Writes the department, skills, salary range and description from the title and location. Fills only the fields you have not typed in."}
+                </p>
+                <div className="flex items-center justify-between text-xs mt-3 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                  <span style={{ color: "var(--ink-2)" }}>Drafts left</span>
+                  <span className="font-semibold tnum" style={{ color: draftCredits > 0 ? "var(--ink)" : "#B45309" }}>{draftCredits}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs mt-1.5">
+                  <span style={{ color: "var(--ink-2)" }}>Each draft</span>
+                  <span className="font-semibold tnum" style={{ color: "var(--ink)" }}>1 credit</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />

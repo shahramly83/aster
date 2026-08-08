@@ -61,10 +61,14 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   try {
-    const token = req.headers.get("Authorization") || "";
+    // Bare token, no "Bearer " prefix: charge() adds it. Passing the whole
+    // header produced "Bearer Bearer eyJ..." and every draft died on "JWT
+    // cryptographic operation failed" before it reached the model.
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: token } } },
+      { global: { headers: { Authorization: authHeader } } },
     );
     const { data: { user }, error: userErr } = await userClient.auth.getUser();
     if (userErr || !user) return json({ error: "unauthorized" }, 401);
