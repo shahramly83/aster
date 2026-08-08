@@ -30,11 +30,23 @@ const CORS = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
+// Pin the API version instead of inheriting the account default.
+//
+// Creating a promotion code came back "Received unknown parameter: coupon",
+// and every existing code read back with no coupon at all. Both are the same
+// fault: the account's default version has moved to a shape where a promotion
+// code's discount is not the `coupon` field we write and read. Unpinned, this
+// function's behaviour changes under it whenever Stripe rolls the default
+// forward, which is not something a billing integration should be exposed to.
+const STRIPE_VERSION = "2024-06-20";
+const SV = { "Stripe-Version": STRIPE_VERSION };
+
 async function stripe(path: string, secret: string, params?: Record<string, string>) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
     method: params ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${secret}`,
+      ...SV,
       ...(params ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
     },
     ...(params ? { body: new URLSearchParams(params).toString() } : {}),
@@ -72,7 +84,7 @@ Deno.serve(async (req) => {
       // Expanding the coupon avoids a second call per code just to learn what
       // the discount actually is, which is the first thing anyone wants to see.
       const res = await fetch("https://api.stripe.com/v1/promotion_codes?limit=100&expand[]=data.coupon", {
-        headers: { Authorization: `Bearer ${secret}` },
+        headers: { Authorization: `Bearer ${secret}`, ...SV },
       });
       const data = await res.json();
       if (!res.ok) return json({ error: "could not load promo codes", detail: data?.error?.message || null }, 502);
@@ -131,7 +143,7 @@ Deno.serve(async (req) => {
       // Refuse before creating a coupon, not after: a duplicate code would
       // otherwise leave an orphan coupon behind on every failed attempt.
       const existing = await fetch(`https://api.stripe.com/v1/promotion_codes?code=${encodeURIComponent(code)}&limit=1`, {
-        headers: { Authorization: `Bearer ${secret}` },
+        headers: { Authorization: `Bearer ${secret}`, ...SV },
       });
       const existingData = await existing.json();
       if (existing.ok && (existingData.data || []).length) {
