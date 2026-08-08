@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
         body: JSON.stringify({
-          model, max_tokens: 2000,
+          model, max_tokens: 4000,
           messages: [{ role: "user", content: `${PROMPT}
 
 Role title: ${title}
@@ -152,7 +152,16 @@ ${JSON.stringify(context)}` }],
     }
 
     const data = await resp.json();
-    const text = data?.content?.[0]?.text ?? "";
+    const blocks = Array.isArray(data?.content) ? data.content : [];
+    // NOT content[0].text. Opus can put a thinking block first, in which case
+    // block 0 has no .text at all and we were parsing an empty string while the
+    // actual posting sat in block 1. Take every text block and ignore the rest.
+    const text = blocks
+      .filter((b: { type?: string }) => b?.type === "text")
+      .map((b: { text?: string }) => b?.text || "")
+      .join(" ")
+      .trim();
+
     // The model is told to return only JSON, but a stray sentence either side
     // should cost the customer nothing: pull the object out rather than failing.
     const match = text.match(/\{[\s\S]*\}/);
@@ -160,8 +169,15 @@ ${JSON.stringify(context)}` }],
     try { draft = match ? JSON.parse(match[0]) : null; } catch { draft = null; }
     if (!draft || !draft.description) {
       await refund(paid.companyId, "job_draft", paid.source);
-      console.error("unparseable draft", text.slice(0, 400));
-      return json({ error: "generate_failed", detail: "the model replied but not with a usable posting" }, 502);
+      // Name the shape of what came back. "Not usable" on its own left the last
+      // round of this bug undiagnosable without function logs, which the CLI
+      // cannot read.
+      const shape = blocks.map((b: { type?: string }) => b?.type || "?").join("+") || "empty";
+      console.error("unparseable draft", data?.stop_reason, shape, text.slice(0, 600));
+      const why = data?.stop_reason === "max_tokens"
+        ? "the posting was cut off before it finished"
+        : `the reply was ${shape}, ${text.length} chars, stop=${data?.stop_reason ?? "?"}`;
+      return json({ error: "generate_failed", detail: why }, 502);
     }
 
     return json({ ok: true, draft, currency: context.currency });
