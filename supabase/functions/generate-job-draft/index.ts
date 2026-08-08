@@ -47,7 +47,7 @@ Return ONLY a JSON object, no prose around it, with exactly these keys:
   "location": string,
   "employment_type": "full_time" | "part_time" | "contract" | "internship",
   "work_mode": "onsite" | "hybrid" | "remote",
-  "seniority": one of ["junior","mid","senior","lead","principal"],
+  "seniority": one of ["intern","junior","mid","senior","lead","principal"],
   "key_skills": string[],  // 6 to 10. ONE skill each. See the key_skills rules below.
   "salary_min": number,    // whole units of the given currency, per month
   "salary_max": number,
@@ -74,6 +74,7 @@ BANNED WRITING. These read as machine-written and must not appear anywhere:
 
 OTHER RULES:
 - Use the exact lowercase token values given above for employment_type, work_mode and seniority. Not "Full-time", not "On-site".
+- If employment_type is "internship" then seniority is "intern", and the requirements must suit a student or fresh graduate: no "2 years of experience". The two fields have to agree.
 - Write for the country and city given. Salary must be a realistic MONTHLY range for that market and seniority, in the currency given, not a US figure converted.
 - key_skills are things a resume can be matched against: tools, languages, domains. Not "communication" or "team player".
 - ONE skill per item, 1 to 3 words. These are matched against a CV individually, so a combined item matches nobody. Never join two skills with "and", "&", "/" or a comma. Write "Microsoft Excel" and "Microsoft Outlook" as two items, not "Microsoft Excel and Outlook". Write "Purchase orders" and "Invoicing", not "Purchase orders and invoicing". No trailing words like "support", "coordination" or "correspondence" bolted onto a second skill.

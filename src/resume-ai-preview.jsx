@@ -10970,11 +10970,13 @@ function InterviewMonth({ interviews = [], onOpen }) {
         })}
       </div>
 
-      {/* Never let the month hide an interview that exists. */}
-      <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+      {/* Never let the month hide an interview that exists. The count for THIS
+          month is a pill in the card header now, so this line carries only what
+          the pill cannot: an empty month, and anything scheduled beyond it. */}
+      <p className="text-[11px] mt-3 empty:hidden empty:mt-0" style={{ color: "var(--ink-3)" }}>
         {byDay.size === 0
           ? (later > 0 ? `Nothing this month. ${later} scheduled later.` : "No interviews scheduled yet.")
-          : `${[...byDay.values()].reduce((s, l) => s + l.length, 0)} this month${later > 0 ? `, ${later} later` : ""}`}
+          : later > 0 ? `${later} more scheduled after this month.` : ""}
       </p>
     </div>
   );
@@ -10987,6 +10989,16 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
   // is in the past the interview has happened, so it's no longer upcoming.
   const upcomingInterviews = interviews.filter((iv) => iv.start && iv.start.getTime() > Date.now());
   const [showAllSources, setShowAllSources] = useState(false);
+  // AI job drafting has no monthly allowance on any plan (0170), so its row in
+  // Plan usage reads a purchased balance rather than used-against-limit.
+  const [jobDraft, setJobDraft] = useState({ used: 0, balance: 0 });
+  useEffect(() => {
+    if (!hasSupabase) return;
+    supabase.rpc("get_job_draft_usage").then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) setJobDraft({ used: Number(row.used) || 0, balance: Number(row.purchased) || 0 });
+    }).catch(() => { /* row just shows zero */ });
+  }, []);
 
   const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
   // Hired candidates (a completed hire, the headline win). Global per candidate.
@@ -11361,7 +11373,10 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
               // Total candidates gets the track and no fill: it is the total.
               const STAT_TONE = {
                 win:  { bg: "#E9F9F0", pill: "#0F7B44", bar: "#16A34A", pillBg: "#FFFFFF" },
-                pool: { bg: "#E9EFFC", pill: "#1E40AF", bar: "var(--brand)", pillBg: "#FFFFFF" },
+                // Light blue, the same family as #93C5FD in the donut ramp, not
+                // the periwinkle it was: beside the green and violet cards a
+                // blue-violet read as a second violet rather than its own tone.
+                pool: { bg: "#DBEAFE", pill: "#1E40AF", bar: "var(--brand)", pillBg: "#FFFFFF" },
                 open: { bg: "#EDE9FB", pill: "#5B21B6", bar: "#7C3AED", pillBg: "#FFFFFF" },
               };
               const statCard = (k) => {
@@ -11543,7 +11558,22 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     </div>
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead(
-                        `Interviews · ${new Date().toLocaleString("en-US", { month: "long" })}`,
+                        <>
+                          {`Interviews · ${new Date().toLocaleString("en-US", { month: "long" })}`}
+                          {(() => {
+                            const now = new Date();
+                            const n = shownInterviews.filter((iv) => iv?.start
+                              && iv.start.getFullYear() === now.getFullYear()
+                              && iv.start.getMonth() === now.getMonth()).length;
+                            if (!n) return null;
+                            return (
+                              <span className="ml-2 align-middle text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                                {n} this month
+                              </span>
+                            );
+                          })()}
+                        </>,
                         shownInterviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
                       )}
                       {/* The month, with the booked days marked. Hovering or
@@ -11631,14 +11661,19 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth, tint: "#54DDA0" },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth, tint: "#F782B8" },
                     { label: "AI Questions credits", used: questionsUsed, limit: L.interviewQuestionsPerMonth, tint: "#63C9F5" },
+                    // Gold, and measured differently: this pool is bought, not
+                    // granted, so there is no limit to be used against. The bar
+                    // shows what is LEFT of what they have, and the gold ties it
+                    // to the Premium mark on the Draft with AI button.
+                    { label: "AI job drafting", credits: true, used: jobDraft.used, balance: jobDraft.balance, tint: "#EDC24C" },
                   ];
-                  const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
+                  const anyReached = items.some((it) => !it.credits && it.limit !== Infinity && it.used >= it.limit);
                   return (
                     <>
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="AI used this cycle. Resets every 30 days from your plan start." />
+                          <InfoHint dir="up" hint="AI used this cycle. Resets every 30 days from your plan start. Job drafting is bought as credits, so it never resets." />
                         </div>
                         {isOwner(profile?.role) && (
                           <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
@@ -11646,14 +11681,20 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                       </div>
                       <div className="space-y-3.5">
                         {items.map((it) => {
-                          const unlimited = it.limit === Infinity;
-                          const pct = unlimited ? 18 : Math.min((it.used / it.limit) * 100, 100);
-                          const reached = !unlimited && it.used >= it.limit;
+                          const unlimited = !it.credits && it.limit === Infinity;
+                          const total = it.credits ? it.used + it.balance : 0;
+                          // Bought credits fill by what REMAINS, because that is
+                          // the number the customer acts on. The plan rows fill
+                          // by what is spent, because that is what runs out.
+                          const pct = it.credits
+                            ? (total ? Math.min((it.balance / total) * 100, 100) : 0)
+                            : unlimited ? 18 : Math.min((it.used / it.limit) * 100, 100);
+                          const reached = it.credits ? it.balance <= 0 : (!unlimited && it.used >= it.limit);
                           return (
                             <div key={it.label}>
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-xs" style={{ color: "var(--ink-2)" }}>{it.label}</span>
-                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#B45309" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${Math.min(it.used, it.limit)} / ${it.limit}`}</span>
+                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#B45309" : "var(--ink)" }}>{it.credits ? `${it.balance} left` : unlimited ? `${it.used} · Unlimited` : `${Math.min(it.used, it.limit)} / ${it.limit}`}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
                                 {/* An untouched pool keeps a 2% nub of its own
@@ -11661,7 +11702,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                                     zero and the five read as a set. The number
                                     beside it says 0, so the nub cannot be
                                     mistaken for usage. */}
-                                <div className="h-full rounded-full bar-grow-x" style={{ width: `${it.used > 0 || unlimited ? Math.max(pct, 4) : 2}%`, background: reached ? "#F0A032" : it.tint }} />
+                                <div className="h-full rounded-full bar-grow-x" style={{ width: `${it.credits ? (it.balance > 0 ? Math.max(pct, 4) : 2) : (it.used > 0 || unlimited ? Math.max(pct, 4) : 2)}%`, background: reached ? "#F0A032" : it.tint }} />
                               </div>
                             </div>
                           );
@@ -13230,7 +13271,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
   const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "onsite");
   const [openings, setOpenings] = useState(initialJob?.openings ?? 1); // how many people to hire
-  const SENIORITY_OPTIONS = ["junior", "mid", "senior", "lead", "principal"];
+  // Intern belongs here because Employment type already offers "internship":
+  // without it an internship had to be filed as Junior, which is a different
+  // job, ranks CVs against the wrong bar and reads wrong on the public posting.
+  const SENIORITY_OPTIONS = ["intern", "junior", "mid", "senior", "lead", "principal"];
   const [seniorityLevels, setSeniorityLevels] = useState(initialJob?.seniority_levels || (initialJob?.seniority_level ? [initialJob.seniority_level] : ["mid"]));
   const [skills, setSkills] = useState(initialJob?.skills || []);
   const [skillInput, setSkillInput] = useState("");
