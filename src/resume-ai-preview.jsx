@@ -20405,6 +20405,18 @@ function makeMeetingRoom(candidateId) {
   return `https://meet.jit.si/Aster-${tag}-${rand}`;
 }
 
+// Is this link a room Aster made, rather than a Meet/Zoom/Teams URL someone
+// pasted? Both shapes count: the Daily room the edge function returns, and the
+// jit.si fallback above when that call fails.
+//
+// Creating a second room silently replaces the first, and if the first was
+// already sent, the candidate is left holding a link to a room nobody will be
+// in. So the button turns off once a room exists rather than quietly reissuing.
+function isAsterRoom(url) {
+  const u = String(url || "").trim();
+  return /^https?:\/\/([a-z0-9-]+\.)?daily\.co\//i.test(u) || /^https?:\/\/meet\.jit\.si\/Aster-/i.test(u);
+}
+
 // The first thing the interview step has to establish, and the one thing it never
 // asked. It used to open on two empty cards: a "Panel availability" poll with no
 // panel, and a "No interview requested yet" notice whose only action was called
@@ -20487,6 +20499,9 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
     setLinkShared(false); setGenning(false);
   };
   const validLink = /^https?:\/\/\S+$/i.test(linkInput.trim());
+  // Clearing the field re-enables the button, which is the escape hatch for
+  // genuinely wanting a fresh room.
+  const hasAsterRoom = isAsterRoom(linkInput);
   const shareMeetingLink = async () => {
     const link = linkInput.trim();
     if (!validLink) { setShareErr("Enter a full https:// meeting link (e.g. https://meet.google.com/…)."); return; }
@@ -20724,11 +20739,12 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           <button
             type="button"
             onClick={generateRoom}
-            disabled={genning}
-            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all hover:-translate-y-px hover:bg-[color:var(--brand-soft)] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={genning || hasAsterRoom}
+            title={hasAsterRoom ? "A video room already exists for this interview. Clear the link below to create a new one." : undefined}
+            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all hover:-translate-y-px hover:bg-[color:var(--brand-soft)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-transparent"
             style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}
           >
-            <Icon name="link" className="w-3.5 h-3.5" /> {genning ? "Creating…" : "Create a video room"}
+            <Icon name="link" className="w-3.5 h-3.5" /> {genning ? "Creating…" : hasAsterRoom ? "Video room created" : "Create a video room"}
           </button>
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
@@ -30032,10 +30048,25 @@ export default function ResumeAIPreview() {
   const [interviewQuestions, setInterviewQuestions] = useState({}); // { "candidateId:jobId": [questions] }
   // HR generates the AI interview questions once; stored + shared with the pool.
   const generateInterviewQuestions = async (candidateId, jobId, questions) => {
-    if (!candidateId || !jobId) return;
+    if (!candidateId || !jobId) return "Missing candidate or role.";
     const key = `${candidateId}:${jobId}`;
-    setInterviewQuestions((prev) => (prev[key] ? prev : { ...prev, [key]: questions }));
-    if (canPersist) await dbSaveInterviewQuestions(companyId, userId, { candidateId, jobId, questions });
+    const next = Array.isArray(questions) ? questions.filter(Boolean) : [];
+    // The guard here used to be `prev[key] ? prev : …`, and an empty array is
+    // truthy. So once a set had been stored empty — a generation that returned
+    // nothing, or a save that failed after the row was created — every later
+    // generation was discarded on this line while still spending a credit, and
+    // the card went on offering to generate forever. Only an existing NON-empty
+    // set counts as already generated.
+    setInterviewQuestions((prev) => (prev[key]?.length ? prev : { ...prev, [key]: next }));
+    // Storing an empty set is what creates that trap in the first place.
+    if (!next.length) return "The model returned no questions. Nothing was saved, and no credit is spent on an empty set.";
+    if (!canPersist) return null;
+    const err = await dbSaveInterviewQuestions(companyId, userId, { candidateId, jobId, questions: next });
+    // Returned rather than swallowed: a set that generated fine but failed to
+    // save looks identical to one that was never generated, and the credit is
+    // gone either way.
+    if (err) console.error("interview questions not saved:", err);
+    return err;
   };
   const [scheduleRequests, setScheduleRequests] = useState([]); // [{ application_id, requested_by }] — open interview requests
   // Offer status per candidate: 'sent' | 'accepted' | 'declined'. Sending moves
@@ -32224,7 +32255,7 @@ export default function ResumeAIPreview() {
             cycleResetsAt={aiRankResetsAt}
             scheduleRequests={scheduleRequests}
             onRequestScheduling={requestScheduling}
-            savedQuestions={activeCandidate && viewCandidateJobId ? (interviewQuestions[`${activeCandidate.id}:${viewCandidateJobId}`] || null) : null}
+            savedQuestions={activeCandidate && viewCandidateJobId ? (interviewQuestions[`${activeCandidate.id}:${viewCandidateJobId}`]?.length ? interviewQuestions[`${activeCandidate.id}:${viewCandidateJobId}`] : null) : null}
             onGenerateQuestions={(qs) => activeCandidate && viewCandidateJobId && generateInterviewQuestions(activeCandidate.id, viewCandidateJobId, qs)}
             avatarUrl={avatarUrl}
             activities={activities}
