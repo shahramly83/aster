@@ -9191,6 +9191,13 @@ const isInterviewer = (role) => String(role || "").toLowerCase() === "interviewe
 // Guided setup tours are for the owner only; invited teammates join an already
 // set-up workspace, so the first-run walkthrough would just confuse them.
 const isOwner = (role) => String(role || "").toLowerCase() === "tenant";
+// The owner or a workspace admin ("Hiring Manager" in ROLE_LABELS). Mirrors the
+// server-side check on set_company_feed: deciding what the company publishes
+// about itself externally is not a recruiter's call.
+const isOwnerOrAdmin = (role) => {
+  const r = String(role || "").toLowerCase();
+  return r === "tenant" || r === "hiring manager";
+};
 const INTERVIEWER_ALLOWED = new Set(["interviews", "openRoles", "applicants", "candidateProfile", "profile"]);
 const INTERVIEWER_NAV = [
   { key: "openRoles", label: "Open Positions", icon: "briefcase" },
@@ -13232,8 +13239,17 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       .map((x) => pick(x, SENIORITY_OPTIONS)).filter(Boolean);
     if (sen.length) setSeniorityLevels(sen);
     if (Array.isArray(d.key_skills) && d.key_skills.length && !skills.length) setSkills(d.key_skills.map(String).slice(0, 12));
-    if (d.salary_min && !salaryMin) setSalaryMin(String(Math.round(Number(d.salary_min))));
-    if (d.salary_max && !salaryMax) setSalaryMax(String(Math.round(Number(d.salary_max))));
+    // The model is told to price in the workspace's billing currency, but this
+    // select defaults to MYR regardless. Without this, a workspace billing in
+    // USD got USD figures written into a field labelled RM: a public posting
+    // advertising the wrong salary by roughly 4x, with nothing on screen to
+    // show it had happened.
+    const wroteMin = d.salary_min && !salaryMin;
+    const wroteMax = d.salary_max && !salaryMax;
+    if (wroteMin) setSalaryMin(String(Math.round(Number(d.salary_min))));
+    if (wroteMax) setSalaryMax(String(Math.round(Number(d.salary_max))));
+    const draftCur = String(data.currency || "").toUpperCase();
+    if ((wroteMin || wroteMax) && SALARY_CURRENCIES.some((c) => c.code === draftCur)) setSalaryCurrency(draftCur);
     if (d.description && !description) setDescription(String(d.description));
     // The three list fields were never in the prompt, so they came back empty
     // every time and had to be written by hand, which is most of the typing the
@@ -23029,7 +23045,7 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
 }
 
 // Branded on/off switch used by the Profile notification preferences.
-function Toggle({ on, onChange, label, desc }) {
+function Toggle({ on, onChange, label, desc, disabled = false }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2.5">
       <div className="min-w-0">
@@ -23041,8 +23057,9 @@ function Toggle({ on, onChange, label, desc }) {
         role="switch"
         aria-checked={on}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!on)}
-        className="shrink-0 w-11 h-6 rounded-full relative transition-colors"
+        className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${disabled ? "opacity-50 cursor-default" : ""}`}
         style={{ background: on ? "var(--brand)" : "var(--line-strong)" }}
       >
         <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform" style={{ transform: on ? "translateX(20px)" : "none", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
@@ -24250,6 +24267,20 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   const [dCurrency, setDCurrency] = useState(preferredCurrency);
   useEffect(() => { setDCurrency(preferredCurrency); }, [preferredCurrency]);
 
+  // External job-site advertising (0172). Drafts through the same Save bar as
+  // everything else, so turning it on is a deliberate save rather than a switch
+  // that publishes the workspace's roles the instant it is brushed.
+  // undefined = still loading, which disables the switch rather than showing a
+  // confident "off" that might be wrong.
+  const [feedBase, setFeedBase] = useState(undefined);
+  const [dFeed, setDFeed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    dbGetCompanyFeed(companyId).then((on) => { if (alive) { setFeedBase(on); setDFeed(on); } });
+    return () => { alive = false; };
+  }, [companyId]);
+  const feedDirty = feedBase !== undefined && dFeed !== feedBase;
+
   // Offer signature also drafts here so the global Save bar owns it (no per-card
   // Save button). sigBase = persisted baseline; dSig = live editor draft.
   const [sigBase, setSigBase] = useState(undefined);   // undefined = loading
@@ -24284,7 +24315,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   }, []);
   const sigDirty = sigBase !== undefined && (dSig !== sigBase || (dSigTitle.trim() || null) !== sigTitleBase || dSigName.trim() !== sigNameBase.trim());
 
-  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty || tplDirty;
+  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty || tplDirty || feedDirty;
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setConnectErr(null);
@@ -24303,11 +24334,16 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         const sErr = await dbSaveMyOfferSignatory(dSig, dSigName.trim() || null, dSigTitle.trim() || null);
         if (sErr) { setSaving(false); setConnectErr(sErr); return; }
       }
+      if (feedDirty) {
+        const fRes = await dbSetCompanyFeed(dFeed);
+        if (!fRes?.ok) { setSaving(false); setConnectErr(fRes?.error || "Couldn't save the job-site setting."); return; }
+      }
     }
     if (dCurrency !== preferredCurrency) setPreferredCurrency(dCurrency);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
     setSigBase(dSig);
     setTplBase(tplValue());
+    setFeedBase(dFeed);
     setSigNameBase(dSigName.trim());
     setSigTitleBase(dSigTitle.trim() || null);
     setSaving(false);
@@ -24319,6 +24355,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
     setDCurrency(preferredCurrency);
     setDSig(sigBase);
     setDTpl(tplBase || OFFER_LETTER_DEFAULT);
+    if (feedBase !== undefined) setDFeed(feedBase);
     setDSigName(sigNameBase || "");
     setDSigTitle(sigTitleBase || "");
     setSigReset((n) => n + 1);
@@ -24359,6 +24396,28 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           >
             <WhatsAppBusinessCard bare plan={plan} navigate={navigate} canManage={!isInterviewer(profile?.role)} />
           </SettingsSection>
+
+          {isOwnerOrAdmin(profile?.role) && (
+            <SettingsSection icon="briefcase" title="Job sites" desc="Advertise your open roles on external job sites, at no extra cost">
+              <div>
+                <Toggle
+                  on={!!dFeed}
+                  disabled={feedBase === undefined || !canPersist}
+                  onChange={(v) => { setDFeed(v); setSavedMsg(null); }}
+                  label="Advertise on job sites"
+                  desc="Your open roles appear on Adzuna, Jooble and Careerjet. Applicants land straight in your pipeline, tagged by the site they came from."
+                />
+                {/* Spelled out at the switch, not buried in terms. This is the
+                    point where a company consents to its salary ranges and
+                    hiring plans appearing on public sites, and someone who only
+                    realises that afterwards is right to be annoyed. */}
+                <div className="mt-3 pt-3 border-t text-xs leading-relaxed" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+                  <p>What gets published: job title, location, salary range, description and your company name. Nothing about your applicants is ever shared.</p>
+                  <p className="mt-1.5">Roles usually appear within a day. Closing a role in Aster removes it automatically, and turning this off removes everything at the next update.</p>
+                </div>
+              </div>
+            </SettingsSection>
+          )}
 
           {isOwner(profile?.role) && (
             <SettingsSection icon="card" title="Billing currency" desc="The currency your subscription and credit purchases are billed in">
