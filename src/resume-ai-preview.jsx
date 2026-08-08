@@ -13380,13 +13380,41 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
     onClose();
   };
 
+  // A labelled hairline between groups. Four landmarks turn one 11-field wall
+  // into four short forms, which is the actual fix for "cramped": the problem
+  // was never the gaps, it was that nothing told you where you were.
+  const section = (title) => (
+    <div className="flex items-center gap-3 pt-1">
+      <h3 className="text-[10px] font-bold uppercase shrink-0" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>{title}</h3>
+      <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+    </div>
+  );
+
   return (
     // space-y-6, not 4: at 16px the gap between two separate fields was barely
     // wider than the 6px between a label and its own input, so nothing read as a
     // boundary and fields further down got skipped.
-    <div className="space-y-6">
+    //
+    // max-w-2xl because the sheet is half of whatever the monitor is: on a wide
+    // screen "Openings" was a 430px box holding the number 1, and the labels sat
+    // so far from their inputs that the pairing broke.
+    <div className="space-y-6 mx-auto w-full max-w-2xl">
       <div>
-        <div className="flex items-center justify-end gap-2 mb-2.5">
+        {/* White panel, not a gold tint. Measured every light fill against the
+            pale gold button and none separated from it (1.03 to 1.09), because
+            the button IS a pale tint. The panel takes its shape from the border
+            and the gold rail instead, which leaves the button reading exactly as
+            it does on the white form. */}
+        <div className="rounded-2xl p-3.5 pl-4 mb-5 flex flex-wrap items-center gap-3 relative overflow-hidden"
+          style={{ background: "#FFFFFF", border: "1px solid var(--line)" }}>
+          {/* Gold rail rather than a gold fill: the Draft button is already the
+              pale gold of the Premium pill, so a gold panel behind it would have
+              swallowed the one control that has to stand out. */}
+          <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-1" style={{ background: "#EDC24C" }} />
+          <div className="min-w-0 flex-1 pl-1">
+            <p className="text-[12.5px] font-semibold" style={{ color: "var(--ink)" }}>Write this posting with AI</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>Fills the fields below from the job title and location.</p>
+          </div>
           {/* Gold, and locked until there are credits. This is the one paid-only
               feature in the product, so it should look unlike every blue button
               around it and say plainly that it is bought rather than included. */}
@@ -13479,6 +13507,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
         <BuyCreditsModal open={buyDraftOpen} plan={plan} kind="job_draft"
           onClose={() => { setBuyDraftOpen(false); refreshDraftCredits(); }} />
       </div>
+      {section("The role")}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
         <div>
           <label htmlFor="njf-department" className={labelClass}>Department</label>
@@ -13523,6 +13552,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           })}
         </div>
       </div>
+      {section("Skills and pay")}
       <div>
         <label className={labelClass}>Key skills <span className="text-neutral-400 font-normal">(Aster ranks applicants against these. Press Enter to add.)</span></label>
         <div className="rounded-xl bg-neutral-100 border border-neutral-200 px-2 py-1.5 flex flex-wrap gap-1.5 items-center">
@@ -13556,6 +13586,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           <input id="njf-salaryMax" type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
         </div>
       </div>
+      {section("The posting")}
       <div>
         <label htmlFor="njf-description" className={labelClass}>Description</label>
         <textarea id="njf-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short summary of the role and team context…" className={inputClass} />
@@ -13572,6 +13603,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
         <label htmlFor="njf-benefits" className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
         <textarea id="njf-benefits" rows={3} value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder={"Health insurance\nFlexible hours\nLearning budget"} className={inputClass} />
       </div>
+      {section("Publishing")}
       <div>
         <label className={labelClass}>Closing date <span className="text-neutral-400 font-normal">(optional)</span></label>
         <div className="relative" ref={dateMenuRef}>
