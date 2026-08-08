@@ -13177,19 +13177,43 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
     // location or a salary deliberately before pressing this.
     if (d.department && !department) setDepartment(String(d.department));
     if (d.location && !location) setLocation(String(d.location));
-    if (d.employment_type) setEmploymentType(String(d.employment_type));
-    if (d.work_mode) setRemoteType(String(d.work_mode));
-    if (Array.isArray(d.seniority) ? d.seniority.length : d.seniority) {
-      setSeniorityLevels(Array.isArray(d.seniority) ? d.seniority : [String(d.seniority)]);
-    }
+    // The prompt asks for the app's own tokens, but a model is not a contract:
+    // one stray "Full-time" would set a select to a value no option has, and the
+    // job would save with employment_type "Full-time" and never match a filter.
+    // Normalise here so the form can only ever hold something real.
+    const token = (v) => String(v || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const pick = (v, allowed) => { const t = token(v); return allowed.includes(t) ? t : null; };
+    const et = pick(d.employment_type, ["full_time", "part_time", "contract", "internship"]);
+    if (et) setEmploymentType(et);
+    const wm = pick(d.work_mode, ["onsite", "hybrid", "remote"]);
+    if (wm) setRemoteType(wm);
+    const sen = (Array.isArray(d.seniority) ? d.seniority : [d.seniority])
+      .map((x) => pick(x, SENIORITY_OPTIONS)).filter(Boolean);
+    if (sen.length) setSeniorityLevels(sen);
     if (Array.isArray(d.key_skills) && d.key_skills.length && !skills.length) setSkills(d.key_skills.map(String).slice(0, 12));
     if (d.salary_min && !salaryMin) setSalaryMin(String(Math.round(Number(d.salary_min))));
     if (d.salary_max && !salaryMax) setSalaryMax(String(Math.round(Number(d.salary_max))));
     if (d.description && !description) setDescription(String(d.description));
+    // The three list fields were never in the prompt, so they came back empty
+    // every time and had to be written by hand, which is most of the typing the
+    // feature was meant to remove. One line each, matching the textareas.
+    const lines = (v) => (Array.isArray(v) ? v : []).map((x) => String(x).trim()).filter(Boolean).join("\n");
+    const resp = lines(d.responsibilities);
+    if (resp && !responsibilities.trim()) setResponsibilities(resp);
+    const reqs = lines(d.requirements);
+    if (reqs && !requirements.trim()) setRequirements(reqs);
+    const bens = lines(d.benefits);
+    if (bens && !benefits.trim()) setBenefits(bens);
     setDraftCredits((n) => Math.max(0, n - 1));
-    setAiNote({ bad: false, msg: d.salary_note
-      ? `Drafted. Salary is an estimate: ${String(d.salary_note)}. Check every field before publishing.`
-      : "Drafted. Check every field, especially salary, before publishing." });
+    // The reading it chose used to be the first sentence of the description,
+    // which is the model explaining itself inside the customer's public copy.
+    // It belongs here, next to the person who can correct it.
+    const assumed = String(data.assumption || d.assumption || "").trim();
+    setAiNote({ bad: false, msg: [
+      assumed ? `Drafted, assuming: ${assumed}` : "Drafted.",
+      d.salary_note ? `Salary is an estimate: ${String(d.salary_note)}.` : "",
+      "Check the salary and what you offer before publishing, both are promises.",
+    ].filter(Boolean).join(" ") });
   };
 
   const [title, setTitle] = useState(initialJob?.title || "");

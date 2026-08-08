@@ -45,22 +45,39 @@ Return ONLY a JSON object, no prose around it, with exactly these keys:
 {
   "department": string,
   "location": string,
-  "employment_type": "Full-time" | "Part-time" | "Contract" | "Internship" | "Temporary",
-  "work_mode": "On-site" | "Hybrid" | "Remote",
-  "seniority": one of ["Junior","Mid","Senior","Lead","Principal"],
-  "key_skills": string[]  // 6 to 10, the specific things you would rank a CV against
-  "salary_min": number,   // whole units of the given currency, per month
+  "employment_type": "full_time" | "part_time" | "contract" | "internship",
+  "work_mode": "onsite" | "hybrid" | "remote",
+  "seniority": one of ["junior","mid","senior","lead","principal"],
+  "key_skills": string[],  // 6 to 10, the specific things you would rank a CV against
+  "salary_min": number,    // whole units of the given currency, per month
   "salary_max": number,
-  "salary_note": string,  // one short line saying what the range is based on
-  "description": string   // markdown: what the role is, what they will do, what is required, what is nice to have
+  "salary_note": string,   // one short line saying what the range is based on
+  "description": string,   // see the description rules below. THIS IS THE FIELD MOST OFTEN GOT WRONG.
+  "responsibilities": string[],  // 4 to 6, one short line each, what this person actually does day to day
+  "requirements": string[],      // 4 to 6, one short line each, what a candidate must have to be considered
+  "benefits": string[],          // 3 to 5, one short line each. See the benefits rule below.
+  "assumption": string           // "" unless the title was ambiguous. If it was, ONE short line naming the reading you chose. This is shown to the hiring manager on its own, so it must NOT appear in the description.
 }
 
-Rules:
+DESCRIPTION RULES. This field sits above separate fields for responsibilities, requirements and benefits, so anything that belongs in those is duplication:
+- Plain prose. Two short paragraphs, 60 to 110 words in total.
+- NO markdown. No "##" headings, no "**bold**", no bullet points, no dashes starting a line. Headings and bullets in this field are the single most common failure.
+- Do NOT list what the person will do, what is required, or what is nice to have. Those are three other fields.
+- Do NOT explain your own reasoning, your interpretation of the title, or what the posting is for. Never begin with "This posting is", "This role is for", "This description covers". Put any interpretation in "assumption" instead.
+- Say what the team does, what the person joining will own, and why the job matters. Address the candidate as "you". Write as the company, using "we".
+- Do not end with process notes like "Applications are reviewed on a rolling basis".
+
+BANNED WRITING. These read as machine-written and must not appear anywhere:
+- Em dashes. Use a comma, a colon, a full stop or brackets. This is a hard rule.
+- "rockstar", "ninja", "guru", "wear many hats", "hit the ground running", "fast-paced environment", "dynamic team", "we are seeking a", "the ideal candidate will", "passionate about", "synergy", "leverage" as a verb.
+- Emoji.
+
+OTHER RULES:
+- Use the exact lowercase token values given above for employment_type, work_mode and seniority. Not "Full-time", not "On-site".
 - Write for the country and city given. Salary must be a realistic MONTHLY range for that market and seniority, in the currency given, not a US figure converted.
-- If the title is vague, choose the most common reading and say so in the first line of the description.
 - key_skills are things a resume can be matched against: tools, languages, domains. Not "communication" or "team player".
-- description is 150 to 300 words. No emoji. No "rockstar", "ninja", "wear many hats".
-- Never invent a company benefit, an office perk, or a legal entitlement you were not given.`;
+- responsibilities and requirements are safe to infer from the role: they describe the job being advertised.
+- benefits are DIFFERENT and need care, because a posting is a public promise the company has to keep. Write only what is statutory or near-universal for the stated country (in Malaysia: EPF and SOCSO contributions, annual leave, medical coverage). Never invent an office perk, a bonus, a stock grant, a gym, free food, or a number of remote days. If you cannot name something safe for that market, return fewer items or an empty list.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -180,7 +197,16 @@ ${JSON.stringify(context)}` }],
       return json({ error: "generate_failed", detail: why }, 502);
     }
 
-    return json({ ok: true, draft, currency: context.currency });
+    if (typeof draft.description === "string") {
+      draft.description = draft.description
+        .replace(/^#{1,6}\s*/gm, "")        // "## About the role" -> "About the role"
+        .replace(/^\s*[-*+]\s+/gm, "")      // stray bullet lines
+        .replace(/\*\*(.+?)\*\*/g, "$1")    // bold
+        .replace(/\u2014/g, ", ")           // em dash, banned in Aster copy
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+    return json({ ok: true, draft, currency: context.currency, assumption: draft.assumption || "" });
   } catch (e) {
     console.error("generate-job-draft", e);
     return json({ error: "generate_failed" }, 500);
