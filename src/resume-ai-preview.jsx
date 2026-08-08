@@ -13342,8 +13342,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
     // boundary and fields further down got skipped.
     <div className="space-y-6">
       <div>
-        <div className="flex items-end justify-between gap-3 mb-2.5">
-          <label htmlFor="njf-title" className={labelClass} style={{ marginBottom: 0 }}>Title</label>
+        <div className="flex items-center justify-end gap-2 mb-2.5">
           {/* Gold, and locked until there are credits. This is the one paid-only
               feature in the product, so it should look unlike every blue button
               around it and say plainly that it is bought rather than included. */}
@@ -13400,7 +13399,19 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             )}
           </div>
         </div>
-        <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
+        {/* Side by side because they are one decision, not two: drafting needs
+            both, and together they fix the salary market the posting is written
+            for. A row apart made that dependency invisible. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
+          <div>
+            <label htmlFor="njf-title" className={labelClass}>Job title</label>
+            <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
+          </div>
+          <div>
+            <label htmlFor="njf-location" className={labelClass}>Location</label>
+            <input id="njf-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
+          </div>
+        </div>
         {/* Says what it is and what it costs, before anyone clicks. This is the
             only paid-only feature in the product, so leaving people to infer
             that from a padlock is not good enough. */}
@@ -13430,8 +13441,8 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           <input id="njf-department" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
         </div>
         <div>
-          <label htmlFor="njf-location" className={labelClass}>Location</label>
-          <input id="njf-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
+          <label htmlFor="njf-openings" className={labelClass}>Openings <span className="text-neutral-400 font-normal">(how many to hire)</span></label>
+          <input id="njf-openings" type="number" min={1} value={openings} onChange={(e) => setOpenings(e.target.value)} className={inputClass} />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
@@ -13451,10 +13462,6 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             <option value="hybrid">Hybrid</option>
             <option value="remote">Remote</option>
           </select>
-        </div>
-        <div>
-          <label htmlFor="njf-openings" className={labelClass}>Openings <span className="text-neutral-400 font-normal">(how many to hire)</span></label>
-          <input id="njf-openings" type="number" min={1} value={openings} onChange={(e) => setOpenings(e.target.value)} className={inputClass} />
         </div>
       </div>
       <div>

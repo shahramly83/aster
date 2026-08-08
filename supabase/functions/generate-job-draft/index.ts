@@ -48,7 +48,7 @@ Return ONLY a JSON object, no prose around it, with exactly these keys:
   "employment_type": "full_time" | "part_time" | "contract" | "internship",
   "work_mode": "onsite" | "hybrid" | "remote",
   "seniority": one of ["junior","mid","senior","lead","principal"],
-  "key_skills": string[],  // 6 to 10, the specific things you would rank a CV against
+  "key_skills": string[],  // 6 to 10. ONE skill each. See the key_skills rules below.
   "salary_min": number,    // whole units of the given currency, per month
   "salary_max": number,
   "salary_note": string,   // one short line saying what the range is based on
@@ -76,6 +76,7 @@ OTHER RULES:
 - Use the exact lowercase token values given above for employment_type, work_mode and seniority. Not "Full-time", not "On-site".
 - Write for the country and city given. Salary must be a realistic MONTHLY range for that market and seniority, in the currency given, not a US figure converted.
 - key_skills are things a resume can be matched against: tools, languages, domains. Not "communication" or "team player".
+- ONE skill per item, 1 to 3 words. These are matched against a CV individually, so a combined item matches nobody. Never join two skills with "and", "&", "/" or a comma. Write "Microsoft Excel" and "Microsoft Outlook" as two items, not "Microsoft Excel and Outlook". Write "Purchase orders" and "Invoicing", not "Purchase orders and invoicing". No trailing words like "support", "coordination" or "correspondence" bolted onto a second skill.
 - responsibilities and requirements are safe to infer from the role: they describe the job being advertised.
 - benefits are DIFFERENT and need care, because a posting is a public promise the company has to keep. Write only what is statutory or near-universal for the stated country (in Malaysia: EPF and SOCSO contributions, annual leave, medical coverage). Never invent an office perk, a bonus, a stock grant, a gym, free food, or a number of remote days. If you cannot name something safe for that market, return fewer items or an empty list.`;
 
@@ -195,6 +196,39 @@ ${JSON.stringify(context)}` }],
         ? "the posting was cut off before it finished"
         : `the reply was ${shape}, ${text.length} chars, stop=${data?.stop_reason ?? "?"}`;
       return json({ error: "generate_failed", detail: why }, 502);
+    }
+
+    if (Array.isArray(draft.key_skills)) {
+      // Each pill is matched against a CV on its own, so "Microsoft Word and
+      // Outlook" matches a resume that lists both separately: nobody. The prompt
+      // forbids compounds; this is the net for when it does it anyway.
+      const out: string[] = [];
+      const seen = new Set<string>();
+      for (const raw of draft.key_skills) {
+        const str = String(raw || "").trim();
+        // Symbols are always separators. " and " is not: it often binds a shared
+        // head noun, where "Vendor and supplier coordination" means vendor
+        // coordination AND supplier coordination, so "Vendor" alone is not a
+        // skill. Splitting only when the left side is already two or more words
+        // keeps those whole and still splits "Microsoft Word and Outlook".
+        let pieces = str.split(/\s*[&/,]\s*/).map((x) => x.trim()).filter(Boolean);
+        pieces = pieces.flatMap((part) => {
+          const halves = part.split(/\s+and\s+/i).map((x) => x.trim()).filter(Boolean);
+          if (halves.length !== 2) return [part];
+          const leftWords = halves[0].split(/\s+/).length;
+          return leftWords >= 2 && halves.every((x) => x.split(/\s+/).length <= 3) ? halves : [part];
+        });
+        for (const piece of pieces) {
+          let clean = piece.replace(/^[-*\u2022\s]+/, "").trim();
+          // A split leaves the right half lowercase ("Purchase orders" next to
+          // "invoicing"). Capitalise it, but not iOS or eCommerce, which are
+          // spelled that way on purpose.
+          if (/^[a-z][a-z]/.test(clean)) clean = clean[0].toUpperCase() + clean.slice(1);
+          const key = clean.toLowerCase();
+          if (clean && !seen.has(key)) { seen.add(key); out.push(clean); }
+        }
+      }
+      draft.key_skills = out.slice(0, 12);
     }
 
     if (typeof draft.description === "string") {
