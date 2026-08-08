@@ -70,11 +70,6 @@ Deno.serve(async (req) => {
       const status = paid.error === "limit_reached" ? 402 : 503;
       return json({ error: paid.error, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
     }
-    await logSpend({
-      companyId: paid.companyId, kind: "ai_insight", pool: paid.source ?? null,
-      label: `AI Insight for ${parsed.name || "a candidate"}`,
-    });
-
     // Send only the fields the analysis needs — keep the payload lean.
     const resume = {
       name: parsed.name ?? null,
@@ -143,6 +138,14 @@ Deno.serve(async (req) => {
         .eq("id", candidateId).eq("company_id", paid.companyId);
       if (saveErr) console.error("save experience_insights", saveErr.message);
     }
+
+    // Logged after the work, not next to charge(). Every refund path above
+    // returns without a log line now, so the billing page cannot show a charge
+    // for a run that failed and was refunded.
+    await logSpend({
+      companyId: paid.companyId, kind: "ai_insight", pool: paid.source ?? null,
+      label: `AI Insight for ${parsed.name || "a candidate"}`,
+    });
 
     return json({ insights, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {

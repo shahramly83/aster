@@ -227,6 +227,29 @@ export async function dbSetCompanyCurrency(currency) {
   return { ok: true };
 }
 
+// Whether this workspace's open roles are published to external job sites
+// (0172). Read defensively: before the migration is applied the column does not
+// exist, and a hard failure here would break the whole Settings page over a
+// setting that is simply off.
+export async function dbGetCompanyFeed(companyId) {
+  if (!hasSupabase || !companyId) return false;
+  try {
+    const { data, error } = await supabase
+      .from("companies").select("feed_enabled").eq("id", companyId).maybeSingle();
+    if (error) return false;
+    return !!data?.feed_enabled;
+  } catch { return false; }
+}
+
+// Turn external job-site advertising on or off (0172). Owner/admin only,
+// enforced server-side by set_company_feed.
+export async function dbSetCompanyFeed(enabled) {
+  if (!hasSupabase) return { ok: false };
+  const { error } = await supabase.rpc("set_company_feed", { p_enabled: !!enabled });
+  if (error) { console.error("dbSetCompanyFeed", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 // Read this company's email-template overrides (Tier 2). Returns rows keyed by
 // template `key`; an empty list means the app falls back to the code defaults.
 export async function dbListEmailTemplates(companyId) {

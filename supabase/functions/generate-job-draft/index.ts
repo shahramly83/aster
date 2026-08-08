@@ -85,6 +85,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
+  // Outside the try so the catch can give the credit back. An uncaught error
+  // between charging and returning used to keep the credit AND leave no trace of
+  // it, which is the worst of both.
+  let charged: { companyId?: string; source?: string } | null = null;
   try {
     // Bare token, no "Bearer " prefix: charge() adds it. Passing the whole
     // header produced "Bearer Bearer eyJ..." and every draft died on "JWT
@@ -124,10 +128,7 @@ Deno.serve(async (req) => {
       const status = paid.error === "limit_reached" ? 402 : 503;
       return json({ error: paid.error === "limit_reached" ? "no_credits" : paid.error }, status);
     }
-    await logSpend({
-      companyId: paid.companyId, kind: "job_draft", pool: paid.source ?? null,
-      label: `AI job draft: ${title}`,
-    });
+    charged = { companyId: paid.companyId, source: paid.source };
 
     const context = {
       company: co?.name ?? null,
@@ -241,9 +242,19 @@ ${JSON.stringify(context)}` }],
         .replace(/\n{3,}/g, "\n\n")
         .trim();
     }
+    // Logged HERE, not next to charge(). Every refund path above leaves no log
+    // line behind, so "Where your credits went" can no longer show a charge for
+    // a draft that never arrived, which is exactly the unexplained-charge
+    // problem that section exists to prevent.
+    await logSpend({
+      companyId: paid.companyId, kind: "job_draft", pool: paid.source ?? null,
+      label: `AI job draft: ${title}`,
+    });
+
     return json({ ok: true, draft, currency: context.currency, assumption: draft.assumption || "" });
   } catch (e) {
     console.error("generate-job-draft", e);
-    return json({ error: "generate_failed" }, 500);
+    if (charged) await refund(charged.companyId, "job_draft", charged.source);
+    return json({ error: "generate_failed", detail: "something broke on our side" }, 500);
   }
 });

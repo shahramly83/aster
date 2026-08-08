@@ -54,11 +54,6 @@ Deno.serve(async (req) => {
       const status = paid.error === "limit_reached" ? 402 : 503;
       return json({ error: paid.error, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
     }
-    await logSpend({
-      companyId: paid.companyId, kind: "interview_questions", pool: paid.source ?? null,
-      label: `Interview questions for ${parsed.name || "a candidate"} · ${jobTitle}`,
-    });
-
     const resume = {
       name: parsed.name ?? null,
       summary: parsed.summary ?? null,
@@ -94,6 +89,14 @@ Deno.serve(async (req) => {
       }))
       .slice(0, 15);
     if (!questions.length) { await refund(paid.companyId, "interview_questions", paid.source); return json({ error: "generate_failed" }, 502); }
+
+    // Logged after the work, not next to charge(). Every refund path above
+    // returns without a log line now, so the billing page cannot show a charge
+    // for a run that failed and was refunded.
+    await logSpend({
+      companyId: paid.companyId, kind: "interview_questions", pool: paid.source ?? null,
+      label: `Interview questions for ${parsed.name || "a candidate"} · ${jobTitle}`,
+    });
 
     return json({ questions, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {

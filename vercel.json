@@ -1,6 +1,8 @@
 {
   "rewrites": [
     { "source": "/apply/:id", "destination": "/api/apply?id=:id" },
+    { "source": "/feed/jobs.xml", "destination": "/api/feed" },
+    { "source": "/feed/jooble.xml", "destination": "/api/feed?dialect=jooble" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
