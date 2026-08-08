@@ -2395,13 +2395,17 @@ function PipelinePreview() {
           <span className="text-[9px] font-medium" style={{ color: "var(--ink-3)" }}>Shared</span>
         </span>
       </div>
-      {/* Kanban columns, stretched to fill the panel height, and top-aligned
-          rather than centred: each column holds a different number of chips, so
-          centring floated the label and count to a different height in every
-          column and the row read as broken instead of as one board. */}
-      <div className="grid grid-cols-4 gap-1.5 flex-1">
+      {/* Kanban columns.
+          `my-auto` rather than `flex-1`: the row is only as tall as its content
+          and sits in the vertical middle of the panel, instead of stretching to
+          the bottom and leaving a block of dead space under the chips.
+          The columns still stretch to each other's height, which is what keeps
+          all four labels on one line. Centring each column's content vertically
+          would break that again, because every column holds a different number
+          of chips. */}
+      <div className="grid grid-cols-4 gap-1.5 my-auto">
         {COLS.map((col, i) => (
-          <div key={col.name} className="rounded-lg p-1.5 flex flex-col justify-start" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+          <div key={col.name} className="rounded-lg p-1.5 flex flex-col justify-start text-center" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
             <p className="text-[7px] font-semibold uppercase truncate mb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.03em" }}>{col.name}</p>
             <p className="text-lg font-bold font-display tnum leading-none mb-1.5" style={{ color: col.color }}><CountUp to={col.n} delay={i * 150} loop /></p>
             <div className="space-y-1">
