@@ -13270,7 +13270,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   return (
     <div className="space-y-4">
       <div>
-        <div className="flex items-end justify-between gap-3 mb-1">
+        <div className="flex items-end justify-between gap-3 mb-2.5">
           <label htmlFor="njf-title" className={labelClass} style={{ marginBottom: 0 }}>Title</label>
           {/* Gold, and locked until there are credits. This is the one paid-only
               feature in the product, so it should look unlike every blue button
@@ -13281,6 +13281,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
               a checkout. Locked now reads as an offer, ready reads as an action
               and carries the balance. */}
           <button type="button" onClick={draftWithAi}
+            // Buying never needs a title: someone stocking up before they write
+            // anything is a perfectly ordinary thing to do, and refusing the
+            // click would make the only way to pay depend on filling a form
+            // first. A title is only required to actually spend a credit.
             disabled={aiBusy || (draftCredits > 0 && !title.trim())}
             title={draftCredits > 0
               ? `Writes the whole posting from the title. Uses 1 credit, ${draftCredits} left.`
@@ -13290,11 +13294,15 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
               ? { background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }
               : { background: "#FFFBF0", color: "#8A6410", border: "1px solid #E8C87A" }}>
             <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
+            {/* The balance shows at zero too. Hiding it there meant the one
+                state where the number matters most was the one state without a
+                number on it. */}
             {aiBusy
               ? "Drafting…"
-              : draftCredits > 0
-                ? <>Draft with AI <span className="tnum font-semibold opacity-65">{draftCredits}</span></>
-                : "Unlock AI drafting"}
+              : <>
+                  {draftCredits > 0 ? "Draft with AI" : "Unlock AI drafting"}
+                  <span className="tnum font-semibold opacity-65">{draftCredits}</span>
+                </>}
           </button>
         </div>
         <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
