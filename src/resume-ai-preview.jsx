@@ -8289,6 +8289,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       {/* Adopt-signature modal */}
       {adoptOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => setAdoptOpen(false)}>
+          <ScrollLock />
           <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Adopt your signature</h2>
@@ -8328,6 +8329,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       {/* Decline modal */}
       {declining && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
+          <ScrollLock />
           <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <h2 className="text-lg font-bold font-display mb-1" style={{ color: "#9F1239" }}>Decline this offer?</h2>
             <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>Tell {company} why. Only the hiring team sees this.</p>
@@ -12067,7 +12069,8 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={onClose}>
-      <div className="act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
+      <ScrollLock />
+      <div className="act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()} style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
         {/* Brand-washed header */}
         <div className="relative px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
           <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
@@ -13035,6 +13038,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
       {/* Document preview, view the original resume + what the AI pulled out of it */}
       {previewRow && (
         <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`Preview of ${previewRow.fileName}`}>
+          <ScrollLock />
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPreviewRow(null)} />
           <div className="relative z-10 flex flex-col bg-white overflow-hidden act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
             <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: "var(--line)" }}>
@@ -13047,7 +13051,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               <button onClick={() => setPreviewRow(null)} aria-label="Close preview" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
             </div>
 
-            <div className="grid md:grid-cols-[1fr_270px] overflow-y-auto">
+            <div className="grid md:grid-cols-[1fr_270px] overflow-y-auto overscroll-contain">
               {/* Rendered document */}
               <div className="p-6 md:p-8" style={{ background: "#EDEDF0" }}>
                 <div className="mx-auto bg-white rounded-sm p-7 sm:p-9" style={{ maxWidth: 460, boxShadow: "0 10px 30px -12px rgba(18,19,42,0.35)" }}>
@@ -14679,6 +14683,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         // of thing.
         return (
           <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`${dj.title} details`}>
+            <ScrollLock />
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={() => setDetailJob(null)} />
             <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-hidden flex flex-col" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
               <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 shrink-0 overflow-hidden">
@@ -14700,7 +14705,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
               {/* Grows to fill the sheet rather than stopping at 70vh, which was
                   sized for a centred box floating in the middle of the page. */}
-              <div className="px-5 sm:px-6 py-5 flex-1 min-h-0 overflow-y-auto space-y-6">
+              <div className="px-5 sm:px-6 py-5 flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-6">
                 {/* Key facts */}
                 {(() => {
                   const facts = [
@@ -14903,8 +14908,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           code snippet a narrow centred dialog made you scroll twice. */}
       {linkJob && (
         <div className="fixed inset-0 z-50 flex justify-end">
+          <ScrollLock />
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={closeLinkModal} />
-          <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-5 overflow-y-auto" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
+          <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-5 overflow-y-auto overscroll-contain" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
             <SheetClose onClick={closeLinkModal} />
             <h2 className="text-lg font-bold font-display mb-3" style={{ color: "var(--ink)" }}>
               {linkTab === "embed" ? "Embed on your site" : "Share application link"}
@@ -15813,6 +15819,7 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <ScrollLock />
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => !busy && onClose()} />
       <div
         ref={panelRef}
@@ -15898,6 +15905,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <ScrollLock />
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={onClose} />
       <div
         ref={panelRef}
@@ -17468,6 +17476,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           wash, the reasoning below, and an Open-profile CTA. */}
       {insight && (
         <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setInsight(null)}>
+          <ScrollLock />
           <div className="bg-white overflow-hidden act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
             <div className="relative px-6 pt-5 pb-5" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
               <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
@@ -17506,6 +17515,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         const exactExisting = !!q && interviewers.some((iv) => (iv.email || "").toLowerCase() === q);
         return (
           <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setIvOpen(false)}>
+            <ScrollLock />
             <div className="bg-white overflow-hidden act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
               <div className="relative px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
                 <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
@@ -17892,7 +17902,8 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
           so they can review what they submitted even while it's pending approval. */}
       {viewReq && (
         <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setViewReq(null)}>
-          <div className="bg-white p-6 act-shadow overflow-y-auto act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()}>
+          <ScrollLock />
+          <div className="bg-white p-6 act-shadow overflow-y-auto overscroll-contain act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>{viewReq.title}</h3>
@@ -18028,8 +18039,9 @@ function ApproversSection({ companyId, canPersist }) {
       {/* Add approver — compact modal, fields never stretch across the page */}
       {showAdd && (
         <div className="fixed inset-0 z-[60] flex justify-end">
+          <ScrollLock />
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => setShowAdd(false)} />
-          <div className="relative bg-white p-5 shadow-2xl act-panel-in act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" style={{ border: "1px solid var(--line)" }}>
+          <div className="relative bg-white p-5 shadow-2xl act-panel-in act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto overscroll-contain" style={{ border: "1px solid var(--line)" }}>
             <SheetClose onClick={() => setShowAdd(false)} />
             <div className="mb-4">
               <div className="min-w-0">
@@ -18615,8 +18627,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           for anything you fill in rather than just read. */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex justify-end">
+          <ScrollLock />
           <div className="absolute inset-0 backdrop-blur-sm act-scrim-in" style={{ background: "rgba(10,11,30,0.45)" }} />
-          <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-6 overflow-y-auto" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
+          <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-6 overflow-y-auto overscroll-contain" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{inviteRole === "approver" ? "Add an approver" : "Invite a teammate"}</h3>
@@ -18714,6 +18727,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       {/* Remove confirmation */}
       {removing && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setRemoving(null)}>
+          <ScrollLock />
           <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Remove {removing.name}?</h3>
             {(() => {
@@ -19302,10 +19316,11 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, minSlot
 
       {open && (
         <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <ScrollLock />
           <div
             role="dialog"
             aria-label="Choose interview times"
-            className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto border-l border-neutral-200 bg-white p-4 sm:p-5 flex flex-col gap-3"
+            className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto overscroll-contain border-l border-neutral-200 bg-white p-4 sm:p-5 flex flex-col gap-3"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -19365,13 +19380,13 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, minSlot
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col min-h-0">
                   <span className="text-[11px] font-medium text-neutral-500 mb-1">From</span>
-                  <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 max-h-44">
+                  <div className="flex flex-col gap-1.5 overflow-y-auto overscroll-contain pr-1 max-h-44">
                     {times.map((m) => timeCell(m, "from"))}
                   </div>
                 </div>
                 <div className="flex flex-col min-h-0">
                   <span className="text-[11px] font-medium text-neutral-500 mb-1">To</span>
-                  <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 max-h-44">
+                  <div className="flex flex-col gap-1.5 overflow-y-auto overscroll-contain pr-1 max-h-44">
                     {times.map((m) => timeCell(m, "to"))}
                   </div>
                 </div>
@@ -19522,7 +19537,8 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
       )}
       {votePoll && (
         <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onClick={close}>
-          <div className="act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <ScrollLock />
+          <div className="act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2 px-1">
               <p className="text-sm font-semibold text-white">Mark your availability</p>
               <button onClick={close} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}><Icon name="close" className="w-4 h-4" /></button>
@@ -19536,7 +19552,7 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
                 </p>
               </div>
             )}
-            <div className="max-h-[80vh] overflow-y-auto">
+            <div className="max-h-[80vh] overflow-y-auto overscroll-contain">
               <PanelPoll
                 candidate={{ id: votePoll.candidateId, full_name: votePoll.candidateName }}
                 jobId={votePoll.jobId}
@@ -20013,8 +20029,9 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
       {/* Add-interviewer modal (matches the Pipeline "add interviewer" flow). */}
       {addingPanel && (
         <div className="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true" aria-label="Add an interviewer">
+          <ScrollLock />
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={closePanelPicker} />
-          <div className="relative z-10 bg-white act-shadow act-panel-in p-5 sm:p-6 act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" style={{ border: "1px solid var(--line)" }}>
+          <div className="relative z-10 bg-white act-shadow act-panel-in p-5 sm:p-6 act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto overscroll-contain" style={{ border: "1px solid var(--line)" }}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Add an interviewer</h3>
@@ -20029,7 +20046,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                   : "Nobody on the team has the interviewer role yet. Invite them below and they land on this panel."}
               </p>
             ) : (
-              <div className="space-y-1.5 max-h-[22rem] overflow-y-auto -mx-1 px-1">
+              <div className="space-y-1.5 max-h-[22rem] overflow-y-auto overscroll-contain -mx-1 px-1">
                 {addablePanel.map((iv) => (
                   <button
                     key={iv.id}
@@ -26958,6 +26975,7 @@ function ResumePdfModal({ candidate, onClose }) {
   );
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      <ScrollLock />
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative flex flex-col overflow-hidden shadow-2xl act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2" style={{ background: "#20233A" }}>
         {/* Viewer toolbar */}
@@ -26983,7 +27001,7 @@ function ResumePdfModal({ candidate, onClose }) {
         {isPdfOriginal ? (
           <iframe title={fileName} src={realDoc} className="flex-1 w-full" style={{ border: 0, background: "#3A3F5C", minHeight: "60vh" }} />
         ) : (
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ background: "#3A3F5C" }}>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6" style={{ background: "#3A3F5C" }}>
           <div className="mx-auto bg-white shadow-xl px-8 sm:px-10 py-9 max-w-[620px]" style={{ color: "#1f2937" }}>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#111827" }}>{p.name}</h1>
             {contact.length > 0 && <p className="text-xs mt-1.5" style={{ color: "#6b7280" }}>{contact.join("   ·   ")}</p>}
@@ -27623,6 +27641,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      <ScrollLock />
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative border bg-white shadow-2xl flex flex-col overflow-hidden act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2" style={{ borderColor: "var(--line)" }}>
         {/* Sticky branded header */}
@@ -27638,7 +27657,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }} aria-label="Close"><Icon name="close" className="w-4 h-4" /></button>
         </div>
         {/* Scrollable body */}
-        <div className="px-6 py-5 overflow-y-auto flex-1">
+        <div className="px-6 py-5 overflow-y-auto overscroll-contain flex-1">
 
         {!hasEmail && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
@@ -27981,6 +28000,7 @@ function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onR
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <ScrollLock />
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
         <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Reject {candidateName}</h2>
@@ -28738,6 +28758,7 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
 
         {closePrompt && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }}>
+            <ScrollLock />
             <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
               <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Close {job?.title}?</h3>
               <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
