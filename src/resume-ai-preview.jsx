@@ -21564,6 +21564,18 @@ const CREDIT_KIND_LABELS = {
   ai_rank: "AI Rank",
   ai_insight: "AI Insight",
   interview_questions: "Interview questions",
+  job_draft: "AI job drafting",
+};
+
+// Same tints as the dashboard meters, so a kind is the same colour wherever it
+// appears. Gold for drafting, matching its Premium mark.
+const CREDIT_KIND_TINT = {
+  applicant_screen: "#7DA2FA",
+  resume_screen: "#B497FB",
+  ai_rank: "#54DDA0",
+  ai_insight: "#F782B8",
+  interview_questions: "#63C9F5",
+  job_draft: "#EDC24C",
 };
 
 // How many recent entries the billing card shows. The full history is the CSV.
@@ -21628,6 +21640,44 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
   const [spend, setSpend] = useState([]);
   const [spendLoading, setSpendLoading] = useState(true);
   const [spendBusy, setSpendBusy] = useState(false);
+  const [spendAllOpen, setSpendAllOpen] = useState(false);
+
+  // "Where your credits went" was answered with fifty raw rows, which is the
+  // ledger, not the answer: it made the customer add the entries up themselves
+  // to find out that resume screening took most of it. Aggregate first, ledger
+  // on request.
+  const spendSummary = useMemo(() => {
+    const byKind = new Map();
+    let total = 0, fromPlan = 0, fromTopUp = 0;
+    for (const r of spend) {
+      const q = Number(r.quantity) || 0;
+      total += q;
+      if (r.pool === "purchased") fromTopUp += q;
+      else if (r.pool === "monthly") fromPlan += q;
+      byKind.set(r.kind, (byKind.get(r.kind) || 0) + q);
+    }
+    const rows = [...byKind.entries()]
+      .map(([kind, credits]) => ({ kind, credits, pct: total ? (credits / total) * 100 : 0 }))
+      .sort((a, b) => b.credits - a.credits);
+    return { rows, total, fromPlan, fromTopUp };
+  }, [spend]);
+
+  const spendRow = (r) => (
+    <div key={r.id} className="flex items-start justify-between gap-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm" style={{ color: "var(--ink)" }}>{r.label}</p>
+        {r.detail && <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{r.detail}</p>}
+        <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-4)" }}>
+          {CREDIT_KIND_LABELS[r.kind] || r.kind}
+          {r.pool === "purchased" ? " · from your top-up" : r.pool === "monthly" ? " · from your plan" : ""}
+          {" · "}{new Date(r.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+        </p>
+      </div>
+      <span className="shrink-0 text-xs font-semibold tnum" style={{ color: "var(--ink-2)" }}>
+        {r.quantity} credit{r.quantity === 1 ? "" : "s"}
+      </span>
+    </div>
+  );
 
   // Everything, not the newest 50: the export is what someone reaches for when
   // reconciling a charge from two months ago, which is exactly what the list
@@ -22299,26 +22349,90 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
             ) : spend.length === 0 ? (
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Nothing spent yet. Screening a resume, running AI Rank or generating insights will show up here.</p>
             ) : (
-              <div className="divide-y" style={{ borderColor: "var(--line)" }}>
-                {spend.map((r) => (
-                  <div key={r.id} className="flex items-start justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm" style={{ color: "var(--ink)" }}>{r.label}</p>
-                      {r.detail && <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{r.detail}</p>}
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-4)" }}>
-                        {CREDIT_KIND_LABELS[r.kind] || r.kind}
-                        {r.pool === "purchased" ? " · from your top-up" : r.pool === "monthly" ? " · from your plan" : ""}
-                        {" · "}{new Date(r.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                      </p>
+              <>
+                {/* One bar, then the breakdown. This is the whole point of the
+                    section: a glance says screening took most of it, without
+                    reading a single row. */}
+                <div className="flex h-2.5 rounded-full overflow-hidden mb-3" style={{ background: "var(--line)" }}>
+                  {spendSummary.rows.map((k) => (
+                    <div key={k.kind} className="h-full first:rounded-l-full last:rounded-r-full"
+                      style={{ width: `${k.pct}%`, background: CREDIT_KIND_TINT[k.kind] || "#9AA3BF" }}
+                      title={`${CREDIT_KIND_LABELS[k.kind] || k.kind}: ${k.credits}`} />
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  {spendSummary.rows.map((k) => (
+                    <div key={k.kind} className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: CREDIT_KIND_TINT[k.kind] || "#9AA3BF" }} />
+                      <span className="text-xs min-w-0 flex-1 truncate" style={{ color: "var(--ink-2)" }}>{CREDIT_KIND_LABELS[k.kind] || k.kind}</span>
+                      <span className="text-xs tnum shrink-0" style={{ color: "var(--ink-3)" }}>{Math.round(k.pct)}%</span>
+                      <span className="text-xs font-semibold tnum shrink-0 w-16 text-right" style={{ color: "var(--ink)" }}>{k.credits}</span>
                     </div>
-                    <span className="shrink-0 text-xs font-semibold tnum" style={{ color: "var(--ink-2)" }}>
-                      {r.quantity} credit{r.quantity === 1 ? "" : "s"}
-                    </span>
+                  ))}
+                </div>
+
+                {/* Which pool paid is the other half of "why did my balance
+                    drop": plan credits come back next cycle, bought ones do not. */}
+                <p className="text-[11px] mt-3 pt-3" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>
+                  <span className="tnum font-semibold" style={{ color: "var(--ink-2)" }}>{spendSummary.total}</span> credits used
+                  {spendSummary.fromPlan > 0 && <> · <span className="tnum">{spendSummary.fromPlan}</span> from your plan</>}
+                  {spendSummary.fromTopUp > 0 && <> · <span className="tnum">{spendSummary.fromTopUp}</span> from top-ups</>}
+                </p>
+
+                {/* The newest few, because "what was the last thing that charged
+                    me" is a real question. The rest is a click away rather than
+                    three thousand pixels of page. */}
+                <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
+                  <p className="text-[11px] font-semibold uppercase mb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Latest</p>
+                  <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+                    {spend.slice(0, 4).map(spendRow)}
                   </div>
-                ))}
-              </div>
+                  {spend.length > 4 && (
+                    <button onClick={() => setSpendAllOpen(true)}
+                      className="mt-2 w-full text-xs font-semibold rounded-lg py-2 transition-colors hover:bg-[color:var(--bg)]"
+                      style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
+                      View all {spend.length}{spend.length >= SPEND_PAGE ? " recent" : ""} entries
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
+
+          {/* The full ledger, on request. Its own scroll area so the billing page
+              keeps its length no matter how busy the workspace is. */}
+          {spendAllOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Credit activity">
+              <ScrollLock />
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={() => setSpendAllOpen(false)} />
+              <div className="act-panel-in relative z-10 w-full max-w-lg max-h-[80vh] rounded-2xl bg-white flex flex-col overflow-hidden act-shadow">
+                <div className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderBottom: "1px solid var(--line)" }}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Credit activity</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
+                      {spend.length >= SPEND_PAGE ? `${SPEND_PAGE} most recent. Export for the full history.` : `${spend.length} ${spend.length === 1 ? "entry" : "entries"}`}
+                    </p>
+                  </div>
+                  <button onClick={() => setSpendAllOpen(false)} aria-label="Close" className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-3)" }}>
+                    <Icon name="close" className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="px-5 py-2 flex-1 overflow-y-auto overscroll-contain">
+                  <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+                    {spend.map(spendRow)}
+                  </div>
+                </div>
+                <div className="px-5 py-3 flex justify-end" style={{ borderTop: "1px solid var(--line)" }}>
+                  <button onClick={exportSpendCsv} disabled={spendBusy}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50"
+                    style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
+                    <Icon name="download" className="w-3.5 h-3.5" />
+                    {spendBusy ? "Preparing…" : "Export CSV"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Invoice history, read straight from Stripe so receipts live here
               rather than only behind a redirect to the portal. */}
