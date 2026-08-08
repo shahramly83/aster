@@ -13119,8 +13119,12 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   }, []);
 
   const draftWithAi = async () => {
-    if (aiBusy || !title.trim()) return;
+    if (aiBusy) return;
+    // Credits first, title second. The other way round meant a click with no
+    // credits AND no title returned here silently, so the button that exists to
+    // sell something did nothing at all. Buying must never need a title.
     if (draftCredits <= 0) { setBuyDraftOpen(true); return; }
+    if (!title.trim()) return;
     setAiBusy(true); setAiNote(null);
     const { data, error } = await supabase.functions.invoke("generate-job-draft", {
       body: { title: title.trim(), location: location || null },
