@@ -13,8 +13,16 @@
 // Only public, already-anonymous fields are used. get_public_job (0068) refuses
 // drafts and deleted companies, so an unpublished role cannot be unmasked by
 // guessing its id.
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const ANON = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+import { jobPostingLd } from "../shared/job-posting.js";
+
+// Read per request rather than at module load. A serverless instance is reused
+// across invocations either way, so this costs nothing, and it keeps the
+// configuration deterministic for a test rather than depending on whatever the
+// machine's .env happened to hold when the module was first imported.
+const config = () => ({
+  url: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  anon: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+});
 
 const esc = (s) => String(s ?? "")
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -50,12 +58,13 @@ export default async function handler(req, res) {
   // better than serving a card describing a job that does not exist.
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+  const { url: supabaseUrl, anon } = config();
   let job = null;
-  if (isUuid && SUPABASE_URL && ANON) {
+  if (isUuid && supabaseUrl && anon) {
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_public_job`, {
+      const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_public_job`, {
         method: "POST",
-        headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+        headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
         body: JSON.stringify({ p_job_id: id }),
       });
       if (r.ok) {
@@ -107,6 +116,22 @@ export default async function handler(req, res) {
     // A closed or expired role should not be indexed, but must still preview:
     // the link keeps circulating either way.
     if (job.status && job.status !== "open") html = setMeta(html, "name", "robots", "noindex");
+
+    // Google for Jobs reads this and puts the role in the jobs panel above the
+    // ordinary results. It has to be server-rendered: the block is built from
+    // the same record the tags above use, so the markup and the page agree.
+    //
+    // jobPostingLd returns null for anything that should not be listed (closed,
+    // expired, out of credits, or missing a field Google requires), and no
+    // markup is strictly better than markup that fails validation.
+    const ld = jobPostingLd(job, url);
+    if (ld) {
+      // </script> inside a JSON string would end this block early and spill the
+      // rest of the posting into the document as markup.
+      const json = JSON.stringify(ld).replace(/<\//g, "<\\/");
+      html = html.replace(/<\/head>/i,
+        `  <script type="application/ld+json">${json}</script>\n</head>`);
+    }
   }
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");

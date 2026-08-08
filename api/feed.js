@@ -19,6 +19,13 @@
 // Runs on the Node runtime, like api/apply.js, and reads the same anon key: the
 // feed is public by definition, so there is nothing here a visitor to the apply
 // page could not already see.
+
+// Shared with the JobPosting markup on the apply page, so the description an
+// aggregator republishes and the one Google reads cannot drift apart.
+import {
+  descriptionHtml, countryCode, placeOf, salaryOf, BOARD_LABELS,
+} from "../shared/job-posting.js";
+
 // Read per request rather than at module load. A serverless instance is reused
 // across invocations either way, so this costs nothing, and it keeps the
 // missing-configuration path reachable from a test.
@@ -33,13 +40,6 @@ const config = () => ({
 // a parser while making it inert.
 const cdata = (s) => `<![CDATA[${String(s ?? "").replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
 
-// Escaping for text we are about to place inside HTML we generate ourselves.
-// The description is assembled as real HTML (aggregators render it as markup),
-// so a "&" or "<" typed into a job description has to be neutralised before it
-// becomes part of that markup, CDATA or not.
-const htm = (s) => String(s ?? "")
-  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
 const tag = (name, value) => `      <${name}>${cdata(value)}</${name}>`;
 
 // "full_time" is a database key. Aggregators match on their own vocabulary, and
@@ -53,90 +53,15 @@ const JOB_TYPE = {
 
 const REMOTE_TYPE = { remote: "Fully remote", hybrid: "Hybrid remote" };
 
-// Aggregators expect an ISO-3166 alpha-2 country code and treat a full country
-// name as an unknown region, which drops the job out of every country-filtered
-// search. companies.address_country holds whichever the customer's billing form
-// produced, and in practice that is a mix ("MY" on some rows, "Malaysia" on
-// others), so it cannot be passed through raw.
-//
-// Only the markets Aster actually sells into are mapped. Anything unrecognised
-// falls through unchanged rather than being guessed at: a wrong country is
-// worse than one the aggregator ignores.
-const COUNTRY_CODE = {
-  malaysia: "MY", singapore: "SG", indonesia: "ID", thailand: "TH",
-  philippines: "PH", vietnam: "VN", "viet nam": "VN", brunei: "BN",
-  "hong kong": "HK", india: "IN", australia: "AU", "new zealand": "NZ",
-  "united kingdom": "GB", "united states": "US", "united arab emirates": "AE",
-};
-
-function countryCode(raw) {
-  const v = String(raw || "").trim();
-  if (!v) return "";
-  if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
-  return COUNTRY_CODE[v.toLowerCase()] || v;
-}
-
 // Monthly, because that is what generate-job-draft produces and what the apply
 // page shows. A range published as an annual figure by mistake is the kind of
 // error that reaches candidates before it reaches us.
-function salaryLabel(d) {
-  const min = Number(d.salary_min) || 0;
-  const max = Number(d.salary_max) || 0;
-  if (!min && !max) return "";
-  const cur = String(d.salary_currency || "").toUpperCase();
+function salaryLabel(details) {
+  const s = salaryOf(details);
+  if (!s) return "";
   const n = (v) => Number(v).toLocaleString("en-US");
-  const body = min && max
-    ? (min === max ? n(min) : `${n(min)} - ${n(max)}`)
-    : `${n(min || max)}+`;
-  return `${cur ? cur + " " : ""}${body} per month`.trim();
-}
-
-// Aggregators want city / state / country as three fields and place the job on
-// a map from them; Indeed's spec is explicit that a job without them gets no
-// organic visibility. Aster stores the job's location as one free-text string,
-// so the city comes from whatever the recruiter typed (first segment, since
-// "Kuala Lumpur, Malaysia" is as common as "Kuala Lumpur") and the rest falls
-// back to the company's registered address. That is wrong for a company hiring
-// outside its own address, which is the case a structured location field on the
-// job would fix.
-function placeOf(job) {
-  const raw = String(job.details?.location || "").trim();
-  const first = raw.split(",")[0].trim();
-  // "Remote" is a working arrangement, not a city. Left in the city field it
-  // puts the role in a town called Remote.
-  const cityish = /^(remote|anywhere|work from home|wfh)$/i.test(first) ? "" : first;
-  return {
-    city: cityish || job.address_city || "",
-    state: job.address_state || "",
-    country: job.address_country || "",
-  };
-}
-
-// The feed description has to match what the apply page shows, in the same
-// order: several aggregators compare the two and reject feeds that pad the
-// description with content the landing page does not have.
-function descriptionHtml(d) {
-  const out = [];
-  const prose = String(d.description || "").trim();
-  if (prose) {
-    for (const para of prose.split(/\n{2,}/)) {
-      const p = para.trim();
-      if (p) out.push(`<p>${htm(p).replace(/\n/g, "<br />")}</p>`);
-    }
-  }
-  const list = (heading, items) => {
-    if (!Array.isArray(items) || !items.length) return;
-    out.push(`<h3>${heading}</h3><ul>`);
-    for (const it of items) {
-      const t = String(it || "").trim();
-      if (t) out.push(`<li>${htm(t)}</li>`);
-    }
-    out.push("</ul>");
-  };
-  list("Responsibilities", d.responsibilities);
-  list("Requirements", d.requirements);
-  list("Benefits", d.benefits);
-  return out.join("");
+  const body = s.min === s.max ? n(s.min) : `${n(s.min)} - ${n(s.max)}`;
+  return `${s.currency ? s.currency + " " : ""}${body} per month`.trim();
 }
 
 // Same default as the app's APEX_ROOT, so the two agree on what a workspace
@@ -182,7 +107,7 @@ function renderSource(jobs, origin, source) {
       tag("city", p.city),
       tag("state", p.state),
       tag("country", countryCode(p.country)),
-      tag("description", descriptionHtml(d)),
+      tag("description", descriptionHtml(d, BOARD_LABELS)),
       tag("salary", salaryLabel(d)),
       tag("jobtype", JOB_TYPE[String(d.employment_type || "").toLowerCase()] || ""),
       tag("category", d.department || ""),
@@ -220,7 +145,7 @@ function renderJooble(jobs, origin, source) {
       tag("region", region),
       tag("country", countryCode(p.country)),
       tag("company", j.company_name),
-      tag("description", descriptionHtml(d)),
+      tag("description", descriptionHtml(d, BOARD_LABELS)),
       tag("salary", salaryLabel(d)),
       tag("jobtype", JOB_TYPE[String(d.employment_type || "").toLowerCase()] || ""),
       tag("pubdate", new Date(j.created_at).toISOString()),
