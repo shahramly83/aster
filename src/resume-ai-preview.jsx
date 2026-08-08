@@ -10764,6 +10764,23 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
     return () => clearInterval(id);
   }, []);
 
+  // The clock ticked and the weather did not. It was fetched once per mount, so
+  // a dashboard left open all day kept showing whatever the sky was doing when
+  // the tab was opened: reported as "Drizzle" while the API said partly cloudy
+  // and no precipitation. 15 minutes because that is Open-Meteo's own update
+  // interval (it returns interval: 900), so asking more often gets the same
+  // answer back.
+  const [wxTick, setWxTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setWxTick((n) => n + 1);
+    const id = setInterval(() => { if (!document.hidden) bump(); }, 900000);
+    // Returning to a backgrounded tab is exactly when the reading is most likely
+    // to be stale, and it is the moment someone actually looks at it.
+    const onVisible = () => { if (!document.hidden) bump(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
+  }, []);
+
   useEffect(() => {
     let live = true;
     fetch("/api/where")
@@ -10814,7 +10831,7 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
       } catch { /* weather is decoration: never surface a failure */ }
     })();
     return () => { live = false; };
-  }, [city, country, here]);
+  }, [city, country, here, wxTick]);
 
   // The viewer's clock leads, because it is the one they are living in. The
   // workspace's is kept underneath whenever the two differ, because agreeing an
