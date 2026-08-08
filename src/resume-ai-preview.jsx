@@ -30727,11 +30727,14 @@ export default function ResumeAIPreview() {
   // Re-fetch just the team (members + pending invites) with their real DB ids,
   // so row actions (Remove, Revoke) target real rows instead of the optimistic
   // placeholder ids an invite would otherwise add.
-  const reloadTeam = async () => {
-    if (!hasSupabase || !companyId) return;
+  // Takes the company id so the first hydrate can call it: setCompanyId() has
+  // not landed in state yet at that point, and reading it from state made this
+  // return early and leave the team empty until something else re-ran it.
+  const reloadTeam = async (forCompany = companyId) => {
+    if (!hasSupabase || !forCompany) return;
     const [{ data: profs }, { data: invs }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended"),
-      supabase.from("invitations").select("id, email, role, pending_job_ids").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
+      supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", forCompany).neq("status", "suspended"),
+      supabase.from("invitations").select("id, email, role, pending_job_ids").eq("company_id", forCompany).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
     ]);
     setInterviewers((profs || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", role: p.role, pending: p.status === "invited", timezone: "Asia/Kuala_Lumpur" })));
     setPendingInvites((invs || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer", jobIds: v.pending_job_ids || [] })));
@@ -30829,6 +30832,13 @@ export default function ResumeAIPreview() {
     setScorecards(data.scorecards);
     if (data.interviewers?.length) setInterviewers(data.interviewers);
     setPendingInvites(data.pendingInvites || []);
+    // The workspace load never fetched the team, so `interviewers` stayed empty
+    // until something happened to call reloadTeam: sending an invite, removing
+    // someone. That is why "Add from your team" opened empty and then suddenly
+    // listed a colleague who had been there all along, right after an unrelated
+    // invite. Fetch it on load like everything else on this screen. Runs after
+    // the line above so the real profiles win over anything the hydrate carried.
+    reloadTeam(companyId);
     setJobAssignments(data.jobAssignments || []);
     setScheduleRequests(data.scheduleRequests || []);
     setInterviewQuestions(data.interviewQuestions || {});
