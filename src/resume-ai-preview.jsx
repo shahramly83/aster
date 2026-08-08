@@ -8288,8 +8288,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
 
       {/* Adopt-signature modal */}
       {adoptOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => setAdoptOpen(false)}>
-          <div className="bg-white p-6 act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => setAdoptOpen(false)}>
+          <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Adopt your signature</h2>
               <button onClick={() => setAdoptOpen(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
@@ -8327,8 +8327,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
 
       {/* Decline modal */}
       {declining && (
-        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
-          <div className="bg-white p-6 act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
+          <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <h2 className="text-lg font-bold font-display mb-1" style={{ color: "#9F1239" }}>Decline this offer?</h2>
             <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>Tell {company} why. Only the hiring team sees this.</p>
             <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={3} maxLength={1000}
@@ -14816,7 +14816,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               </div>
 
               <div className="px-5 sm:px-6 py-4 border-t flex flex-wrap items-center gap-2 shrink-0" style={{ borderColor: "var(--line)" }}>
-                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("applicants", `/applicants/${dj.id}`); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
+                {/* The pipeline, filtered to this role, not the flat applicants
+                    list. Same destination the Jobs list already sends you to,
+                    so the two ways of opening a role's applicants no longer
+                    land you on different screens. PipelineScreen reads
+                    activeJobId to do the filtering. */}
+                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("pipeline", "/pipeline"); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
                   <Icon name="users" className="w-4 h-4" /> View applicants{djN > 0 ? ` (${djN})` : ""}
                 </button>
                 <button onClick={() => { setDetailJob(null); setEditJob(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
@@ -14900,6 +14905,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={closeLinkModal} />
           <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-5 overflow-y-auto" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
+            <SheetClose onClick={closeLinkModal} />
             <h2 className="text-lg font-bold font-display mb-3" style={{ color: "var(--ink)" }}>
               {linkTab === "embed" ? "Embed on your site" : "Share application link"}
             </h2>
@@ -15753,6 +15759,22 @@ class ErrorBoundary extends Component {
 // `busy` keeps the dialog open and inert while an async confirm is in flight, so
 // a slow round-trip can't be double-submitted or dismissed mid-write.
 // `icon` is intentionally no longer a parameter. Call sites still passing one
+
+// Every sheet needs a visible way out. A centred box could lean on its Cancel
+// button and a backdrop click, but a full-height sheet puts Cancel far from
+// where the eye starts, and a backdrop click is invisible until you guess it.
+// Positioned absolutely so it can be dropped into any sheet without rebuilding
+// that sheet's header; every sheet panel is already position:relative.
+function SheetClose({ onClick, label = "Close" }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label}
+      className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-100"
+      style={{ color: "var(--ink-3)" }}>
+      <Icon name="close" className="w-4 h-4" />
+    </button>
+  );
+}
+
 // are harmless (React ignores unknown props) and get cleaned up as they are
 // touched, rather than in one sweep across every dialog in the app.
 function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLabel = "Cancel", onConfirm, onClose, tone = "brand", busy = false, busyLabel }) {
@@ -15790,7 +15812,7 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
   const accent = danger ? { background: "#DC2626" } : undefined;
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-end">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => !busy && onClose()} />
       <div
         ref={panelRef}
@@ -15798,7 +15820,7 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-5 overflow-y-auto"
+        className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
         style={{ border: "1px solid var(--line)" }}
       >
         {/* No icon chip. It decorated every dialog identically whatever the
@@ -15875,7 +15897,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
   const R = 30, CIRC = 2 * Math.PI * R;
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-end">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={onClose} />
       <div
         ref={panelRef}
@@ -15883,7 +15905,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-hidden flex flex-col"
+        className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
         style={{ border: "1px solid var(--line)" }}
       >
         {/* Header: live progress ring + status */}
@@ -18008,6 +18030,7 @@ function ApproversSection({ companyId, canPersist }) {
         <div className="fixed inset-0 z-[60] flex justify-end">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => setShowAdd(false)} />
           <div className="relative bg-white p-5 shadow-2xl act-panel-in act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" style={{ border: "1px solid var(--line)" }}>
+            <SheetClose onClick={() => setShowAdd(false)} />
             <div className="mb-4">
               <div className="min-w-0">
                 <h3 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Add an approver</h3>
@@ -18690,8 +18713,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
 
       {/* Remove confirmation */}
       {removing && (
-        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setRemoving(null)}>
-          <div className="bg-white p-6 act-shadow act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setRemoving(null)}>
+          <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Remove {removing.name}?</h3>
             {(() => {
               const sched = scheduledCountFor(removing);
@@ -27957,9 +27980,9 @@ function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onR
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative border border-neutral-200 bg-white shadow-xl p-6 overflow-y-auto act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2">
+      <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
         <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Reject {candidateName}</h2>
         <p className="text-sm text-neutral-500 mb-4">
           Review the email before it's sent. You can edit it, send it, or reject without emailing.
@@ -28714,8 +28737,8 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
     >
 
         {closePrompt && (
-          <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }}>
-            <div className="bg-white p-6 act-shadow act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }}>
+            <div className="act-panel-in relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
               <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Close {job?.title}?</h3>
               <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 {inProgressApplicants.length > 0
