@@ -11157,25 +11157,42 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
       </div>
     ) : (
       <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4 sm:gap-5">
-        <svg viewBox="0 0 132 132" className="w-[132px] h-[132px] shrink-0" role="img"
-          aria-label={segments.map((s) => `${s.label}: ${s.value} of ${total}`).join(", ")}>
-          {segments.slice(0, 3).map((s, i) => {
-            const r = 56 - i * 17;                 // outermost ring is the biggest share
-            const c = 2 * Math.PI * r;
-            const pct = Math.min(1, (s.value || 0) / total);
-            return (
-              <g key={s.label} transform="rotate(-90 66 66)">
-                <circle cx="66" cy="66" r={r} fill="none" stroke="#EEEFF5" strokeWidth="10" />
-                {pct > 0 && (
-                  <circle cx="66" cy="66" r={r} fill="none" stroke={s.color} strokeWidth="10"
-                    strokeLinecap="round" strokeDasharray={`${(c * pct).toFixed(2)} ${c.toFixed(2)}`} />
-                )}
-              </g>
-            );
-          })}
-          <text x="66" y="63" textAnchor="middle" className="font-display" style={{ fontSize: 19, fontWeight: 700, fill: "var(--ink)" }}>{total}</text>
-          <text x="66" y="78" textAnchor="middle" style={{ fontSize: 9.5, fill: "var(--ink-3)" }}>Total</text>
-        </svg>
+        {(() => {
+          // Rings thin and tighten as more are shown, so the same 132px holds
+          // three or five. Past three there is no room left in the middle for
+          // the total, and a number crushed against the inner arc is worse than
+          // no number: the legend carries every count anyway.
+          const rows = segments.slice(0, 5);
+          const n = rows.length;
+          const stroke = n <= 3 ? 10 : n === 4 ? 8.5 : 7.5;
+          const step = n <= 3 ? 17 : n === 4 ? 12.5 : 10;
+          const showTotal = n <= 3;
+          return (
+            <svg viewBox="0 0 132 132" className="w-[132px] h-[132px] shrink-0" role="img"
+              aria-label={segments.map((x) => `${x.label}: ${x.value} of ${total}`).join(", ")}>
+              {rows.map((s, i) => {
+                const r = 56 - i * step;            // outermost ring is the biggest share
+                const c = 2 * Math.PI * r;
+                const pct = Math.min(1, (s.value || 0) / total);
+                return (
+                  <g key={s.label} transform="rotate(-90 66 66)">
+                    <circle cx="66" cy="66" r={r} fill="none" stroke="#EEEFF5" strokeWidth={stroke} />
+                    {pct > 0 && (
+                      <circle cx="66" cy="66" r={r} fill="none" stroke={s.color} strokeWidth={stroke}
+                        strokeLinecap="round" strokeDasharray={`${(c * pct).toFixed(2)} ${c.toFixed(2)}`} />
+                    )}
+                  </g>
+                );
+              })}
+              {showTotal && (
+                <>
+                  <text x="66" y="62" textAnchor="middle" className="font-display" style={{ fontSize: 15, fontWeight: 700, fill: "var(--ink)" }}>{total}</text>
+                  <text x="66" y="75" textAnchor="middle" style={{ fontSize: 8, fill: "var(--ink-3)" }}>Total</text>
+                </>
+              )}
+            </svg>
+          );
+        })()}
         <div className="w-full sm:flex-1 space-y-2 min-w-0">
           {segments.map((s) => (
             <LegendRow key={s.label} color={s.color} label={s.label} value={`${s.value} (${Math.round((s.value / total) * 100)}%)`} />
@@ -11491,7 +11508,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : `Show all ${sourceSegments.length}`} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
                   ) : null
                 )}
-                {donutBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
+                {ringsBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
               </div>
             </div>
           </div>
