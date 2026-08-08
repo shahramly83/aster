@@ -13466,7 +13466,12 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
               The hint is the app's own popover, not a native title attribute:
               the black OS tooltip belongs to no design and cannot be read by
               anyone on a touch screen. */}
-          <div className="shrink-0 relative flex items-center gap-2"
+          {/* Full width on phones so the three controls get their own row under
+              the description, instead of being squeezed onto the end of it. The
+              card already wraps, but this group was shrink-0 with three children
+              that cannot shrink either, so it overflowed the card rather than
+              moving down. */}
+          <div className="relative flex w-full sm:w-auto sm:shrink-0 items-center gap-2"
             onMouseEnter={() => setDraftTip(true)} onMouseLeave={() => setDraftTip(false)}>
             {/* Says what it is before you read the price. This is the only paid
                 feature in the product and nothing else in the form is gold, so
@@ -13485,7 +13490,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
               onClick={() => { if (!draftLocked) draftWithAi(); }}
               aria-disabled={draftLocked}
               onFocus={() => setDraftTip(true)} onBlur={() => setDraftTip(false)}
-              className={`adm-gold inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all${draftLocked ? " opacity-45 cursor-not-allowed" : ""}`}
+              className={`adm-gold inline-flex min-w-0 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all${draftLocked ? " opacity-45 cursor-not-allowed" : ""}`}
               style={{ background: "#FDF3DC", color: "#8A6410", border: "1px solid #EBD08C" }}>
               <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
               {aiBusy ? "Drafting…" : <>Draft with AI <span className="opacity-45">·</span> <span className="tnum">{draftCredits}</span> credit{draftCredits === 1 ? "" : "s"}</>}
@@ -14820,24 +14825,33 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 )}
               </div>
 
-              <div className="px-5 sm:px-6 py-4 border-t flex flex-wrap items-center gap-2 shrink-0" style={{ borderColor: "var(--line)" }}>
+              {/* Four controls on one wrapping row broke into ragged pairs on a
+                  phone, with the primary action sharing a line with a secondary
+                  one and the last two orphaned below. On phones it stacks: the
+                  primary gets its own full-width row, the two secondary buttons
+                  share the next one, and the text link sits last. `sm:contents`
+                  dissolves that pairing wrapper above phone width so the desktop
+                  row is exactly as it was. Every control clears 44px. */}
+              <div className="px-5 sm:px-6 py-4 border-t flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 shrink-0" style={{ borderColor: "var(--line)" }}>
                 {/* The pipeline, filtered to this role, not the flat applicants
                     list. Same destination the Jobs list already sends you to,
                     so the two ways of opening a role's applicants no longer
                     land you on different screens. PipelineScreen reads
                     activeJobId to do the filtering. */}
-                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("pipeline", "/pipeline"); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
+                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("pipeline", "/pipeline"); }} className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 min-h-[44px] transition-opacity hover:opacity-90">
                   <Icon name="users" className="w-4 h-4" /> View applicants{djN > 0 ? ` (${djN})` : ""}
                 </button>
-                <button onClick={() => { setDetailJob(null); setEditJob(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                <div className="flex items-center gap-2 w-full sm:contents">
+                <button onClick={() => { setDetailJob(null); setEditJob(dj); }} className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 text-sm font-medium rounded-xl border px-4 min-h-[44px] transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
                   <Icon name="settings" className="w-4 h-4" /> Edit
                 </button>
                 {dj.status === "open" && (
-                  <button onClick={() => { setDetailJob(null); openLinkModal(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                  <button onClick={() => { setDetailJob(null); openLinkModal(dj); }} className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 text-sm font-medium rounded-xl border px-4 min-h-[44px] transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
                     <Icon name="link" className="w-4 h-4" /> Copy job URL
                   </button>
                 )}
-                <button onClick={() => { const j = dj; setDetailJob(null); onPreviewApply && onPreviewApply(j); }} className="text-sm font-medium ml-auto hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                </div>
+                <button onClick={() => { const j = dj; setDetailJob(null); onPreviewApply && onPreviewApply(j); }} className="text-sm font-medium w-full sm:w-auto sm:ml-auto min-h-[44px] inline-flex items-center justify-center sm:justify-start hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
                   Preview Apply page →
                 </button>
               </div>
@@ -16593,12 +16607,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             scrollable strip whose third tab has nothing to say it is there: the
             icons drop below sm and the labels stay whole. Scrolling remains as a
             fallback for very narrow screens or long translations. */}
-        <div className="flex flex-nowrap gap-1 p-1 rounded-2xl mb-5 overflow-x-auto no-scrollbar scroll-fade sm:inline-flex sm:overflow-visible" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+        <div className="flex flex-nowrap gap-1 p-1 rounded-2xl mb-5 w-full sm:w-auto sm:inline-flex sm:overflow-visible" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           {TABS.map((t) => {
             const active = tab === t.key;
             return (
               <button key={t.key} onClick={() => switchTab(t.key)}
-                className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
+                className={`flex-1 sm:flex-none sm:shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
                 style={active ? undefined : { color: "var(--ink-2)" }}>
                 <Icon name={t.icon} className="w-4 h-4 shrink-0 hidden sm:block" />
                 <span>{t.full}</span>
@@ -16689,9 +16703,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 name list, which is what the old Browse tab was. */}
             {hasFilters ? (<>
             {matchScores && (
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex flex-wrap items-center justify-center sm:justify-between gap-3 mb-3">
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="A fit score from 0 to 100. The fuller the ring, the closer this person matches what you searched." />}</p>
-                <div className="flex items-center gap-3">
+                <div className="flex w-full sm:w-auto items-center justify-center sm:justify-start gap-3">
                   {!ranked && list.length > 0 && (skillTags.length > 0 || industryTags.length > 0) && (
                     <>
                     <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
@@ -16755,7 +16769,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     Match to an open position
                     <InfoHint dir="down" hint="AI ranks your whole database against the role you pick. Invite the best fits to apply." />
                   </p>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
+                  <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
@@ -18370,17 +18384,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         )}
 
-        {/* The three tabs were one list split in three: everyone attached to this
-            workspace. Members, invitations and approvers now share it, and the
-            role dropdown does the narrowing, which is what a filter is for. */}
-        <label className="flex sm:hidden items-center gap-2 rounded-xl px-3 py-2.5 mb-3" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
-          <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
-          <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0" style={{ color: "var(--ink)" }} />
-        </label>
+        {/* Search gets its own full-width row on phones, where it cannot sit
+            beside the role filter without one of the two being too narrow to
+            use. The desktop copy lives up in the toolbar (hidden sm:inline-flex);
+            this one is the phone counterpart, and both drive the same teamQ.
 
-        {/* Search: its own full-width row on phones, where it cannot share the
-            tab strip without one of them being unusable. */}
-        <label className="sm:hidden flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+            There were two of these, identical and stacked, so a phone showed the
+            search box twice. The other one justified itself by a tab strip that
+            no longer exists: d4aa027 merged members, invitations and approvers
+            into one list narrowed by the role dropdown. */}
+        <label className="flex sm:hidden items-center gap-2 rounded-xl px-3 py-2.5 mb-4" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
           <Icon name="search" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-4)" }} />
           <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none flex-1 min-w-0" style={{ color: "var(--ink)" }} />
         </label>
