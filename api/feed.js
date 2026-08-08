@@ -19,8 +19,13 @@
 // Runs on the Node runtime, like api/apply.js, and reads the same anon key: the
 // feed is public by definition, so there is nothing here a visitor to the apply
 // page could not already see.
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const ANON = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+// Read per request rather than at module load. A serverless instance is reused
+// across invocations either way, so this costs nothing, and it keeps the
+// missing-configuration path reachable from a test.
+const config = () => ({
+  url: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  anon: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+});
 
 // Text destined for a CDATA block. The only sequence that can break out of one
 // is "]]>", which closes it early and turns the rest of the description into
@@ -192,16 +197,17 @@ export default async function handler(req, res) {
   const dialect = String(req.query?.dialect || "source").toLowerCase();
   const source = req.query?.source || "";
 
-  if (!SUPABASE_URL || !ANON) {
+  const { url: supabaseUrl, anon } = config();
+  if (!supabaseUrl || !anon) {
     res.statusCode = 503;
     return res.end("feed unavailable");
   }
 
   let jobs = null;
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/list_feed_jobs`, {
+    const r = await fetch(`${supabaseUrl}/rest/v1/rpc/list_feed_jobs`, {
       method: "POST",
-      headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+      headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
       body: "{}",
     });
     if (r.ok) jobs = await r.json();

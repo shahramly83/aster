@@ -238,6 +238,9 @@ const PERMS = {
   "aicost.edit":         ["super", "billing"],
   "creditprice.edit":    ["super", "billing"],
   "booking.manage":      ["super", "support"],
+  // Publishing a workspace's roles to third-party job sites is done on the
+  // customer's behalf, so support can switch a pilot customer on after asking.
+  "company.feed":        ["super", "support"],
 };
 const can = (role, action) => (PERMS[action] || []).includes(role);
 const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.roles || []).includes(role);
@@ -1144,6 +1147,74 @@ function WorkspaceDrawer({ company, role, users, subs, usage, aiCosts, planPrice
   );
 }
 
+// Ending a comp used to be a silent toggle because it did nothing to access.
+// It suspends now (0173), so it needs the same confirmation the Suspend action
+// has, and it has to say which of the two outcomes applies to THIS workspace.
+function EndCompDialog({ company, willSuspend, onClose, onConfirm }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, busy]);
+
+  const go = async () => {
+    setBusy(true); setErr("");
+    const problem = await onConfirm(company);
+    setBusy(false);
+    if (problem) setErr(problem); else onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(15,27,51,0.45)", backdropFilter: "blur(6px)" }}
+      onClick={() => !busy && onClose()} role="dialog" aria-modal="true" aria-label={`End comp for ${company.name}`}>
+      <div className="adm-pop w-full sm:max-w-lg rounded-t-[28px] sm:rounded-[28px] bg-white overflow-hidden"
+        style={{ boxShadow: "0 40px 90px -30px rgba(15,27,51,.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 sm:px-7 pt-6 pb-5"
+          style={{ background: willSuspend ? "linear-gradient(135deg,#F2775A,#DC2626)" : "linear-gradient(135deg,#5570F5,#0B2AE0)" }}>
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-bold adm-display text-white leading-snug">End comp for {company.name}?</h2>
+              <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,.85)" }}>
+                {willSuspend
+                  ? `Nothing else is paying for this workspace, so all ${company.seats} ${company.seats === 1 ? "person" : "people"} lose access immediately and have to buy a plan to get back in.`
+                  : "This workspace is paying or still inside its trial, so it keeps access. Only the free grant is removed."}
+              </p>
+            </div>
+            <button onClick={onClose} disabled={busy} aria-label="Close"
+              className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ color: "#fff", background: "rgba(255,255,255,.18)" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="px-6 sm:px-7 py-6">
+          {willSuspend && (
+            <ul className="text-sm space-y-2" style={{ color: "var(--ink-2)" }}>
+              <li>They see the same paywall as a lapsed trial, with the plan picker on it.</li>
+              <li>Nothing is deleted today. Jobs, candidates and any bought credits are kept for 30 days.</li>
+              <li>Subscribing at any point in that window restores everything.</li>
+            </ul>
+          )}
+          {err && <p className="text-sm mt-4" style={{ color: "var(--danger, #B42318)" }}>{err}</p>}
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={onClose} disabled={busy}
+              className="text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50"
+              style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>Cancel</button>
+            <button onClick={go} disabled={busy}
+              className="text-sm font-semibold rounded-xl px-4 py-2.5 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: willSuspend ? "#DC2626" : "var(--brand)" }}>
+              {busy ? "Working…" : willSuspend ? "End comp and suspend" : "End comp"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Companies({ role, companies, setCompanies, users = [], subs = [], usage, aiCosts, planPrices, activity = [], audit, onAction, go }) {
   const [openWs, setOpenWs] = useState(null);   // workspace shown in the drawer
   const [q, setQ] = useState("");
@@ -1208,13 +1279,37 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
       return sort.dir === "asc" ? cmp : -cmp;
     });
 
-  // Grant or withdraw a free plan. Withdrawing does not suspend: it removes the
-  // protection and lets the trial rules apply again.
+  const [compDialog, setCompDialog] = useState(null);   // company pending "End comp"
+
+  // Whether ending the comp will lock them out. Mirrors 0173's rule; the
+  // database still decides, this only picks which warning the dialog shows.
+  const compWouldSuspend = (c) =>
+    !(c.subStatus === "active" || c.subStatus === "past_due") &&
+    !(c.subStatus === "trialing" && c.status === "trial");
+
+  // Grant or withdraw a free plan. Withdrawing suspends unless something else is
+  // paying for the workspace (0173), so it goes through a confirmation.
   const onComp = async (c, on) => {
-    setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, compedAt: on ? new Date().toISOString() : null } : x));
+    const suspending = !on && compWouldSuspend(c);
+    setCompanies((cs) => cs.map((x) => x.id === c.id ? {
+      ...x,
+      compedAt: on ? new Date().toISOString() : null,
+      status: suspending ? "suspended" : x.status,
+    } : x));
     const err = await onAction("admin_set_comped", { p_company: c.id, p_comped: on, p_note: null },
-      on ? "Comped workspace" : "Ended comp", c.name);
-    if (err) setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, compedAt: c.compedAt } : x));
+      on ? "Comped workspace" : suspending ? "Ended comp and suspended workspace" : "Ended comp", c.name);
+    if (err) setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, compedAt: c.compedAt, status: c.status } : x));
+    return err;
+  };
+
+  // Publish (or stop publishing) this workspace's open roles to the external
+  // job-site feed. The customer has the same switch in their own Settings; this
+  // one exists so a pilot can be turned on during the call that sells it.
+  const onFeed = async (c, on) => {
+    setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, feedEnabled: on } : x));
+    const err = await onAction("admin_set_company_feed", { p_company_id: c.id, p_enabled: on },
+      on ? "Enabled job-site feed" : "Disabled job-site feed", c.name);
+    if (err) setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, feedEnabled: c.feedEnabled } : x));
   };
 
   // Confirmed from the dialog. Status first, then the plan when it changed, so a
@@ -1339,8 +1434,13 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
                   {/* Comp is offered only where it means something: a paying
                       workspace already has its plan and Stripe owns it. */}
                   {c.compedAt
-                    ? <ActionBtn icon="close" disabled={!can(role, "company.comp")} onClick={() => onComp(c, false)}>End comp</ActionBtn>
+                    ? <ActionBtn icon="close" disabled={!can(role, "company.comp")} onClick={() => setCompDialog(c)}>End comp</ActionBtn>
                     : <ActionBtn icon="spark" disabled={!can(role, "company.comp") || c.subStatus === "active"} onClick={() => onComp(c, true)}>Comp</ActionBtn>}
+                  {/* Job-site advertising. Labelled by what the click does, like
+                      the buttons either side of it: "Unlist" means it is on. */}
+                  {c.feedEnabled
+                    ? <ActionBtn icon="close" disabled={!can(role, "company.feed")} onClick={() => onFeed(c, false)}>Unlist</ActionBtn>
+                    : <ActionBtn icon="external" disabled={!can(role, "company.feed") || c.status === "suspended"} onClick={() => onFeed(c, true)}>Advertise</ActionBtn>}
                   {c.status === "suspended"
                     ? <ActionBtn icon="refresh" disabled={!can(role, "company.restore")} onClick={() => setDialog({ company: c, mode: "restore" })}>Restore</ActionBtn>
                     : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "company.suspend")} onClick={() => setDialog({ company: c, mode: "suspend" })}>Suspend</ActionBtn>}
@@ -1387,6 +1487,10 @@ function Companies({ role, companies, setCompanies, users = [], subs = [], usage
           onOpenSection={() => { setOpenWs(null); go("workspaces"); }} />
       )}
       {dialog && <StatusDialog company={dialog.company} mode={dialog.mode} planPrices={planPrices} onClose={() => setDialog(null)} onConfirm={apply} />}
+      {compDialog && (
+        <EndCompDialog company={compDialog} willSuspend={compWouldSuspend(compDialog)}
+          onClose={() => setCompDialog(null)} onConfirm={(c) => onComp(c, false)} />
+      )}
     </div>
   );
 }
@@ -3885,6 +3989,10 @@ export default function AdminPortal() {
         // From the billing address (0165), not companies.region, which is free
         // text nobody has ever written to.
         country: c.address_country || null,
+        // Whether this workspace's open roles go out in the public job-site
+        // feed (0172). Opt-in, so a pilot customer can be switched on here
+        // without waiting for them to find the setting themselves.
+        feedEnabled: !!c.feed_enabled,
         periodEnd: c.current_period_end || null,
       })));
       setSubs(co.map((c) => ({
