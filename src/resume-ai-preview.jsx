@@ -13136,7 +13136,11 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       // Name the reason. A catch-all here hid a real fault twice, and the one
       // person who could act on it was reading "couldn't draft that one".
       const said = {
-        generate_failed: "The draft didn't come back. No credit was used, try again.",
+        // detail carries Anthropic's own words. Dropping it here is what kept
+        // the real cause hidden through three separate failures.
+        generate_failed: detail
+          ? `The draft didn't come back: ${detail}. No credit was used.`
+          : "The draft didn't come back. No credit was used, try again.",
         no_api_key: "AI drafting isn't configured on the server yet. No credit was used.",
         no_title: "Add a job title first.",
         unauthorized: "Your session expired. Sign in again.",
