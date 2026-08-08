@@ -5042,7 +5042,9 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
           </div>
         </div>
         <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--line)" }}>
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Oryx Digital Sdn Bhd · All rights reserved</p>
+          {/* Company registration number sits with the name, which is what
+              identifies the entity behind the site. */}
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Oryx Digital Sdn Bhd (1529737-X) · All rights reserved</p>
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>Hire the right person, without reading every CV.</p>
         </div>
       </div>
