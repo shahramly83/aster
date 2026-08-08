@@ -11194,8 +11194,14 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
               })}
               {showTotal && (
                 <>
-                  <text x="66" y="62" textAnchor="middle" className="font-display" style={{ fontSize: 15, fontWeight: 700, fill: "var(--ink)" }}>{total}</text>
-                  <text x="66" y="75" textAnchor="middle" style={{ fontSize: 8, fill: "var(--ink-3)" }}>Total</text>
+                  {/* Centred on the block, not on a baseline. A baseline sits at
+                      the foot of the glyphs, so y=66 put the number's mass above
+                      the middle and left it grazing the inner arc. With a central
+                      baseline the number's centre is 61.3 and the caption's 74.3,
+                      which puts the top of the digits and the bottom of "Total"
+                      an equal distance either side of 66. */}
+                  <text x="66" y="61.3" textAnchor="middle" dominantBaseline="central" className="font-display" style={{ fontSize: 15, fontWeight: 700, fill: "var(--ink)" }}>{total}</text>
+                  <text x="66" y="74.3" textAnchor="middle" dominantBaseline="central" style={{ fontSize: 8, fill: "var(--ink-3)" }}>Total</text>
                 </>
               )}
             </svg>
