@@ -3200,11 +3200,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "rgba(255,255,255,0.82)", lineHeight: 1.6 }}>
               Aster reads every resume, scores each applicant against the role, and books the interviews. A two-week shortlist now takes an afternoon.
             </p>
-            <div className="mt-8 flex items-center gap-3">
-              <button onClick={() => goTrial()} className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] hover:opacity-95" style={{ background: "#fff", color: "var(--brand)" }}>
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <button onClick={() => goTrial()} className="inline-flex items-center w-full sm:w-auto justify-center text-center font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] hover:opacity-95" style={{ background: "#fff", color: "var(--brand)" }}>
                 Start free trial
               </button>
-              <a href="#pricing" className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/10" style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.28)" }}>
+              <a href="#pricing" className="inline-flex items-center w-full sm:w-auto justify-center text-center px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/10" style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.28)" }}>
                 See pricing
               </a>
             </div>
@@ -3990,11 +3990,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               ))}
             </div>
 
-            <div className="mt-9 flex items-stretch sm:items-center justify-center gap-3">
-              <button onClick={() => goTrial()} className="inline-flex items-center justify-center flex-1 basis-0 min-w-0 sm:flex-none text-center font-semibold px-4 sm:px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
+            <div className="mt-9 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+              <button onClick={() => goTrial()} className="inline-flex items-center justify-center w-full sm:w-auto text-center font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
                 Create your workspace
               </button>
-              <a href="#pricing" className="inline-flex items-center justify-center flex-1 basis-0 min-w-0 sm:flex-none text-center px-4 sm:px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
+              <a href="#pricing" className="inline-flex items-center justify-center w-full sm:w-auto text-center px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
                 See pricing
               </a>
             </div>
@@ -6188,9 +6188,9 @@ function ProductCTA({ navigate }) {
           <div className="relative">
             <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
             <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Create your workspace and let Aster read, score and schedule for you. Free for 14 days, no card required.</p>
-            <div className="mt-8 flex items-center justify-center gap-3">
-              <button onClick={() => navigate("signup")} className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>Start free trial</button>
-              <button onClick={() => navigate("landing")} className="inline-flex items-center flex-1 basis-0 min-w-0 sm:flex-none justify-center text-center px-6 py-3 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>See pricing</button>
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+              <button onClick={() => navigate("signup")} className="inline-flex items-center w-full sm:w-auto justify-center text-center font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>Start free trial</button>
+              <button onClick={() => navigate("landing")} className="inline-flex items-center w-full sm:w-auto justify-center text-center px-6 py-3 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>See pricing</button>
             </div>
           </div>
         </div>
