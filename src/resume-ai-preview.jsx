@@ -8288,8 +8288,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
 
       {/* Adopt-signature modal */}
       {adoptOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-5" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => setAdoptOpen(false)}>
-          <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-6" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => setAdoptOpen(false)}>
+          <div className="bg-white p-6 act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Adopt your signature</h2>
               <button onClick={() => setAdoptOpen(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
@@ -8327,8 +8327,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
 
       {/* Decline modal */}
       {declining && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-5" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
-          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
+          <div className="bg-white p-6 act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
             <h2 className="text-lg font-bold font-display mb-1" style={{ color: "#9F1239" }}>Decline this offer?</h2>
             <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>Tell {company} why. Only the hiring team sees this.</p>
             <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={3} maxLength={1000}
@@ -12066,8 +12066,8 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
     : `Extra ${meta.label.toLowerCase()} credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire.`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-3xl bg-white overflow-hidden max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={onClose}>
+      <div className="act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
         {/* Brand-washed header */}
         <div className="relative px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
           <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
@@ -13034,12 +13034,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
       {/* Document preview, view the original resume + what the AI pulled out of it */}
       {previewRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Preview of ${previewRow.fileName}`}>
+        <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`Preview of ${previewRow.fileName}`}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPreviewRow(null)} />
-          <div className="relative z-10 w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
+          <div className="relative z-10 flex flex-col bg-white overflow-hidden act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
             <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: "var(--line)" }}>
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{previewRow.fileName}</p>
                   <p className="text-xs" style={{ color: "var(--ink-3)" }}>Original document · read-only preview</p>
@@ -14673,10 +14672,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           { label: "What we're looking for", items: dj.requirements },
           { label: "What we offer", items: dj.benefits },
         ].filter((s) => Array.isArray(s.items) && s.items.length > 0);
+        // A side sheet, matching the new-posting form. A role's details run long
+        // enough that a centred box spent most of its height scrolling inside a
+        // window, and the two surfaces sit next to each other in the same task:
+        // opening a role and editing it should not feel like two different kinds
+        // of thing.
         return (
-          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${dj.title} details`}>
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDetailJob(null)} />
-            <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-3xl bg-white overflow-hidden flex flex-col" style={{ border: "1px solid var(--line)", boxShadow: "0 44px 88px -36px rgba(18,19,42,0.6)" }}>
+          <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`${dj.title} details`}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={() => setDetailJob(null)} />
+            <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-hidden flex flex-col" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
               <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 shrink-0 overflow-hidden">
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.12), rgba(var(--brand-rgb),0.03) 55%, transparent)" }} />
                 <div className="relative flex items-start gap-3.5 min-w-0">
@@ -14694,7 +14698,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               </div>
               <div className="h-px shrink-0" style={{ background: "var(--line)" }} />
 
-              <div className="px-5 sm:px-6 py-5 max-h-[70vh] overflow-y-auto space-y-6">
+              {/* Grows to fill the sheet rather than stopping at 70vh, which was
+                  sized for a centred box floating in the middle of the page. */}
+              <div className="px-5 sm:px-6 py-5 flex-1 min-h-0 overflow-y-auto space-y-6">
                 {/* Key facts */}
                 {(() => {
                   const facts = [
@@ -14884,11 +14890,16 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         )} />
       )}
 
-      {/* Copy application link, source tagging modal */}
+      {/* Copy application link, source tagging modal.
+
+          Opens as the same side sheet as the details and new-posting surfaces.
+          It is reached FROM the details sheet, and a centred box landing on top
+          of a sheet reads as a different app; the embed tab also carries a long
+          code snippet a narrow centred dialog made you scroll twice. */}
       {linkJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeLinkModal} />
-          <div className="relative w-full max-w-lg rounded-2xl bg-white p-5 act-shadow border border-[color:var(--line)] max-h-[88vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={closeLinkModal} />
+          <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-5 overflow-y-auto" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
             <h2 className="text-lg font-bold font-display mb-3" style={{ color: "var(--ink)" }}>
               {linkTab === "embed" ? "Embed on your site" : "Share application link"}
             </h2>
@@ -15741,7 +15752,10 @@ class ErrorBoundary extends Component {
 
 // `busy` keeps the dialog open and inert while an async confirm is in flight, so
 // a slow round-trip can't be double-submitted or dismissed mid-write.
-function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLabel = "Cancel", onConfirm, onClose, tone = "brand", icon, busy = false, busyLabel }) {
+// `icon` is intentionally no longer a parameter. Call sites still passing one
+// are harmless (React ignores unknown props) and get cleaned up as they are
+// touched, rather than in one sweep across every dialog in the app.
+function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLabel = "Cancel", onConfirm, onClose, tone = "brand", busy = false, busyLabel }) {
   const panelRef = useRef(null);
   const titleId = useId();
   const bodyId = useId();
@@ -15773,11 +15787,10 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
 
   if (!open) return null;
   const danger = tone === "danger";
-  const iconName = icon || (danger ? "trash" : "matching");
   const accent = danger ? { background: "#DC2626" } : undefined;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex justify-end">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => !busy && onClose()} />
       <div
         ref={panelRef}
@@ -15785,15 +15798,17 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl act-panel-in"
+        className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-5 overflow-y-auto"
         style={{ border: "1px solid var(--line)" }}
       >
-        <div className="flex items-start gap-3">
-          <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${danger ? "" : "brand-gradient"}`} style={accent}><Icon name={iconName} className="w-4 h-4" /></span>
-          <div className="min-w-0">
-            <h3 id={titleId} className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
-            <div id={bodyId} className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</div>
-          </div>
+        {/* No icon chip. It decorated every dialog identically whatever the
+            dialog was about, so it carried no information and only pushed the
+            sentence that does the work off to one side. The title and the
+            confirm button's own label say what is about to happen, which is
+            also what a screen reader announces. */}
+        <div className="min-w-0">
+          <h3 id={titleId} className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
+          <div id={bodyId} className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</div>
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button
@@ -15860,7 +15875,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
   const R = 30, CIRC = 2 * Math.PI * R;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex justify-end">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={onClose} />
       <div
         ref={panelRef}
@@ -15868,7 +15883,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl act-panel-in overflow-hidden"
+        className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white overflow-hidden flex flex-col"
         style={{ border: "1px solid var(--line)" }}
       >
         {/* Header: live progress ring + status */}
@@ -17430,12 +17445,12 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       {/* AI insight popup: candidate header (avatar + match ring) over a brand
           wash, the reasoning below, and an Open-profile CTA. */}
       {insight && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setInsight(null)}>
-          <div className="w-full max-w-lg rounded-3xl bg-white overflow-hidden" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setInsight(null)}>
+          <div className="bg-white overflow-hidden act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
             <div className="relative px-6 pt-5 pb-5" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
               <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
               <div className="relative flex items-center justify-between gap-3">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}><Icon name="star" className="w-3.5 h-3.5" /> AI Insight</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}>AI Insight</span>
                 <button onClick={() => setInsight(null)} aria-label="Close" className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/70 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
               </div>
               <div className="relative flex items-center gap-3.5 mt-3">
@@ -17468,13 +17483,12 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         const suggestions = q ? interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && `${iv.name || ""} ${iv.email || ""}`.toLowerCase().includes(q)) : [];
         const exactExisting = !!q && interviewers.some((iv) => (iv.email || "").toLowerCase() === q);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setIvOpen(false)}>
-            <div className="w-full max-w-md rounded-3xl bg-white overflow-hidden" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
+          <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setIvOpen(false)}>
+            <div className="bg-white overflow-hidden act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
               <div className="relative px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
                 <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
                 <div className="relative flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <Icon name="userPlus" className="w-6 h-6 shrink-0" style={{ color: "var(--brand)" }} />
                     <div className="min-w-0">
                       <h3 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>Invite interviewer</h3>
                       <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-2)" }}>Search your team, or invite someone new by email</p>
@@ -17855,8 +17869,8 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
       {/* Read-only view of a position the interviewer requested (their own draft),
           so they can review what they submitted even while it's pending approval. */}
       {viewReq && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setViewReq(null)}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 act-shadow max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setViewReq(null)}>
+          <div className="bg-white p-6 act-shadow overflow-y-auto act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>{viewReq.title}</h3>
@@ -17991,11 +18005,10 @@ function ApproversSection({ companyId, canPersist }) {
 
       {/* Add approver — compact modal, fields never stretch across the page */}
       {showAdd && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex justify-end">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => setShowAdd(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl act-panel-in" style={{ border: "1px solid var(--line)" }}>
-            <div className="flex items-start gap-3 mb-4">
-              <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="userPlus" className="w-4 h-4" /></span>
+          <div className="relative bg-white p-5 shadow-2xl act-panel-in act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" style={{ border: "1px solid var(--line)" }}>
+            <div className="mb-4">
               <div className="min-w-0">
                 <h3 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Add an approver</h3>
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>They confirm by email, no account or login.</p>
@@ -18575,10 +18588,12 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           onClose={() => setApproverDel(null)}
         />
 
-      {/* Invite teammate modal */}
+      {/* Invite teammate modal, as the same side sheet the rest of the app uses
+          for anything you fill in rather than just read. */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 backdrop-blur-sm act-scrim-in" style={{ background: "rgba(10,11,30,0.45)" }} />
+          <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white p-6 overflow-y-auto" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{inviteRole === "approver" ? "Add an approver" : "Invite a teammate"}</h3>
@@ -18675,8 +18690,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
 
       {/* Remove confirmation */}
       {removing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setRemoving(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setRemoving(null)}>
+          <div className="bg-white p-6 act-shadow act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Remove {removing.name}?</h3>
             {(() => {
               const sched = scheduledCountFor(removing);
@@ -19263,11 +19278,11 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, minSlot
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6" style={{ background: "rgba(10,11,30,0.45)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div
             role="dialog"
             aria-label="Choose interview times"
-            className="w-[min(38rem,calc(100vw-2rem))] max-h-[88vh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white shadow-2xl p-4 sm:p-5 flex flex-col gap-3"
+            className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto border-l border-neutral-200 bg-white p-4 sm:p-5 flex flex-col gap-3"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -19483,8 +19498,8 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
         </div>
       )}
       {votePoll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={close}>
-          <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }} onClick={close}>
+          <div className="act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2 px-1">
               <p className="text-sm font-semibold text-white">Mark your availability</p>
               <button onClick={close} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}><Icon name="close" className="w-4 h-4" /></button>
@@ -19974,9 +19989,9 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
 
       {/* Add-interviewer modal (matches the Pipeline "add interviewer" flow). */}
       {addingPanel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Add an interviewer">
+        <div className="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true" aria-label="Add an interviewer">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={closePanelPicker} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white act-shadow act-panel-in p-5 sm:p-6" style={{ border: "1px solid var(--line)" }}>
+          <div className="relative z-10 bg-white act-shadow act-panel-in p-5 sm:p-6 act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto" style={{ border: "1px solid var(--line)" }}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Add an interviewer</h3>
@@ -22446,10 +22461,10 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
           {/* The full ledger, on request. Its own scroll area so the billing page
               keeps its length no matter how busy the workspace is. */}
           {spendAllOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Credit activity">
+            <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Credit activity">
               <ScrollLock />
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={() => setSpendAllOpen(false)} />
-              <div className="act-panel-in relative z-10 w-full max-w-lg max-h-[80vh] rounded-2xl bg-white flex flex-col overflow-hidden act-shadow">
+              <div className="act-panel-in relative z-10 bg-white flex flex-col overflow-hidden act-shadow act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2">
                 <div className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderBottom: "1px solid var(--line)" }}>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Credit activity</p>
@@ -26919,12 +26934,11 @@ function ResumePdfModal({ candidate, onClose }) {
     </div>
   );
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+    <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl" style={{ background: "#20233A" }}>
+      <div className="relative flex flex-col overflow-hidden shadow-2xl act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2" style={{ background: "#20233A" }}>
         {/* Viewer toolbar */}
         <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#2A2E48" }}>
-          <Icon name="doc" className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.8)" }} />
           <span className="text-sm font-medium truncate" style={{ color: "rgba(255,255,255,0.92)" }}>{fileName}</span>
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
             {realDoc ? (
@@ -27585,9 +27599,9 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-xl rounded-2xl border bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" style={{ borderColor: "var(--line)" }}>
+      <div className="relative border bg-white shadow-2xl flex flex-col overflow-hidden act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2" style={{ borderColor: "var(--line)" }}>
         {/* Sticky branded header */}
         <div className="px-6 pt-5 pb-4 flex items-start gap-3 border-b" style={{ borderColor: "var(--line)", background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)" }}>
           <div className="min-w-0 flex-1">
@@ -27943,9 +27957,9 @@ function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onR
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative border border-neutral-200 bg-white shadow-xl p-6 overflow-y-auto act-sheet-in h-full w-full sm:w-[92%] lg:w-1/2">
         <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Reject {candidateName}</h2>
         <p className="text-sm text-neutral-500 mb-4">
           Review the email before it's sent. You can edit it, send it, or reject without emailing.
@@ -28700,8 +28714,8 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
     >
 
         {closePrompt && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
+          <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(10,11,30,0.45)" }}>
+            <div className="bg-white p-6 act-shadow act-sheet-in relative h-full w-full sm:w-[92%] lg:w-1/2 overflow-y-auto">
               <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Close {job?.title}?</h3>
               <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 {inProgressApplicants.length > 0
