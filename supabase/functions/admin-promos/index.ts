@@ -89,6 +89,10 @@ Deno.serve(async (req) => {
         minimum_amount: p?.restrictions?.minimum_amount ?? null,
         minimum_amount_currency: p?.restrictions?.minimum_amount_currency ?? null,
         customer: typeof p.customer === "string" ? p.customer : p.customer?.id ?? null,
+        // Stripe returns coupon expanded here, but a code whose coupon was
+        // deleted comes back with nothing to read, which rendered as a bare
+        // dash. Carry the id so the screen can at least name it.
+        coupon_id: typeof p.coupon === "string" ? p.coupon : p?.coupon?.id ?? null,
         percent_off: p?.coupon?.percent_off ?? null,
         amount_off: p?.coupon?.amount_off ?? null,
         coupon_currency: p?.coupon?.currency ?? null,

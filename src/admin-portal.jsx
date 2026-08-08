@@ -2237,13 +2237,26 @@ function Promos({ role, companies = [], audit }) {
           <tr key={p.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
             <Td>
               <span className="font-mono font-bold tracking-wider text-neutral-900">{p.code}</span>
-              {banner.code && p.code === banner.code && (
+              {/* Stripe lets the same string exist on several promotion codes,
+                  archived ones included, and they cannot be deleted. Only the
+                  live one can be what a customer actually redeems, so only that
+                  one is badged: tagging every row with the string made two
+                  identical lines both claim to be the advertised code. */}
+              {banner.code && p.code === banner.code && live(p) && (
                 <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle"
                   style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>ON SITE</span>
               )}
+              {/* The id, so two rows sharing a string can be told apart at all. */}
+              <div className="text-[11px] font-mono mt-0.5" style={{ color: "var(--ink-3)" }}>{String(p.id || "").replace(/^promo_/, "")}</div>
             </Td>
             <Td>
-              <span className="tnum font-semibold">{p.percent_off != null ? `${p.percent_off}% off` : p.amount_off != null ? `${String(p.coupon_currency || "").toUpperCase()} ${(p.amount_off / 100).toFixed(2)} off` : "—"}</span>
+              {/* A bare dash told you nothing about why. Naming the coupon at
+                  least says where to look in Stripe. */}
+              <span className="tnum font-semibold">
+                {p.percent_off != null ? `${p.percent_off}% off`
+                  : p.amount_off != null ? `${String(p.coupon_currency || "").toUpperCase()} ${(p.amount_off / 100).toFixed(2)} off`
+                  : <span className="font-mono text-xs font-normal" style={{ color: "var(--ink-3)" }}>{p.coupon_id || "no coupon"}</span>}
+              </span>
               <div className="text-xs" style={{ color: "var(--ink-3)" }}>
                 {p.duration === "forever" ? "every payment" : p.duration === "repeating" ? `${p.duration_in_months} months` : "first payment"}
               </div>

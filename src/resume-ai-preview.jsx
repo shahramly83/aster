@@ -10743,7 +10743,7 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
         // the dashboard from Kuala Lumpur, which is the number that team talks in.
         const unit = /united states|usa|^u\.?s\.?a?$|liberia|myanmar|burma/i.test(String(country || "").trim())
           ? "fahrenheit" : "celsius";
-        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code,is_day&temperature_unit=${unit}`).then((r) => r.json());
+        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${hit.latitude}&longitude=${hit.longitude}&current=temperature_2m,weather_code,is_day,precipitation,cloud_cover&temperature_unit=${unit}`).then((r) => r.json());
         if (live && w?.current) setWx({
           temp: Math.round(w.current.temperature_2m),
           code: w.current.weather_code,
@@ -10752,6 +10752,8 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
           // the clock: sunset is not 6pm everywhere, and in June it is not 6pm
           // anywhere far enough north.
           day: w.current.is_day !== 0,
+          precip: Number(w.current.precipitation) || 0,
+          cloud: Number(w.current.cloud_cover) || 0,
         });
       } catch { /* weather is decoration: never surface a failure */ }
     })();
@@ -10770,7 +10772,22 @@ function LocalNowCard({ city: wsCity, country: wsCountry, timezone: wsZone }) {
   const weekday = now.toLocaleDateString("en-GB", { ...tzOpts, weekday: "long" });
   const date = now.toLocaleDateString("en-GB", { ...tzOpts, day: "numeric", month: "long", year: "numeric" });
   const time = clock(myZone);
-  const sky = wx ? (WMO[wx.code] || WMO[3]) : null;
+  // Open-Meteo is a forecast model, not a station reading, and it calls any
+  // precipitation from 0.1mm "drizzle". That put a rain cloud on the card on a
+  // morning Windows called mostly sunny, off 0.1mm and nothing falling that
+  // anyone standing outside would notice.
+  //
+  // A trace is therefore read as cloud rather than rain, and how cloudy comes
+  // from cloud_cover, which is the one figure here actually worth trusting for
+  // that. Anything at 0.2mm or above is left exactly as the model reported it:
+  // this only softens the weakest call it makes, it does not second-guess rain.
+  const sky = (() => {
+    if (!wx) return null;
+    const base = WMO[wx.code] || WMO[3];
+    if (base.icon !== "rain") return base;
+    if (wx.precip >= 0.2) return base;
+    return { label: wx.cloud >= 80 ? "Overcast" : wx.cloud >= 40 ? "Partly cloudy" : "Clear", icon: wx.cloud >= 40 ? "cloudy" : "clear" };
+  })();
 
   // Every line of text starts at the same left edge. The icon used to sit before
   // the time, which gave the card two competing left margins: the date against
