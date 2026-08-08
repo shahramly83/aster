@@ -13101,6 +13101,13 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [aiNote, setAiNote] = useState(null);      // { msg, bad }
   const [draftCredits, setDraftCredits] = useState(0);
   const [buyDraftOpen, setBuyDraftOpen] = useState(false);
+  // Drafting needs both: the title says what the role is, the location decides
+  // the salary range and the market the description is written for. Without a
+  // location the model guesses a country, which is the wrong thing to guess.
+  const draftReady = !!title.trim() && !!location.trim();
+  const draftMissing = !title.trim() && !location.trim()
+    ? "Fill in the job title and location first"
+    : !title.trim() ? "Fill in the job title first" : "Fill in the location first";
   // Re-read the balance whenever the buy sheet closes, so a purchase unlocks the
   // button without a page reload.
   const refreshDraftCredits = () => {
@@ -13119,12 +13126,8 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   }, []);
 
   const draftWithAi = async () => {
-    if (aiBusy) return;
-    // Credits first, title second. The other way round meant a click with no
-    // credits AND no title returned here silently, so the button that exists to
-    // sell something did nothing at all. Buying must never need a title.
-    if (draftCredits <= 0) { setBuyDraftOpen(true); return; }
-    if (!title.trim()) return;
+    // Buying is its own button now, so this one only ever drafts.
+    if (aiBusy || !draftReady || draftCredits <= 0) return;
     setAiBusy(true); setAiNote(null);
     const { data, error } = await supabase.functions.invoke("generate-job-draft", {
       body: { title: title.trim(), location: location || null },
@@ -13286,35 +13289,34 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           {/* Gold, and locked until there are credits. This is the one paid-only
               feature in the product, so it should look unlike every blue button
               around it and say plainly that it is bought rather than included. */}
-          {/* Two genuinely different states. Locked said "Draft with AI" in the
-              same words as ready, so the only clue was a padlock: it looked
-              broken rather than purchasable, and nothing said the click leads to
-              a checkout. Locked now reads as an offer, ready reads as an action
-              and carries the balance. */}
-          <button type="button" onClick={draftWithAi}
-            // Buying never needs a title: someone stocking up before they write
-            // anything is a perfectly ordinary thing to do, and refusing the
-            // click would make the only way to pay depend on filling a form
-            // first. A title is only required to actually spend a credit.
-            disabled={aiBusy || (draftCredits > 0 && !title.trim())}
-            title={draftCredits > 0
-              ? `Writes the whole posting from the title. Uses 1 credit, ${draftCredits} left.`
-              : "Buy credits to unlock. Opens checkout."}
-            className="adm-gold shrink-0 inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
-            style={draftCredits > 0
-              ? { background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }
-              : { background: "#FFFBF0", color: "#8A6410", border: "1px solid #E8C87A" }}>
-            <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
-            {/* The balance shows at zero too. Hiding it there meant the one
-                state where the number matters most was the one state without a
-                number on it. */}
-            {aiBusy
-              ? "Drafting…"
-              : <>
-                  {draftCredits > 0 ? "Draft with AI" : "Unlock AI drafting"}
-                  <span className="tnum font-semibold opacity-65">{draftCredits}</span>
-                </>}
-          </button>
+          {/* The action and the purchase are two controls, not one. Folding them
+              together meant the button changed job depending on the balance, and
+              the count only appeared once you had some. Draft always says what a
+              draft costs and what is left; Buy is always there and never needs
+              the form filled in.
+
+              One gold for both: the labels already say which is which, and two
+              fills made a pair of related controls look unrelated. */}
+          <div className="shrink-0 flex items-center gap-1.5">
+            <button type="button" onClick={draftWithAi}
+              disabled={aiBusy || !draftReady || draftCredits <= 0}
+              title={draftCredits <= 0
+                ? "No credits left. Buy some to draft with AI."
+                : draftReady
+                  ? `Writes the whole posting from the title. Uses 1 credit, ${draftCredits} left.`
+                  : draftMissing}
+              className="adm-gold inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }}>
+              <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
+              {aiBusy ? "Drafting…" : <>Draft with AI <span className="opacity-45">·</span> <span className="tnum">{draftCredits}</span> credit{draftCredits === 1 ? "" : "s"}</>}
+            </button>
+            <button type="button" onClick={() => setBuyDraftOpen(true)}
+              title="Buy AI drafting credits. Opens checkout."
+              className="adm-gold inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[12px] font-bold transition-all"
+              style={{ background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }}>
+              Buy
+            </button>
+          </div>
         </div>
         <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
         {/* Says what it is and what it costs, before anyone clicks. This is the
@@ -13322,16 +13324,14 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             that from a padlock is not good enough. */}
         {!aiNote && draftCredits <= 0 && (
           <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
-            AI drafting writes the whole posting from the title. It is bought as credits, not included in any plan.
-            {" "}
-            <button type="button" onClick={() => setBuyDraftOpen(true)} className="font-semibold underline underline-offset-2" style={{ color: "#8A6410" }}>
-              See the price
-            </button>
+            AI drafting writes the whole posting from the title and location. It is bought as credits, not included in any plan.
           </p>
         )}
         {!aiNote && draftCredits > 0 && (
           <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
-            {draftCredits} draft{draftCredits === 1 ? "" : "s"} left. Each one uses a credit and fills only the fields you have not typed in.
+            {draftReady
+              ? `${draftCredits} draft${draftCredits === 1 ? "" : "s"} left. Each one uses a credit and fills only the fields you have not typed in.`
+              : `${draftMissing}. ${draftCredits} draft${draftCredits === 1 ? "" : "s"} left.`}
           </p>
         )}
         {aiNote && (
