@@ -11440,7 +11440,31 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                     })}
                   </div>
 
-                  {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
+                  {/* Roles and sources lead: which roles are pulling, and
+                      where those people came from, is what a morning check is
+                      for. The journey and the calendar sit underneath. */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
+                    <div className={cardClass}>
+                      {sectionHead(
+                        "Top 3 positions",
+                        roleTotal > 0 ? (
+                          <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
+                        ) : null
+                      )}
+                      {ringsBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
+                    </div>
+                    <div className={cardClass}>
+                      {sectionHead(
+                        "Application Source",
+                        sourceSegments.length > 3 ? (
+                          <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : `Show all ${sourceSegments.length}`} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
+                        ) : null
+                      )}
+                      {ringsBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
+                    </div>
+                  </div>
+
+                  {/* Then the journey and the month, equal height, filling what is left. */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "One person, one status, across all roles. Declined: they said no. Rejected: you did.")}
@@ -11490,27 +11514,6 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
               );
             })()}
 
-            {/* Top Roles + Application Source, in the left column right under the chart */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
-              <div className={cardClass}>
-                {sectionHead(
-                  "Top 3 positions",
-                  roleTotal > 0 ? (
-                    <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
-                  ) : null
-                )}
-                {ringsBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
-              </div>
-              <div className={cardClass}>
-                {sectionHead(
-                  "Application Source",
-                  sourceSegments.length > 3 ? (
-                    <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : `Show all ${sourceSegments.length}`} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
-                  ) : null
-                )}
-                {ringsBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
-              </div>
-            </div>
           </div>
 
           {/* Right dark panel, plan card + quick actions + recent candidates */}
