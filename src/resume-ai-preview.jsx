@@ -983,10 +983,12 @@ const BRAND_STYLES = `
   from { opacity: 0; transform: translateY(8px) scale(.97); }
   to   { opacity: 1; transform: none; }
 }
+@keyframes act-sheet-in { from { transform: translateX(100%); } to { transform: none; } }
+.act-sheet-in { animation: act-sheet-in .26s cubic-bezier(.16,1,.3,1) both; }
 .act-scrim-in { animation: act-scrim-in .16s ease-out both; }
 .act-panel-in { animation: act-panel-in .22s cubic-bezier(.16,1,.3,1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .act-scrim-in, .act-panel-in { animation: none; }
+  .act-scrim-in, .act-panel-in, .act-sheet-in { animation: none; }
 }
 
 /* Blog article prose — an editorial reading experience */
@@ -13554,12 +13556,16 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
   const sub = requestMode
     ? "Fill in the role you'd like to hire for. It goes to your hiring manager as a draft to review and publish."
     : editing ? "Update the details. Changes go live on the posting right away." : "Add the details, then share the link and rank applicants as they apply.";
+  // A side sheet, not a centred box. This form is long enough that a centred
+  // card spent half the screen on backdrop and scrolled its own middle; full
+  // height gives every field room and the width follows the screen rather than
+  // a fixed max-width.
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={heading}>
-      {/* Backdrop does NOT close the modal: a long form shouldn't vanish on a
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={heading}>
+      {/* Backdrop does NOT close the sheet: a long form shouldn't vanish on a
           stray outside click. Close only via the X or Cancel. */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-3xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 44px 88px -36px rgba(18,19,42,0.6)" }}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" />
+      <div className="act-sheet-in relative z-10 h-full w-full sm:w-[92%] lg:w-1/2 bg-white flex flex-col overflow-hidden" style={{ borderLeft: "1px solid var(--line)", boxShadow: "-32px 0 88px -36px rgba(18,19,42,0.55)" }}>
         <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 overflow-hidden">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.10), rgba(var(--brand-rgb),0.02) 55%, transparent)" }} />
           <div className="relative flex items-center gap-3 min-w-0">
@@ -13570,7 +13576,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
-        <div className="px-5 sm:px-6 py-5 max-h-[75vh] overflow-y-auto">
+        <div className="px-5 sm:px-6 py-5 flex-1 overflow-y-auto">
           <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} requestMode={requestMode} requesterId={requesterId} requesterName={requesterName} />
         </div>
       </div>
