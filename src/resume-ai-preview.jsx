@@ -952,6 +952,8 @@ const BRAND_STYLES = `
 .brand-text { background-image: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--brand); -webkit-text-fill-color: var(--brand); }
 .card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
+.adm-gold { box-shadow: 0 1px 2px rgba(160,110,20,.10); }
+.adm-gold:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px -10px rgba(201,138,28,.85); }
 .act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.05), 0 10px 26px -14px rgba(18,19,42,.16); }
 /* Onboarding-tour: gently pulse the target action button; pop the bubble in
    with a spring; radar-ping the tail toward the target so the eye follows it. */
@@ -13273,23 +13275,46 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           {/* Gold, and locked until there are credits. This is the one paid-only
               feature in the product, so it should look unlike every blue button
               around it and say plainly that it is bought rather than included. */}
+          {/* Two genuinely different states. Locked said "Draft with AI" in the
+              same words as ready, so the only clue was a padlock: it looked
+              broken rather than purchasable, and nothing said the click leads to
+              a checkout. Locked now reads as an offer, ready reads as an action
+              and carries the balance. */}
           <button type="button" onClick={draftWithAi}
-            disabled={aiBusy || !title.trim()}
+            disabled={aiBusy || (draftCredits > 0 && !title.trim())}
             title={draftCredits > 0
-              ? `Write the whole posting from the title · 1 credit (${draftCredits} left)`
-              : "Buy a credit to draft this with AI"}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition-all disabled:opacity-50 hover:-translate-y-px"
-            style={{
-              background: "linear-gradient(135deg,#F4C561,#E0A32E 55%,#C98A1C)",
-              color: "#3B2A05",
-              boxShadow: "0 6px 16px -8px rgba(201,138,28,.9)",
-            }}>
+              ? `Writes the whole posting from the title. Uses 1 credit, ${draftCredits} left.`
+              : "Buy credits to unlock. Opens checkout."}
+            className="adm-gold shrink-0 inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
+            style={draftCredits > 0
+              ? { background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }
+              : { background: "#FFFBF0", color: "#8A6410", border: "1px solid #E8C87A" }}>
             <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
-            {aiBusy ? "Drafting…" : draftCredits > 0 ? "Draft with AI" : "Draft with AI"}
-            {draftCredits > 0 && <span className="tnum font-semibold opacity-70">{draftCredits}</span>}
+            {aiBusy
+              ? "Drafting…"
+              : draftCredits > 0
+                ? <>Draft with AI <span className="tnum font-semibold opacity-65">{draftCredits}</span></>
+                : "Unlock AI drafting"}
           </button>
         </div>
         <input id="njf-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
+        {/* Says what it is and what it costs, before anyone clicks. This is the
+            only paid-only feature in the product, so leaving people to infer
+            that from a padlock is not good enough. */}
+        {!aiNote && draftCredits <= 0 && (
+          <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+            AI drafting writes the whole posting from the title. It is bought as credits, not included in any plan.
+            {" "}
+            <button type="button" onClick={() => setBuyDraftOpen(true)} className="font-semibold underline underline-offset-2" style={{ color: "#8A6410" }}>
+              See the price
+            </button>
+          </p>
+        )}
+        {!aiNote && draftCredits > 0 && (
+          <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+            {draftCredits} draft{draftCredits === 1 ? "" : "s"} left. Each one uses a credit and fills only the fields you have not typed in.
+          </p>
+        )}
         {aiNote && (
           <p className="text-[11px] mt-1.5" style={{ color: aiNote.bad ? "var(--danger, #B42318)" : "var(--ink-3)" }}>{aiNote.msg}</p>
         )}
