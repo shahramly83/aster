@@ -386,6 +386,29 @@ function fetchPlanPrices() {
 }
 
 // null while loading, {} when unavailable, otherwise the price map.
+// Nothing in this app has ever locked the page behind a modal. A fixed overlay
+// covers the page but does not stop a wheel event: scrolling over the backdrop,
+// or past the end of the sheet's own scroller, chains through to the window and
+// drags the page along underneath.
+//
+// A component rather than a hook so it can be dropped inside an overlay that
+// early-returns null when closed, which is most of them here. Mounting with the
+// overlay is what ties the lock to its lifetime.
+function ScrollLock() {
+  useEffect(() => {
+    const el = document.body;
+    const prevOverflow = el.style.overflow;
+    const prevPad = el.style.paddingRight;
+    // Hiding the scrollbar widens the viewport and shifts the whole page sideways
+    // as the sheet opens. Pad by exactly the width we removed so nothing moves.
+    const gap = window.innerWidth - document.documentElement.clientWidth;
+    el.style.overflow = "hidden";
+    if (gap > 0) el.style.paddingRight = `${gap}px`;
+    return () => { el.style.overflow = prevOverflow; el.style.paddingRight = prevPad; };
+  }, []);
+  return null;
+}
+
 function usePlanPrices() {
   const [prices, setPrices] = useState(null);
   useEffect(() => {
@@ -13290,7 +13313,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   };
 
   return (
-    <div className="space-y-4">
+    // space-y-6, not 4: at 16px the gap between two separate fields was barely
+    // wider than the 6px between a label and its own input, so nothing read as a
+    // boundary and fields further down got skipped.
+    <div className="space-y-6">
       <div>
         <div className="flex items-end justify-between gap-3 mb-2.5">
           <label htmlFor="njf-title" className={labelClass} style={{ marginBottom: 0 }}>Title</label>
@@ -13318,7 +13344,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
               onFocus={() => setDraftTip(true)} onBlur={() => setDraftTip(false)}
               disabled={aiBusy || !draftReady || draftCredits <= 0}
               className="adm-gold inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-3 py-1.5 text-[12px] font-bold transition-all disabled:opacity-45 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(135deg,#F7D07A,#E3AE3E 60%,#CE9420)", color: "#3B2A05", border: "1px solid #C98A1C" }}>
+              style={{ background: "#FDF3DC", color: "#8A6410", border: "1px solid #EBD08C" }}>
               <Icon name={draftCredits > 0 ? "spark" : "lock"} className="w-3.5 h-3.5" />
               {aiBusy ? "Drafting…" : <>Draft with AI <span className="opacity-45">·</span> <span className="tnum">{draftCredits}</span> credit{draftCredits === 1 ? "" : "s"}</>}
             </button>
@@ -13374,7 +13400,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
         <BuyCreditsModal open={buyDraftOpen} plan={plan} kind="job_draft"
           onClose={() => { setBuyDraftOpen(false); refreshDraftCredits(); }} />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
         <div>
           <label htmlFor="njf-department" className={labelClass}>Department</label>
           <input id="njf-department" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
@@ -13384,7 +13410,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           <input id="njf-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
         <div>
           <label htmlFor="njf-employmentType" className={labelClass}>Employment type</label>
           <select id="njf-employmentType" value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
@@ -13437,7 +13463,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
       </div>
-      <div className="grid grid-cols-[minmax(0,0.7fr)_1fr_1fr] gap-3">
+      <div className="grid grid-cols-[minmax(0,0.7fr)_1fr_1fr] gap-x-4">
         <div>
           <label htmlFor="njf-salaryCurrency" className={labelClass}>Currency</label>
           <select id="njf-salaryCurrency" value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)} className={inputClass}>
@@ -13566,6 +13592,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
   // a fixed max-width.
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={heading}>
+      <ScrollLock />
       {/* Backdrop does NOT close the sheet: a long form shouldn't vanish on a
           stray outside click. Close only via the X or Cancel. */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" />
@@ -13580,7 +13607,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
-        <div className="px-5 sm:px-6 py-5 flex-1 overflow-y-auto">
+        <div className="px-5 sm:px-6 py-5 flex-1 overflow-y-auto overscroll-contain">
           <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} requestMode={requestMode} requesterId={requesterId} requesterName={requesterName} />
         </div>
       </div>
