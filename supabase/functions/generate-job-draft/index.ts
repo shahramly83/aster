@@ -19,7 +19,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { charge, refund, logSpend } from "../_shared/meter.ts";
 
-const MODEL = "claude-opus-5";
+// Opus first, Sonnet behind it. Opus is what this feature is sold on, but it is
+// the ONLY call in the whole product that uses it, so it is also the only one
+// whose model access, rate limit or spend cap can be wrong without anything else
+// breaking, and the customer has already paid a credit by the time we find out.
+// Falling back beats refunding: a Sonnet posting is a good posting, and
+// rank-candidates and parse-resume have both run on Sonnet here for months.
+const MODELS = ["claude-opus-5", "claude-sonnet-5"];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -112,24 +118,37 @@ Deno.serve(async (req) => {
       requested_location: String(body?.location || "").slice(0, 80) || null,
     };
 
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: 2000,
-        messages: [{ role: "user", content: `${PROMPT}\n\nRole title: ${title}\n\nCompany context (JSON):\n${JSON.stringify(context)}` }],
-      }),
-    });
-    if (!resp.ok) {
-      // Pass Anthropic's own words back. A bad model id, a rate limit and a
-      // missing credit balance are three very different problems and they were
-      // all arriving as "generate_failed".
-      const body = await resp.text();
-      console.error("anthropic error", resp.status, body);
+    // Try each model in turn, keeping the last failure so the customer is told
+    // what actually went wrong rather than "it didn't come back".
+    let resp: Response | null = null;
+    let lastDetail = "";
+    let lastStatus = 0;
+    for (const model of MODELS) {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model, max_tokens: 2000,
+          messages: [{ role: "user", content: `${PROMPT}
+
+Role title: ${title}
+
+Company context (JSON):
+${JSON.stringify(context)}` }],
+        }),
+      });
+      if (r.ok) { resp = r; break; }
+      const errBody = await r.text();
+      lastStatus = r.status;
+      lastDetail = errBody.slice(0, 300);
+      try { lastDetail = JSON.parse(errBody)?.error?.message ?? lastDetail; } catch { /* not JSON */ }
+      // Logged per model so the failing one is named, not just the last.
+      console.error("anthropic error", model, r.status, errBody);
+    }
+    if (!resp) {
+      // Every model refused, so this is ours to eat. Give the credit back.
       await refund(paid.companyId, "job_draft", paid.source);
-      let detail = body.slice(0, 200);
-      try { detail = JSON.parse(body)?.error?.message ?? detail; } catch { /* not JSON */ }
-      return json({ error: "generate_failed", detail, status: resp.status }, 502);
+      return json({ error: "generate_failed", detail: lastDetail, status: lastStatus }, 502);
     }
 
     const data = await resp.json();
@@ -141,7 +160,8 @@ Deno.serve(async (req) => {
     try { draft = match ? JSON.parse(match[0]) : null; } catch { draft = null; }
     if (!draft || !draft.description) {
       await refund(paid.companyId, "job_draft", paid.source);
-      return json({ error: "generate_failed" }, 502);
+      console.error("unparseable draft", text.slice(0, 400));
+      return json({ error: "generate_failed", detail: "the model replied but not with a usable posting" }, 502);
     }
 
     return json({ ok: true, draft, currency: context.currency });
