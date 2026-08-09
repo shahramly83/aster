@@ -1396,21 +1396,33 @@ const workspaceOrigin = (slug) => `https://${slug}.${APEX_ROOT}`;
 // ride in the URL hash (never sent to a server, same pattern as OAuth implicit
 // flow) so the user stays signed in without re-typing their password. The target
 // subdomain picks them up on load (see consumeHandoffTokens).
-async function redirectToWorkspace(slug) {
-  const base = `${workspaceOrigin(slug)}/login`;
-  try {
-    const { data } = await supabase.auth.getSession();
-    const s = data?.session;
-    if (s?.access_token && s?.refresh_token) {
-      window.location.assign(`${base}#ws_at=${encodeURIComponent(s.access_token)}&ws_rt=${encodeURIComponent(s.refresh_token)}`);
-      return;
-    }
-  } catch { /* fall through to a plain redirect (user re-auths on the subdomain) */ }
+// The landing route is /dashboard, not /login. If the handoff is slow the user then
+// sees the workspace shell behind the splash rather than a sign-in form, which read
+// as "you were signed out" on a journey where they never were.
+async function redirectToWorkspace(slug, authSession = null) {
+  const base = `${workspaceOrigin(slug)}/dashboard`;
+  const readSession = async () => {
+    try { const { data } = await supabase.auth.getSession(); return data?.session || null; }
+    catch { return null; }
+  };
+  // Prefer the session the caller already holds. Re-reading it here raced the
+  // client's own hydration: getSession() came back empty, we fell through to the
+  // token-less redirect below, and the subdomain showed a login form to someone who
+  // was already signed in. One retry covers a client that is still warming up.
+  let s = authSession?.access_token ? authSession : await readSession();
+  if (!s?.access_token) {
+    await new Promise((r) => setTimeout(r, 150));
+    s = await readSession();
+  }
+  if (s?.access_token && s?.refresh_token) {
+    window.location.assign(`${base}#ws_at=${encodeURIComponent(s.access_token)}&ws_rt=${encodeURIComponent(s.refresh_token)}`);
+    return;
+  }
   window.location.assign(base);
 }
 // After a fresh sign-in, decide whether to jump to the workspace's own subdomain.
 // Returns true if it kicked off a redirect (the caller should stop navigating).
-function needsWorkspaceRedirect(sess) {
+function needsWorkspaceRedirect(sess, authSession = null) {
   if (!SUBDOMAIN_ROUTING || typeof window === "undefined") return false;
   // Public candidate pages (apply / book an interview / view an offer) and an
   // in-flight invite acceptance own this load. Never forward to a workspace
@@ -1425,7 +1437,7 @@ function needsWorkspaceRedirect(sess) {
   const slug = sess?.companySlug;
   if (!slug) return false;                 // no slug on record: stay on this origin
   if (currentSubdomainSlug() === slug) return false; // already on the right subdomain
-  redirectToWorkspace(slug);               // apex or wrong subdomain -> forward
+  redirectToWorkspace(slug, authSession);  // apex or wrong subdomain -> forward
   return true;
 }
 // On load, if we arrived via a cross-subdomain handoff (#ws_at/#ws_rt in the URL),
@@ -1435,12 +1447,22 @@ async function consumeHandoffTokens() {
   const h = new URLSearchParams(window.location.hash.slice(1));
   const at = h.get("ws_at"), rt = h.get("ws_rt");
   if (!at || !rt) return false;
+  let ok = false;
   try {
-    await supabase.auth.setSession({ access_token: at, refresh_token: rt });
-  } catch { /* invalid/expired tokens: user just signs in normally */ }
-  // Strip the tokens from the URL so they aren't left in history.
-  try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ignore */ }
-  return true;
+    // setSession reports failure in `error` rather than throwing, so the old
+    // try/catch never ran: a rejected handoff looked exactly like a good one, the
+    // tokens were stripped anyway, and the user landed on a login form with no
+    // clue why. Read the error, and say so in the console.
+    const { error } = await supabase.auth.setSession({ access_token: at, refresh_token: rt });
+    ok = !error;
+    if (error) console.error("[auth] workspace handoff rejected:", error.message);
+  } catch (e) { console.error("[auth] workspace handoff threw:", e); }
+  // Only clean the URL once the session is actually in place. Leaving the tokens on
+  // a failure means a reload can still redeem them.
+  if (ok) {
+    try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ignore */ }
+  }
+  return ok;
 }
 
 function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBlocked }) {
@@ -1482,8 +1504,8 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
       if (off) return;
       const row = Array.isArray(data) ? data[0] : data;
       setWsBrand(row ? { name: row.name, logoUrl: row.logo_url || null, domain: row.domain || null } : null);
-      // The domain renders as a fixed suffix in the email field (below), so the
-      // person types only their username — nothing to pre-fill into the input.
+      // Branding only. The email field takes a full address on the subdomain, the
+      // same as on the apex, so nothing here is pre-filled into the input.
     });
     return () => { off = true; };
   }, [wsSlug]);
@@ -1635,14 +1657,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
             <div>
               <label htmlFor="li-email" className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
-              {wsBrand?.domain ? (
-                <div className="w-full rounded-xl flex items-stretch overflow-hidden focus-within:ring-2" style={{ background: "#fff", border: "1px solid var(--line-strong)", "--tw-ring-color": "var(--brand)" }}>
-                  <input id="li-email" name="email" autoComplete="username" value={email.replace(/@.*$/, "")} onChange={(e) => { setEmail(`${e.target.value.replace(/@/g, "").replace(/\s/g, "")}@${wsBrand.domain}`); setErr(null); }} placeholder="you" className="flex-1 min-w-0 bg-transparent px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]" style={{ color: "var(--ink)" }} />
-                  <span className="flex items-center px-3.5 text-sm select-none whitespace-nowrap" style={{ background: "#EFEFF3", color: "var(--ink-3)", borderLeft: "1px solid var(--line-strong)" }}>@{wsBrand.domain}</span>
-                </div>
-              ) : (
-                <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
-              )}
+              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -31159,7 +31174,7 @@ export default function ResumeAIPreview() {
         }
         // Multi-tenant: on the apex or a subdomain that isn't this workspace's,
         // forward to the correct <slug>.hireaster.com instead of loading here.
-        if (needsWorkspaceRedirect(sess)) { setRedirecting(true); return; }
+        if (needsWorkspaceRedirect(sess, session)) { setRedirecting(true); return; }
         setProfile(sess.profile);
         setCompany(sess.company);
         setCompanyLogoUrl(sess.logoUrl || null);
