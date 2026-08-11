@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Nur Quran",
+    "slug": "nur-quran",
+    "scheme": "nurquran",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#0E5C4A",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0E5C4A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nurquran.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Nur Quran uses your location to calculate accurate prayer times and Qibla direction.",
+        "UIBackgroundModes": ["audio"],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.nurquran.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0E5C4A"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location",
+      [
+        "expo-notifications",
+        {
+          "color": "#0E5C4A"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0E5C4A"
+        }
+      ]
+    ],
+    "extra": {
+      "defaultTranslationEdition": "ms.basmeih",
+      "defaultReciterEdition": "ar.alafasy"
+    }
+  }
+}
