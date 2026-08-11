@@ -1,0 +1,89 @@
+name: Build Nur Quran APK
+
+# Builds an installable Android APK for the Nur Quran app on GitHub's servers
+# (no local machine / Expo account needed) and publishes it as a Release asset
+# so it can be downloaded and installed directly on a phone.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/mobile-quran-app-build-9rzji0
+    paths:
+      - 'quran-mobile/**'
+      - '.github/workflows/quran-android-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: quran-mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Generate signing keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$RUNNER_TEMP/nur.keystore" \
+            -alias nur -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass nurquran -keypass nurquran \
+            -dname "CN=Nur Quran, OU=App, O=NurQuran, L=NA, S=NA, C=MY"
+
+      - name: Build release APK
+        working-directory: quran-mobile/android
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/nur.keystore" \
+            -Pandroid.injected.signing.store.password=nurquran \
+            -Pandroid.injected.signing.key.alias=nur \
+            -Pandroid.injected.signing.key.password=nurquran
+
+      - name: Stage APK
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          cp android/app/build/outputs/apk/release/*.apk "$RUNNER_TEMP/out/nur-quran.apk"
+          ls -la "$RUNNER_TEMP/out"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nur-quran-apk
+          path: ${{ runner.temp }}/out/nur-quran.apk
+
+      - name: Publish APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nur-quran-apk
+          name: Nur Quran APK (latest)
+          body: |
+            Latest installable Android build of the Nur Quran app.
+
+            **Install:** download `nur-quran.apk` below on your Android phone and
+            tap it. You may need to allow "install unknown apps" once.
+          files: ${{ runner.temp }}/out/nur-quran.apk
+          make_latest: true
