@@ -12057,7 +12057,10 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   if (!open) return null;
   const mult = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
   const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
-  // Round to whole sen per credit, then multiply, exactly as buy-credits does:
+  // Smallest top-up we sell, per credit kind. Mirrors MIN_QTY in buy-credits; the
+// server is what enforces it, this is so the buyer is told before they click.
+const MIN_TOPUP = 20;
+// Round to whole sen per credit, then multiply, exactly as buy-credits does:
   // Math.max(1, Math.round(usd_cents * rate * mult)). Multiplying first and
   // rounding the total quoted RM368.10 for 100 applicant credits where Stripe
   // then charged RM368.00, because 3.681 a credit is 368 sen once, not 36810.
@@ -12074,7 +12077,9 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   const total = items.reduce((s, l) => s + l.amount, 0);
 
   const buy = async () => {
-    if (!items.length) { setErr("Enter at least 1 credit."); return; }
+    if (!items.length) { setErr(`Enter at least ${MIN_TOPUP} credits.`); return; }
+    const short = items.find((l) => l.q < MIN_TOPUP);
+    if (short) { setErr(`The smallest top-up is ${MIN_TOPUP} credits. Please increase ${short.label}.`); return; }
     if (!hasSupabase) { setErr("Connect a live workspace to buy credits."); return; }
     setBusy(true); setErr(null);
     const { data, error } = await supabase.functions.invoke("buy-credits", { body: { items: items.map((l) => ({ kind: l.k, quantity: l.q })), return_url: window.location.origin, return_path: window.location.pathname } });
@@ -12120,7 +12125,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
                       <span className="block text-xs font-semibold" style={{ color: "var(--ink)" }}>{l.label}</span>
                       <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · {sym}{l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
                     </div>
-                    <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
+                    <input type="number" min="0" step={MIN_TOPUP} inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
                       onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
                       className="no-spin w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
                   </div>
@@ -12131,14 +12136,14 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
             <>
               <label className="block text-[11px] font-bold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>How many credits?</label>
               <div className="flex flex-wrap gap-1.5 mb-2.5">
-                {[10, 25, 50, 100].map((n) => {
+                {[20, 50, 100, 250].map((n) => {
                   const on = Number(qty) === n;
                   return (
                     <button key={n} onClick={() => { setQty(String(n)); setErr(null); }} className="text-xs font-semibold rounded-lg px-3.5 py-1.5 transition-colors tnum" style={on ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{n}</button>
                   );
                 })}
               </div>
-              <input type="number" min="1" value={qty} placeholder="Custom amount" onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+              <input type="number" min={MIN_TOPUP} value={qty} placeholder={`Custom amount (min ${MIN_TOPUP})`} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
               <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>{sym}{(lines[0]?.unit ?? 0).toFixed(2)} per credit{disc ? ` · ${disc}% off on your plan` : ""}</p>
             </>
           )}

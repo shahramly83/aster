@@ -47,6 +47,9 @@ const BASE_USD: Record<string, number> = {
   job_draft: 50,                               // $0.50: Opus, and it writes the whole posting
 };
 const CREDIT_KINDS = ["resume_screen", "applicant_screen", "ai_rank", "ai_insight", "interview_questions", "job_draft"];
+// Smallest top-up we will sell, per kind. A 1-credit purchase costs more in
+// Stripe fees and support than it earns, and the buyer is back within the day.
+const MIN_QTY = 20;
 const DEFAULT_RATE: Record<string, number> = { usd: 1, myr: 4.09, sgd: 1.29 };
 // Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
 // and the app names (launch/scale/elite), since companies.plan can hold either.
@@ -87,10 +90,16 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(q) || q < 0 || q > 10000) {
         return json({ error: "Enter a quantity between 0 and 10,000." }, 400);
       }
+      // 0 means "not buying this kind", which is normal in a mixed basket. Any
+      // other amount below the minimum is rejected by kind, so the message can
+      // say which line is wrong instead of failing the whole basket anonymously.
+      if (q > 0 && q < MIN_QTY) {
+        return json({ error: `The smallest top-up is ${MIN_QTY} credits. Please increase the ${k.replace(/_/g, " ")} amount.` }, 400);
+      }
       if (q > 0) byKind.set(k, (byKind.get(k) || 0) + q);
     }
     const basket = [...byKind.entries()].map(([kind, qty]) => ({ kind, qty }));
-    if (basket.length === 0) return json({ error: "Enter at least 1 credit." }, 400);
+    if (basket.length === 0) return json({ error: `Enter at least ${MIN_QTY} credits.` }, 400);
 
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
