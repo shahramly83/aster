@@ -11,14 +11,19 @@ const HOURS_AHEAD = 12; // rolling window of pre-scheduled verses
 const ANDROID_CHANNEL = 'hourly-verse';
 
 // Foreground behaviour: still show the banner so the feature is visible in dev.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+// Wrapped defensively — a failure here must never take down app startup.
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+} catch {
+  /* notifications module unavailable — feature degrades, app still runs */
+}
 
 export async function ensurePermissions() {
   const current = await Notifications.getPermissionsAsync();

@@ -13,6 +13,7 @@ import React, { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import ErrorBoundary from './src/components/ErrorBoundary';
 import MiniPlayer from './src/components/MiniPlayer';
 import { PlayerProvider } from './src/context/PlayerContext';
 import { SettingsProvider } from './src/context/SettingsContext';
@@ -77,6 +78,7 @@ export default function App() {
   }, []);
 
   return (
+    <ErrorBoundary>
     <SafeAreaProvider>
       <SettingsProvider>
         <PlayerProvider>
@@ -116,5 +118,6 @@ export default function App() {
         </PlayerProvider>
       </SettingsProvider>
     </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
