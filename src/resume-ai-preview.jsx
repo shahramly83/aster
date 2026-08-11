@@ -12026,12 +12026,17 @@ const CREDIT_KINDS = [
 // (0166) so the first paint before the fetch lands is not a lie, then replaced
 // by the live table below. buy-credits reads the same table server-side, which
 // is what keeps the quoted price and the charged price the same number.
-let CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4, job_draft: 0.5 };
+let CREDIT_USD = { resume_screen: 0.69, applicant_screen: 0.69, ai_rank: 0.6, ai_insight: 0.6, interview_questions: 0.09, job_draft: 0.55 };
+// Smallest top-up per kind, mirroring credit_prices.min_qty (0175). Seeded with
+// the shipped values so the first paint is honest, then replaced by the table.
+let CREDIT_MIN = { resume_screen: 10, applicant_screen: 10, ai_rank: 10, ai_insight: 10, interview_questions: 50, job_draft: 10 };
 function setCreditPrices(rows) {
   for (const r of rows || []) {
     const k = String(r?.kind || "");
     const cents = Number(r?.price_usd_cents);
     if (k in CREDIT_USD && Number.isFinite(cents) && cents >= 0) CREDIT_USD[k] = cents / 100;
+    const min = Number(r?.min_qty);
+    if (k in CREDIT_MIN && Number.isFinite(min) && min >= 1) CREDIT_MIN[k] = Math.floor(min);
   }
 }
 const CUR_SYMBOL = { usd: "$", myr: "RM", sgd: "S$" };
@@ -12074,7 +12079,9 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   const total = items.reduce((s, l) => s + l.amount, 0);
 
   const buy = async () => {
-    if (!items.length) { setErr("Enter at least 1 credit."); return; }
+    if (!items.length) { setErr("Enter a quantity to buy."); return; }
+    const short = items.find((l) => l.q < (CREDIT_MIN[l.k] ?? 10));
+    if (short) { setErr(`${short.label} is sold in a minimum of ${CREDIT_MIN[short.k] ?? 10} credits.`); return; }
     if (!hasSupabase) { setErr("Connect a live workspace to buy credits."); return; }
     setBusy(true); setErr(null);
     const { data, error } = await supabase.functions.invoke("buy-credits", { body: { items: items.map((l) => ({ kind: l.k, quantity: l.q })), return_url: window.location.origin, return_path: window.location.pathname } });
@@ -12118,9 +12125,9 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
                   <div key={l.k} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: l.q > 0 ? "var(--brand)" : "var(--line)", background: "var(--bg)" }}>
                     <div className="min-w-0 flex-1">
                       <span className="block text-xs font-semibold" style={{ color: "var(--ink)" }}>{l.label}</span>
-                      <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · {sym}{l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
+                      <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · {sym}{l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""} · min {CREDIT_MIN[l.k] ?? 10}</span>
                     </div>
-                    <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
+                    <input type="number" min="0" step={CREDIT_MIN[l.k] ?? 10} inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
                       onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
                       className="no-spin w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
                   </div>
@@ -12131,14 +12138,14 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
             <>
               <label className="block text-[11px] font-bold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>How many credits?</label>
               <div className="flex flex-wrap gap-1.5 mb-2.5">
-                {[10, 25, 50, 100].map((n) => {
+                {(() => { const m = CREDIT_MIN[meta.k] ?? 10; return [m, m * 5, m * 10, m * 25]; })().map((n) => {
                   const on = Number(qty) === n;
                   return (
                     <button key={n} onClick={() => { setQty(String(n)); setErr(null); }} className="text-xs font-semibold rounded-lg px-3.5 py-1.5 transition-colors tnum" style={on ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{n}</button>
                   );
                 })}
               </div>
-              <input type="number" min="1" value={qty} placeholder="Custom amount" onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+              <input type="number" min={CREDIT_MIN[meta.k] ?? 10} value={qty} placeholder={`Custom amount (min ${CREDIT_MIN[meta.k] ?? 10})`} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
               <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>{sym}{(lines[0]?.unit ?? 0).toFixed(2)} per credit{disc ? ` · ${disc}% off on your plan` : ""}</p>
             </>
           )}
@@ -30213,7 +30220,7 @@ export default function ResumeAIPreview() {
     });
     // Base credit prices, also set in /admin (0166). buy-credits re-derives from
     // the same table, so what is quoted here is what Stripe charges.
-    supabase.from("credit_prices").select("kind, price_usd_cents").then(({ data }) => {
+    supabase.from("credit_prices").select("kind, price_usd_cents, min_qty").then(({ data }) => {
       if (active && Array.isArray(data)) setCreditPrices(data);
     });
     // Which promo code to advertise, if any (0168).

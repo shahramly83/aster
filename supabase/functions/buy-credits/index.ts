@@ -47,6 +47,9 @@ const BASE_USD: Record<string, number> = {
   job_draft: 50,                               // $0.50: Opus, and it writes the whole posting
 };
 const CREDIT_KINDS = ["resume_screen", "applicant_screen", "ai_rank", "ai_insight", "interview_questions", "job_draft"];
+// Fallback minimum, used only when a kind has no credit_prices row. The real
+// value is min_qty on that row, editable in /admin beside the price.
+const MIN_QTY_FALLBACK = 10;
 const DEFAULT_RATE: Record<string, number> = { usd: 1, myr: 4.09, sgd: 1.29 };
 // Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
 // and the app names (launch/scale/elite), since companies.plan can hold either.
@@ -87,10 +90,11 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(q) || q < 0 || q > 10000) {
         return json({ error: "Enter a quantity between 0 and 10,000." }, 400);
       }
+      // The per-kind minimum is checked below, once credit_prices is loaded.
       if (q > 0) byKind.set(k, (byKind.get(k) || 0) + q);
     }
     const basket = [...byKind.entries()].map(([kind, qty]) => ({ kind, qty }));
-    if (basket.length === 0) return json({ error: "Enter at least 1 credit." }, 400);
+    if (basket.length === 0) return json({ error: "Enter a quantity to buy." }, 400);
 
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -122,11 +126,26 @@ Deno.serve(async (req) => {
     // Base price per credit from the admin-editable table, falling back to the
     // constants above per kind rather than wholesale: one missing row should
     // not silently reprice the entire basket.
-    const { data: priceRows } = await admin.from("credit_prices").select("kind, price_usd_cents");
+    const { data: priceRows } = await admin.from("credit_prices").select("kind, price_usd_cents, min_qty, label");
     // Named unitUsd, not base: `base` further down is the return URL.
     const unitUsd: Record<string, number> = { ...BASE_USD };
+    const minQty: Record<string, number> = {};
+    const labelOf: Record<string, string> = {};
     for (const p of priceRows || []) {
       if (p?.kind && Number.isFinite(Number(p.price_usd_cents))) unitUsd[String(p.kind)] = Number(p.price_usd_cents);
+      if (p?.kind && Number(p.min_qty) > 0) minQty[String(p.kind)] = Number(p.min_qty);
+      if (p?.kind && p?.label) labelOf[String(p.kind)] = String(p.label);
+    }
+
+    // Minimum top-up, per kind. 0 already means "not buying this kind", so only
+    // a positive amount under the floor is refused, and the message names the
+    // line rather than failing the whole basket anonymously.
+    for (const { kind, qty } of basket) {
+      const floor = minQty[kind] ?? MIN_QTY_FALLBACK;
+      if (qty < floor) {
+        const name = labelOf[kind] || kind.replace(/_/g, " ");
+        return json({ error: `${name} is sold in a minimum of ${floor} credits.` }, 400);
+      }
     }
     // Price every basket line server-side, so a crafted request can't cheat.
     const priced = basket.map(({ kind, qty }) => {
