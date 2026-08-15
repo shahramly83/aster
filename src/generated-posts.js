@@ -3,6 +3,139 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "response-time-slas-the-quiet-reason-good-candidates-say-yes",
+    "title": "Response-time SLAs: the quiet reason good candidates say yes",
+    "category": "recruiting-ops",
+    "excerpt": "The best candidates are gone in days, not weeks. Here's how to set response-time targets that keep your pipeline warm.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-10",
+    "readMins": 5,
+    "tags": [
+      "hiring process",
+      "candidate experience",
+      "pipeline",
+      "metrics"
+    ],
+    "body": [
+      {
+        "p": "You can run a beautiful process (sharp job post, structured interviews, a fair scorecard) and still lose your top candidate to a slower, worse-organized competitor. The reason is usually boring: someone waited four days to reply to an email."
+      },
+      {
+        "p": "Speed is the most underrated lever in hiring. Strong candidates are in multiple processes at once, and momentum is a signal to them. A fast, respectful reply says the role is real, the team is organized, and they matter. Silence says the opposite. This is where **response-time SLAs** earn their keep: simple, agreed limits on how long a candidate waits at each step."
+      },
+      {
+        "h": "What a response-time SLA actually is"
+      },
+      {
+        "p": "An SLA (service-level agreement) is just a promise about timing. In recruiting, it's the maximum time a candidate should wait between one thing happening and the next thing happening to them. Not aspirations. Limits. When a step breaks the limit, someone gets nudged."
+      },
+      {
+        "p": "The point is not to rush decisions. It's to remove dead air. A candidate can handle hearing \"we need another week to decide\" far better than hearing nothing for a week and guessing. The SLA is a commitment to communicate on a schedule, even when the answer isn't ready yet."
+      },
+      {
+        "h": "The four gaps where candidates go cold"
+      },
+      {
+        "p": "You don't need an SLA on every micro-step. You need them on the four gaps where people actually get lost:"
+      },
+      {
+        "ul": [
+          "**Applied to first response.** The longest a resume should sit unreviewed. This is where most pipelines rot, because no one owns the inbox.",
+          "**Interview to feedback.** How long after an interview before the candidate hears what's next. Silence here reads as rejection even when it isn't.",
+          "**Stage to next scheduling.** Once you decide to advance someone, how long before the next interview is on the calendar.",
+          "**Final interview to decision.** The stretch where offers are won and lost, and where slow internal debate quietly costs you the hire."
+        ]
+      },
+      {
+        "p": "If you fix only these four, you've closed the gaps that cause the most drop-off and the most damage to your reputation."
+      },
+      {
+        "h": "Setting numbers you can actually hit"
+      },
+      {
+        "p": "SLAs only work if they're realistic. A target you miss every week is just a source of guilt. Start from what a good, busy team can sustain, not from a fantasy. A reasonable starting set for most growing teams:"
+      },
+      {
+        "ul": [
+          "Applied to first response: **2 business days.**",
+          "Interview to feedback logged: **1 business day** while it's fresh.",
+          "Decision to next step scheduled: **2 business days.**",
+          "Final interview to decision: **3 business days.**"
+        ]
+      },
+      {
+        "p": "Adjust to your reality. A senior role with three panel interviews will move slower than a first support hire. The exact numbers matter less than having a number everyone agreed to and can see. Write them down where the whole hiring team can find them."
+      },
+      {
+        "quote": "A candidate can handle \"we need another week.\" What they can't handle is a week of silence and guessing."
+      },
+      {
+        "h": "The trick: hold the line even without an answer"
+      },
+      {
+        "p": "Most SLA breaches aren't caused by slow decisions. They're caused by teams staying silent until the decision is ready. That's backwards. The SLA is about **contact**, not conclusion."
+      },
+      {
+        "p": "So build a habit: when you're going to miss a real answer, send a holding message instead. \"Thanks for coming in Tuesday. The team is still meeting other candidates this week, and I'll have clear next steps for you by Friday.\" That one line does more for your reputation than a fast rejection or a slow yes. It keeps the candidate warm and buys you honest time."
+      },
+      {
+        "note": "An SLA is a promise to communicate on a schedule, not a promise to decide faster. A dated holding note keeps a candidate warm; silence does not.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Who owns the clock"
+      },
+      {
+        "p": "An SLA with no owner is a wish. Each gap needs one named person responsible for the next move. Usually that's the recruiter or hiring coordinator for scheduling and candidate contact, and the hiring manager for feedback and the final call."
+      },
+      {
+        "p": "The most common failure point is the interview-to-feedback gap, because it depends on busy interviewers writing up their notes. Make it easy: ask for the scorecard within a day, before memory fades and before the next meeting buries it. A short, same-day note beats a detailed one written from memory a week later, both for speed and for accuracy."
+      },
+      {
+        "h": "Where automation actually helps"
+      },
+      {
+        "p": "This is the part software is genuinely good at, because it's timing and reminders, not judgment. A shared pipeline that timestamps every stage can flag when a candidate has been waiting too long and nudge the owner before the gap becomes a problem. You see the clock instead of discovering the breach after the candidate has already accepted elsewhere."
+      },
+      {
+        "p": "Two gaps in particular can be closed almost entirely:"
+      },
+      {
+        "ul": [
+          "**First response.** When an AI screener reads and ranks resumes as they arrive, the \"applied to first response\" gap shrinks from days to the same day. Your strongest fits surface at the top instead of aging at the bottom of an inbox.",
+          "**Scheduling.** Interview scheduling is pure coordination overhead with no upside to doing it slowly. A single self-booking link, with the meeting invite created automatically, removes the back-and-forth email that eats two or three days per candidate."
+        ]
+      },
+      {
+        "p": "Be honest about the boundary, though. Automation can rank a resume, flag a stalled candidate, and book a slot. It cannot decide whether to advance someone or write the thoughtful holding note. Keep the timing automated and the judgment human. That split is where these tools pay off without making candidates feel processed by a machine."
+      },
+      {
+        "h": "How to know it's working"
+      },
+      {
+        "p": "You don't need a dashboard to start. For your next two roles, track one number per gap: the median wait, not the average (a single stalled candidate can wreck an average and hide the real picture). Then watch two outcomes that tell you the SLA is doing its job:"
+      },
+      {
+        "ul": [
+          "**Fewer candidates go dark on you** between stages, because you stopped going dark on them first.",
+          "**Offer acceptance holds up**, especially against competing offers, because your process felt organized and respectful the whole way through."
+        ]
+      },
+      {
+        "p": "You'll also notice a quieter benefit: your team stops rediscovering the same forgotten candidate three weeks late. When the clock is visible and owned, the pile stops piling up."
+      },
+      {
+        "h": "Start small"
+      },
+      {
+        "p": "Don't roll out a policy. Pick the two gaps that hurt you most (almost always first response and interview feedback), set one honest number for each, and name who owns it. Add the holding-note habit so silence is never the default. That alone will win you candidates you would otherwise have lost to nothing more than a slow reply."
+      }
+    ]
+  },
+  {
     "slug": "how-to-turn-ai-match-scores-into-a-shortlist-you-trust",
     "title": "How to turn AI match scores into a shortlist you trust",
     "category": "ai-hiring",
