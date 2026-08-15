@@ -44,6 +44,22 @@ jobs:
             echo "task=trial_ending" >> "$GITHUB_OUTPUT"
           fi
 
+      # TEMPORARY diagnostic. Prints the shape of each secret, never the value:
+      # a length and a truncated hash are safe to log and are enough to tell an
+      # empty secret from a mistyped one from one carrying stray whitespace.
+      # Remove once the 403 is resolved.
+      - name: Check secret shape (temporary)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          printf 'SUPABASE_URL      length=%s\n' "${#SUPABASE_URL}"
+          printf 'SUPABASE_ANON_KEY length=%s\n' "${#SUPABASE_ANON_KEY}"
+          printf 'CRON_SECRET       length=%s\n' "${#CRON_SECRET}"
+          printf 'CRON_SECRET       sha256=%s\n' "$(printf '%s' "$CRON_SECRET" | sha256sum | cut -c1-12)"
+          printf 'CRON_SECRET       has_whitespace=%s\n' "$(printf '%s' "$CRON_SECRET" | grep -cE '[[:space:]]' || true)"
+
       - name: Invoke scheduled-emails
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
