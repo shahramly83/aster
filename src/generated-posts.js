@@ -3,6 +3,125 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-run-a-screening-call-that-respects-everyones-time",
+    "title": "How to run a screening call that respects everyone's time",
+    "category": "interviewing",
+    "excerpt": "A structured 25-minute screening call filters out mismatches early and gives candidates a reason to stay. Here's how to run one that holds up.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-15",
+    "readMins": 6,
+    "tags": [
+      "phone screen",
+      "structured interviews",
+      "screening",
+      "candidate experience"
+    ],
+    "body": [
+      {
+        "p": "The screening call is the most repeated conversation in hiring, and usually the least designed. Most teams treat it as a friendly chat: confirm the person is real, sell the role a little, check they're still interested. That's a waste of the one slot in your process that can save the most time. A good screening call is where you catch the mismatches that would otherwise burn a hiring manager's afternoon."
+      },
+      {
+        "p": "The goal isn't to be nice for 25 minutes. It's to make a defensible **advance or decline** decision on a small number of things that actually gate the role, and to leave the candidate wanting the next round. You can do both. It just takes structure."
+      },
+      {
+        "h": "Decide what the call is actually for"
+      },
+      {
+        "p": "A screening call should answer three questions, and only three:"
+      },
+      {
+        "ul": [
+          "Do the non-negotiables check out? Location and work authorization, salary range, availability, any hard requirement the role genuinely can't flex on.",
+          "Is there a real signal on the one or two things a resume can't show? Usually motivation, communication, or a specific recent experience.",
+          "Does the candidate still want this once they understand it? Plenty of people apply widely and lose interest the moment they hear the details."
+        ]
+      },
+      {
+        "p": "Notice what's not on the list: a full skills assessment, culture fit, deep behavioral questions. Those belong later, with people trained to judge them. If you try to evaluate everything on the screening call, you evaluate nothing well and the call runs long."
+      },
+      {
+        "note": "A screening call filters; it doesn't decide. Its job is to protect the later rounds from obvious mismatches, not to pick the winner.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Front-load the deal-breakers"
+      },
+      {
+        "p": "The most common screening mistake is spending 20 warm minutes on background and rapport, then discovering in the last five that the salary expectation is double the band. Now you've wasted their time and yours, and the ending is awkward for both of you."
+      },
+      {
+        "p": "Handle the hard gates in the first five minutes, plainly. Something like: \"Before we get into the role, I want to make sure it's a fit on the basics so I'm not wasting your time. The range for this is 70 to 85 thousand, it's hybrid two days a week in the Austin office, and we're looking to start someone in the next six weeks. Does all of that work for you?\""
+      },
+      {
+        "p": "This feels blunt. It isn't. Candidates consistently appreciate a recruiter who names the constraints up front instead of letting them invest in a process that was never going to work. If a gate fails, you can end the call kindly and quickly, and you've both dodged three more rounds."
+      },
+      {
+        "quote": "The kindest thing you can do on a screening call is find the mismatch fast, before either of you is invested in it."
+      },
+      {
+        "h": "Ask the same core questions every time"
+      },
+      {
+        "p": "Consistency is what makes a screening call more than a vibe check. If you ask each candidate different questions, you can't compare them, and your gut fills the gap with bias. Write down three or four core questions and ask them in the same order, every call. For example:"
+      },
+      {
+        "ul": [
+          "\"Walk me through why you're looking to move right now.\" Motivation and timing, in their words.",
+          "\"Tell me about the most relevant thing you've done for this kind of role.\" One concrete example, not a career history.",
+          "\"What are you hoping the next role has that your current one doesn't?\" Surfaces whether your role can actually deliver it.",
+          "\"What questions do you have about the role or the team?\" Their questions tell you what they've understood and what they care about."
+        ]
+      },
+      {
+        "p": "You'll still follow the conversation where it leads. But everyone gets the same spine, which means your notes are comparable and your decline reasons are honest."
+      },
+      {
+        "h": "Take notes you can defend"
+      },
+      {
+        "p": "Write down what the candidate says, not your conclusion about it. \"Not a fit\" helps no one in a debrief. \"Wants full remote, role is hybrid two days\" tells the hiring manager exactly why you declined and holds up if the decision is ever questioned. Capture short quotes where you can. Facts age better than impressions."
+      },
+      {
+        "p": "Set your advance criteria before the call, not after. Decide what a pass looks like: gates clear, at least one solid relevant example, genuine interest. If you define the bar after you've talked to someone, you'll bend it to match how much you liked them."
+      },
+      {
+        "h": "Give them a reason to stay"
+      },
+      {
+        "p": "A screening call is also a sales call, whether you mean it to be or not. Strong candidates are talking to other companies, and the screening call is often their first real human impression of yours. Spend a few minutes, not twenty, on the parts that matter to this specific person. If they said they want more ownership, tell them where this role has it. Generic pitching is forgettable; a pitch aimed at what they just told you is not."
+      },
+      {
+        "p": "End every call the same way: tell them what happens next and when. \"You'll hear from me by Thursday either way, and if we move forward the next step is a 45-minute call with the hiring manager.\" **Certainty about the timeline is part of the candidate experience**, and it costs you nothing to give it."
+      },
+      {
+        "h": "Where AI fits, and where it doesn't"
+      },
+      {
+        "p": "AI can do the work that makes a screening call unnecessary in the first place, or much sharper when it happens. Reading every resume against the role, ranking who's worth a call, and pulling out the one-line summary so you walk in prepared: that's exactly the kind of repetitive reading a screener handles well. It means the calls you do run are with people already worth the 25 minutes, not a random slice of the pile."
+      },
+      {
+        "p": "What AI shouldn't do is replace the conversation. The things a screening call is for, live motivation, whether someone still wants the role once it's real, how they communicate under a little pressure, are precisely the things you learn by talking to a person. Use the tooling to decide who to call and to skip the scheduling back-and-forth. Keep the judgment about whether to advance with a human who followed a consistent structure."
+      },
+      {
+        "h": "A simple structure to steal"
+      },
+      {
+        "ul": [
+          "Minutes 0 to 5: gates. Salary, location, timing, work authorization. Exit early if one fails.",
+          "Minutes 5 to 15: your three core questions, same order every time.",
+          "Minutes 15 to 20: sell, aimed at what they just told you.",
+          "Minutes 20 to 25: their questions, and a clear next step with a date."
+        ]
+      },
+      {
+        "p": "Twenty-five minutes, the same shape for everyone, notes that state facts, and a decision against a bar you set in advance. Do that consistently and the screening call stops being a formality. It becomes the cheapest filter you have, and the first reason a good candidate decides you're worth their time."
+      }
+    ]
+  },
+  {
     "slug": "response-time-slas-the-quiet-reason-good-candidates-say-yes",
     "title": "Response-time SLAs: the quiet reason good candidates say yes",
     "category": "recruiting-ops",
