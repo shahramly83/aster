@@ -67,3 +67,5 @@ supabase/.temp/
 
 # Local screenshot scratch scripts, not part of the app
 .aster-*.mjs
+.vercel
+.env*

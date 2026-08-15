@@ -1021,6 +1021,80 @@ export async function dbSaveMatchScores(companyId, jobId, results = []) {
   return { ok: true };
 }
 
+// ---- AI Rank history (0176) --------------------------------------------------
+// A Matches-tab ranking had nowhere to live: save_match_scores writes to an
+// application row, and that tab only ever shows candidates who have NOT applied.
+// So a refresh threw away a ranking the customer had just paid for. These write
+// to rank_runs / rank_run_scores instead, batch by batch as a run progresses.
+
+// Save one batch. Pass runId null for the first batch and reuse the id it
+// returns for the rest, so a long run is one history entry rather than dozens.
+export async function dbSaveRankRun({ runId = null, jobId, jobTitle, source = "search", scores = [], credits = 0 }) {
+  if (!hasSupabase || !scores.length) return { ok: false, error: "nothing to save" };
+  // score arrives 0..1 from the ranker and is stored 0..100, matching the column
+  // and the normalisation applications.match_score already uses.
+  const p_scores = scores.map(({ candidateId, score, reason }) => ({
+    candidate_id: candidateId,
+    score: Math.round((Number(score) || 0) * 100),
+    reason: reason || null,
+  }));
+  const { data, error } = await supabase.rpc("save_rank_run", {
+    p_run_id: runId, p_job_id: jobId || null, p_job_title: jobTitle || "Untitled role",
+    p_source: source, p_scores, p_credits: credits,
+  });
+  if (error) {
+    // Missing RPC means 0176 has not been applied. History is a nice-to-have on
+    // top of the run, never a reason to fail the run itself, so this only warns.
+    if (error.code === "42883" || error.code === "PGRST202") {
+      console.warn("dbSaveRankRun: save_rank_run RPC is missing (apply migration 0176)");
+      return { ok: false, error: "history unavailable" };
+    }
+    console.error("dbSaveRankRun", error.message);
+    return { ok: false, error: `${error.code || ""} ${error.message}`.trim() };
+  }
+  return { ok: true, runId: data };
+}
+
+export async function dbListRankRuns(limit = 20) {
+  if (!hasSupabase) return [];
+  const { data, error } = await supabase
+    .from("rank_runs")
+    .select("id, job_id, job_title, source, created_at, updated_at, candidate_count, credits_used")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("dbListRankRuns", error.message); return []; }
+  return data || [];
+}
+
+// Every score in one run. Paged: PostgREST caps a response at 1000 rows, and a
+// run over a whole database is thousands, so a plain select would silently
+// return the top 1000 and look like the complete ranking.
+export async function dbGetRankRunScores(runId) {
+  if (!hasSupabase || !runId) return [];
+  const PAGE = 1000;
+  const all = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("rank_run_scores")
+      .select("candidate_id, score, reason")
+      .eq("run_id", runId)
+      .order("score", { ascending: false })
+      .order("candidate_id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) { console.error("dbGetRankRunScores", error.message); break; }
+    all.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return all;
+}
+
+export async function dbDeleteRankRun(runId) {
+  if (!hasSupabase || !runId) return { ok: false };
+  const { error } = await supabase.rpc("delete_rank_run", { p_run_id: runId });
+  if (error) { console.error("dbDeleteRankRun", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 // ---- Interview availability polls (web parity with the mobile app) ------------
 // The hiring manager runs a panel poll (proposes a few time ranges); the assigned
 // interviewers mark the ones they can make. A panelist counts as "voted" only
