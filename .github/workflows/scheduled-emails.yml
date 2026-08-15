@@ -55,6 +55,9 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           printf 'SUPABASE_URL      length=%s\n' "${#SUPABASE_URL}"
+          # Both project URLs are 40 chars, so length cannot tell prod from
+          # staging. The hash can: 1d383fa6fb49 = production, a4386655245d = staging.
+          printf 'SUPABASE_URL      sha256=%s\n' "$(printf '%s' "$SUPABASE_URL" | sha256sum | cut -c1-12)"
           printf 'SUPABASE_ANON_KEY length=%s\n' "${#SUPABASE_ANON_KEY}"
           printf 'CRON_SECRET       length=%s\n' "${#CRON_SECRET}"
           printf 'CRON_SECRET       sha256=%s\n' "$(printf '%s' "$CRON_SECRET" | sha256sum | cut -c1-12)"
