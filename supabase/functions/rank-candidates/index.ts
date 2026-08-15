@@ -17,7 +17,45 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const MODEL = "claude-sonnet-5";
+// 50 candidates x two sentences of reasoning needs well over the 4000 this used
+// to allow. Sonnet 5 also thinks by default when `thinking` is unset (a change
+// from 4.6), and thinking counts against max_tokens, so most of the old budget
+// went on reasoning and the JSON array came back cut in half. Scoring a skills
+// list is not work that needs a thinking pass; turning it off halves the token
+// bill and leaves the whole budget for the answer. If the scores ever look
+// shallow, swap this for output_config: { effort: "low" } rather than raising it.
+const MAX_TOKENS = 8000;
+const THINKING = { type: "disabled" };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
+
+// Pull whole {...} objects out of a possibly truncated JSON array. Brace counting
+// with string awareness, so a "}" inside a reason sentence doesn't close an
+// object early. A cut-off response used to parse to nothing, which cost the
+// caller the whole batch; salvaging the objects that did arrive intact loses at
+// most the last candidate instead.
+function salvageObjects(src: string): any[] {
+  const out: any[] = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === "{") { if (depth === 0) start = i; depth++; continue; }
+    if (ch === "}" && depth > 0) {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try { out.push(JSON.parse(src.slice(start, i + 1))); } catch { /* partial object, drop it */ }
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -84,7 +122,7 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, thinking: THINKING, messages: [{ role: "user", content: prompt }] }),
     });
     // Our failure, not theirs: hand the credit back.
     if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refundAiRankUnits(paid.companyId, paid.monthlyCharged, paid.purchasedCharged); return json({ error: "rank_failed" }, 502); }
@@ -95,6 +133,12 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
     let ranked: unknown = [];
     if (s >= 0 && e > s) { try { ranked = JSON.parse(text.slice(s, e + 1)); } catch (err) { console.error("json parse", err); } }
     if (!Array.isArray(ranked)) ranked = [];
+    // Nothing parsed cleanly (truncated array, stray prose): take whatever whole
+    // objects the text does contain before writing the batch off.
+    if ((ranked as any[]).length === 0 && s >= 0) {
+      ranked = salvageObjects(text.slice(s));
+      if ((ranked as any[]).length > 0) console.warn("salvaged", (ranked as any[]).length, "of", candidates.length);
+    }
 
     // Keep only ids we were given; clamp scores.
     const allowed = new Set((candidates as any[]).map((c) => c.id));

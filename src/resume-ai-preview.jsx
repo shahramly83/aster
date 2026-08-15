@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbGetCompanyFeed, dbSetCompanyFeed, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, dbListAcceptedOffers, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend, dbExportCreditSpend } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbGetCompanyFeed, dbSetCompanyFeed, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, dbGetMyOfferSignatory, dbSaveMyOfferSignatory, dbListOfferSignatories, dbGetOfferLetterTemplate, dbSaveOfferLetterTemplate, dbListAcceptedOffers, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbSaveRankRun, dbListRankRuns, dbGetRankRunScores, dbDeleteRankRun, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview, dbStageInviteJob, dbListCreditSpend, dbExportCreditSpend } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -16028,8 +16028,15 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   const [walletTip, setWalletTip] = useState(false); // AI Rank credit wallet hover breakdown
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
-  // Ask before spending a credit; truly-out-of-credits goes straight to billing.
-  const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
+  const [confirmUnits, setConfirmUnits] = useState(1); // credits that pending action will cost
+  // Ask before spending credits; truly-out-of-credits goes straight to billing.
+  // A role match now scores the whole database, so the cost is no longer always
+  // one credit and the dialog has to quote the real number before it is spent.
+  const askAiRank = (fn, units = 1) => {
+    if (outOfCredits) { setBuyAiRankOpen(true); return; }
+    setConfirmUnits(Math.max(1, units));
+    setConfirmRun(() => fn);
+  };
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
@@ -16050,6 +16057,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [sortBy, setSortBy] = useState(P.sortBy ?? "name"); // name | experience
   const [page, setPage] = useState(P.page ?? 1);
   const PER_PAGE = 20;
+  // Candidates per AI Rank credit, and per call to rank-candidates. The server
+  // prices the batch it is given, so this is the unit for both cost and batching.
+  const PER_UNIT = 50;
 
   // Match-by-skills-or-industry tab (two searchable token fields)
   const [skillTags, setSkillTags] = useState(P.skillTags ?? []);
@@ -16075,6 +16085,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
   // Shared ranking output (either skills or role match writes here)
   const [matching, setMatching] = useState(false);
+  const [rankProgress, setRankProgress] = useState(null); // null | { done, total } while a batched run is in flight
+  // Rank history (0176). Runs are saved batch by batch, so this is also what a
+  // recruiter comes back to after a reload, a closed tab, or a run they left
+  // half-finished when the credits ran out.
+  const [historyRuns, setHistoryRuns] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [viewingRun, setViewingRun] = useState(null); // a past run opened for reading
   const [matchScores, setMatchScores] = useState(P.matchScores ?? null); // null | { [id]: 0..1 }
   const [rankedMeta, setRankedMeta] = useState(P.rankedMeta ?? null);    // { mode:'skills'|'role', label, skills?, jobId? }
   // Skills tab shows a plain filtered list first; "AI Rank" reveals fit % scores.
@@ -16111,6 +16128,44 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     setRankedMeta({ mode: "skills", skills: [...skillTags], industries: [...industryTags] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, skillTags, industryTags, expLevels]);
+
+  // Load the run list whenever the history tab is opened, so a run finished a
+  // moment ago on another tab is already there.
+  useEffect(() => {
+    if (tab !== "history") return;
+    let alive = true;
+    setHistoryLoading(true);
+    dbListRankRuns(20)
+      .then((rows) => { if (alive) setHistoryRuns(rows); })
+      .finally(() => { if (alive) setHistoryLoading(false); });
+    return () => { alive = false; };
+  }, [tab]);
+
+  // Open a saved run for reading. The scores go into the same state a live run
+  // fills, so the saved ranking renders through exactly the same cards and the
+  // same one-resolver sort: what was true of the order live stays true here.
+  const openRun = async (run) => {
+    setHistoryLoading(true);
+    const rows = await dbGetRankRunScores(run.id);
+    const scores = {}, reasons = {};
+    rows.forEach((r) => {
+      scores[r.candidate_id] = (Number(r.score) || 0) / 100;
+      if (r.reason) reasons[r.candidate_id] = r.reason; // only the top scorers kept theirs
+    });
+    setAiRank({ scores, reasons });
+    setMatchScores(scores);
+    setRankedMeta({ mode: "role", label: run.job_title, jobId: run.job_id });
+    setMatchJobId(run.job_id || ""); // so Invite still knows which role it is for
+    setViewingRun(run);
+    setHistoryLoading(false);
+  };
+
+  const removeRun = async (run) => {
+    const res = await dbDeleteRankRun(run.id);
+    if (!res?.ok) return;
+    setHistoryRuns((prev) => prev.filter((r) => r.id !== run.id));
+    if (viewingRun?.id === run.id) setViewingRun(null);
+  };
 
   // Invites (role tab only)
   const [invited, setInvited] = useState({});
@@ -16170,7 +16225,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     : new Set();
 
   // Each tab is a clean, self-contained mode, switching clears any ranking.
-  const switchTab = (t) => { if (t === tab) return; setTab(t); setMatchScores(null); setRankedMeta(null); setMatching(false); };
+  const switchTab = (t) => { if (t === tab) return; setTab(t); setMatchScores(null); setRankedMeta(null); setMatching(false); setViewingRun(null); setAiRank(null); };
   // rank-candidates charges the credit itself now (0046), before it spends money.
   // This only syncs the meter to the count the server reports back. It must not
   // bump: doing so would take two credits per run.
@@ -16203,40 +16258,76 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     return (rankedMeta?.skills || []).filter((w) => cand.has(String(w).toLowerCase()));
   };
 
+  // Everyone this run will score: the same people the results list shows. It used
+  // to rank from `parsed`, which still includes those already hired or already in
+  // the running for every open role — candidates the list then filters out. That
+  // was invisible when a run was one credit; scoring the whole database makes it
+  // a credit wasted per 50 of them.
+  const rolePool = matchJob ? available.filter((c) => !alreadyApplied.has(c.id)) : [];
+  const roleRunUnits = Math.max(1, Math.ceil(rolePool.length / PER_UNIT));
+
   const runRoleMatch = async (maxUnits = null) => {
     if (!matchJob) return;
     if (outOfCredits && !maxUnits) { setBuyAiRankOpen(true); return; }
     setMatching(true);
     setAiRank(null);
-    // Heuristic scores as the base / fallback for anyone the AI omits.
-    const pool = parsed.filter((c) => !alreadyApplied.has(c.id));
+    // Heuristic scores as the base / fallback for anyone the AI never reaches.
+    const pool = rolePool;
     const heur = {}; pool.forEach((c) => { heur[c.id] = scoreAgainstJob(c, matchJob); });
     setMatchScores(heur);
     setRankedMeta({ mode: "role", label: matchJob.title, jobId: matchJob.id });
+    setRankProgress({ done: 0, total: pool.length });
     try {
       if (!hasSupabase) { syncRuns(); return; } // demo: heuristic only, bump locally
-      // Priced 1 credit per 50 candidates. Cap one run at 50 (a partial run trims to
-      // maxUnits*50 of the pool).
-      let ranking = pool.slice(0, 50);
-      if (maxUnits) ranking = ranking.slice(0, Math.max(1, maxUnits * 50));
-      const payload = ranking.map((c) => ({
-        id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
-        years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
-      }));
-      const units = Math.max(1, Math.ceil(payload.length / 50));
+      // The whole pool gets scored, 50 per call at 1 credit each, in sequence.
+      // Batched best-first by the heuristic so a run that stops early (credits
+      // run out mid-way, a batch fails, the tab is closed) has spent them on the
+      // most promising candidates rather than on whoever happens to sit at the
+      // top of the database. maxUnits trims to what a partial run pays for.
+      let ranking = [...pool].sort((a, b) => (heur[b.id] ?? 0) - (heur[a.id] ?? 0));
+      if (maxUnits) ranking = ranking.slice(0, Math.max(1, maxUnits * PER_UNIT));
       const roleInfo = { title: matchJob.title, description: matchJob.description || "", requirements: matchJob.requirements || [] };
-      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units, perUnit: 50 } });
-      if (data?.error === "limit_reached") { setMatching(false); setBuyAiRankOpen(true); return; }
-      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
       const scores = {}, reasons = {};
-      data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
-      setAiRank({ scores, reasons });
+      let lastUsed, runId = null; // one history row, extended by each batch
+      for (let i = 0; i < ranking.length; i += PER_UNIT) {
+        const batch = ranking.slice(i, i + PER_UNIT);
+        const payload = batch.map((c) => ({
+          id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
+          years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
+        }));
+        const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, perUnit: PER_UNIT } });
+        // Out of credits partway through a long run: keep every batch already
+        // scored and offer a top-up. Half a ranking is worth more than throwing
+        // away the batches the credits already paid for.
+        if (data?.error === "limit_reached") { setBuyAiRankOpen(true); break; }
+        if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
+        data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
+        if (typeof data.used === "number") lastUsed = data.used;
+        // Persist this batch before starting the next one. A closed tab or a
+        // dropped connection then costs the batches still to come, not the ones
+        // already paid for. Never blocks the run: history is a record of the
+        // work, not part of doing it.
+        try {
+          const saved = await dbSaveRankRun({
+            runId, jobId: matchJob.id, jobTitle: matchJob.title, source: "search", credits: 1,
+            scores: data.ranked.filter((r) => r && r.id).map((r) => ({
+              candidateId: r.id, score: (Number(r.score) || 0) / 100, reason: r.reason || "",
+            })),
+          });
+          if (saved?.runId) runId = saved.runId;
+        } catch { /* history is best effort */ }
+        // Publish after every batch so the list fills in and re-sorts as it goes,
+        // rather than showing nothing for the minutes a large database takes.
+        setAiRank({ scores: { ...scores }, reasons: { ...reasons } });
+        setRankProgress({ done: i + batch.length, total: ranking.length });
+      }
       reloadPurchasedAiRank?.(); // a run may have drawn from the purchased balance
-      syncRuns(data.used); // the server already charged; just mirror its count
+      if (typeof lastUsed === "number") syncRuns(lastUsed); // server already charged; mirror its count
     } catch (_e) {
-      /* keep the heuristic ranking; no credit charged on failure */
+      /* keep whatever scored before the failure; the rest stay on the heuristic */
     } finally {
       setMatching(false);
+      setRankProgress(null);
     }
   };
   const runSkillMatch = () => {
@@ -16272,6 +16363,19 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   };
   const invalidate = () => {}; // instant search now recomputes reactively; no manual clear
 
+  // ONE score per candidate, read by BOTH the sort and the percentage printed on
+  // the card. These used to disagree: the sort chose a whole map at a time
+  // (aiRank?.scores || matchScores) while the card fell back per candidate. So
+  // anyone the AI had not scored sorted as 0 and sank to the bottom, yet still
+  // displayed their heuristic percentage, and the list read 82%, 60%, then 45%
+  // below a 30%. An empty {} from a failed AI call is truthy, so it also took
+  // over the sort wholesale and left the list in raw database order. Resolving
+  // the score in one place makes the list descending in the number on screen,
+  // whatever mix of AI and heuristic scores it is showing.
+  const scoreOf = (c) => (aiRank?.scores?.[c.id] ?? matchScores?.[c.id] ?? 0);
+  const byScoreThenYears = (a, b) =>
+    (scoreOf(b) - scoreOf(a)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0));
+
   // ---- Build the visible list for the active tab ----
   const q = query.trim().toLowerCase();
   // Any skill/industry/experience filter in play. With none, Find is a plain
@@ -16284,16 +16388,20 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     if (hasFilters && !ranked && matchScores) {
       list.sort((a, b) => (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0));
     } else if (hasFilters && matchScores) {
-      const sc = aiRank?.scores || matchScores;
-      list.sort((a, b) => ((sc[b.id] ?? 0) - (sc[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
+      list.sort(byScoreThenYears);
     } else {
       list.sort((a, b) => a.parsed.name.localeCompare(b.parsed.name));
     }
-  } else if (matchScores) {
-    const pool = available.filter((c) => !alreadyApplied.has(c.id));
-    list = [...pool];
-    const sc = aiRank?.scores || matchScores;
-    list.sort((a, b) => ((sc[b.id] ?? 0) - (sc[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
+  } else if (tab === "history" && viewingRun) {
+    // Built from who was scored, not from the job's current pool: a saved run
+    // must still open after its job is closed or deleted. Anyone removed from
+    // the database since simply drops out, which is the honest result.
+    const scored = aiRank?.scores || {};
+    list = available.filter((c) => scored[c.id] !== undefined);
+    list.sort(byScoreThenYears);
+  } else if (tab === "role" && matchScores) {
+    list = [...rolePool];
+    list.sort(byScoreThenYears);
   }
 
   // Click "AI Rank" → Claude (Sonnet) ranks the filtered candidates by fit and
@@ -16380,6 +16488,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       {sub && <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>{sub}</p>}
     </div>
   );
+  // "Matches · 12 Aug 2026 · 5,000 candidates · 100 credits"
+  const runSummary = (run) => [
+    run.source === "applicants" ? "Applicants board" : "Matches",
+    new Date(run.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }),
+    `${(run.candidate_count || 0).toLocaleString()} candidate${run.candidate_count === 1 ? "" : "s"}`,
+    `${(run.credits_used || 0).toLocaleString()} credit${run.credits_used === 1 ? "" : "s"}`,
+  ].join(" · ");
   const browseCard = (c) => {
     const role = c.parsed.experience?.[0]?.title;
     return (
@@ -16395,15 +16510,32 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       </button>
     );
   };
+  // Live progress for a batched run. Scoring a whole database is one call per 50
+  // candidates, so a big pool takes minutes: a spinner with no count reads as a
+  // hang, and "a few seconds" would be a lie. Only counts up once the run is
+  // actually more than a single batch.
+  const batched = !!rankProgress && rankProgress.total > PER_UNIT;
+  const rankProgressBar = (
+    <div className="rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
+      <span className="w-5 h-5 rounded-full shrink-0 animate-spin" style={{ border: "2.5px solid rgba(var(--brand-rgb),0.25)", borderTopColor: "var(--brand)" }} />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold" style={{ color: "var(--brand)" }}>{rankStatus}</p>
+        <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+          {batched
+            ? `Scored ${rankProgress.done.toLocaleString()} of ${rankProgress.total.toLocaleString()}${matchJob?.title ? ` against ${matchJob.title}` : ""}. The list fills in as each batch lands.`
+            : `Scoring your candidates${matchJob?.title ? ` against ${matchJob.title}` : ""}. This usually takes a few seconds.`}
+        </p>
+        {batched && (
+          <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(var(--brand-rgb),0.18)" }}>
+            <div className="h-full rounded-full transition-all" style={{ background: "var(--brand)", width: `${Math.round((rankProgress.done / Math.max(1, rankProgress.total)) * 100)}%` }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
   const matchSkeleton = (
     <div className="space-y-2.5">
-      <div className="rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
-        <span className="w-5 h-5 rounded-full shrink-0 animate-spin" style={{ border: "2.5px solid rgba(var(--brand-rgb),0.25)", borderTopColor: "var(--brand)" }} />
-        <div className="min-w-0">
-          <p className="text-sm font-semibold" style={{ color: "var(--brand)" }}>{rankStatus}</p>
-          <p className="text-xs" style={{ color: "var(--ink-2)" }}>Scoring your candidates{matchJob?.title ? ` against ${matchJob.title}` : ""}. This usually takes a few seconds.</p>
-        </div>
-      </div>
+      {rankProgressBar}
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-4" style={{ borderColor: "var(--line)" }}>
           <div className="rounded-full bg-neutral-200 animate-pulse shrink-0" style={{ width: 52, height: 52 }} />
@@ -16445,7 +16577,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const rankedList = (
     <div className="space-y-2.5">
       {shownList.map((c, idx) => {
-        const pct = Math.round(((aiRank?.scores?.[c.id]) ?? (matchScores?.[c.id] ?? 0)) * 100);
+        const pct = Math.round(scoreOf(c) * 100); // same resolver the sort used, so the list is always descending in this number
         const isTop = idx === 0;
         const yrs = c.parsed.years_of_experience;
         const role = c.parsed.experience?.[0]?.title;
@@ -16572,6 +16704,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const TABS = [
     { key: "find", full: "Find candidates", icon: "users" },
     { key: "role", full: "Matches", icon: "briefcase" },
+    // "History", not "Rank history": the strip is flex-nowrap with no scroll
+    // fallback at base width, so three labels have to fit 390px on their own.
+    { key: "history", full: "History", icon: "clock" },
   ];
   // Popular skills across job families (not just engineering), each exists in
   // the candidate pool so a quick-add always returns real matches.
@@ -16802,7 +16937,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   </p>
                   <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
-                    <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
+                    <button onClick={() => askAiRank(runRoleMatch, roleRunUnits)} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
                       {matching
                         ? <span className="w-4 h-4 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
@@ -16841,10 +16976,85 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <button onClick={() => setMatchScores(null)} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
               </div>
             )}
-            {matching ? matchSkeleton
+            {/* Skeleton only until the first batch lands. After that the partial
+                results are worth more than a placeholder, so the progress bar
+                moves above the live list instead of replacing it. */}
+            {matching && !aiRank ? matchSkeleton
               : !matchScores ? emptyState("Find your best fit candidates", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "Choose one of your open positions above and AI Rank scores every candidate against it.", "briefcase")
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
-              : rankedList}
+              : <div className="space-y-2.5">{matching && rankProgressBar}{rankedList}</div>}
+          </>
+        )}
+
+        {/* ---------- Tab 3: Rank history ---------- */}
+        {tab === "history" && (
+          <>
+            {viewingRun ? (
+              <>
+                <button onClick={() => setViewingRun(null)} className="text-xs font-semibold mb-3 inline-flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                  <Icon name="chevronDown" className="w-3.5 h-3.5 rotate-90" /> All rankings
+                </button>
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="min-w-0">
+                    <p className="text-base font-bold font-display truncate" style={{ color: "var(--ink)" }}>{viewingRun.job_title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{runSummary(viewingRun)}</p>
+                    {list.length < viewingRun.candidate_count && (
+                      // Say it rather than quietly showing a shorter list: people
+                      // leave the database, and a count that no longer matches the
+                      // saved run reads as data loss if nothing explains it.
+                      <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+                        {(viewingRun.candidate_count - list.length).toLocaleString()} scored {viewingRun.candidate_count - list.length === 1 ? "candidate is" : "candidates are"} no longer in your database.
+                      </p>
+                    )}
+                  </div>
+                  {viewingRun.job_id && openJobs.some((j) => j.id === viewingRun.job_id) && (
+                    <button
+                      // Hand the role tab a clean slate, not this run's saved
+                      // scores, or it would open looking like a ranking nobody ran.
+                      onClick={() => { const jid = viewingRun.job_id; setViewingRun(null); setMatchScores(null); setAiRank(null); setRankedMeta(null); setTab("role"); setMatchJobId(jid); }}
+                      className="shrink-0 text-xs font-semibold rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 hover:bg-neutral-50 transition-colors"
+                      style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                      <Icon name="refresh" className="w-3.5 h-3.5" /> Re-rank
+                    </button>
+                  )}
+                </div>
+                {list.length === 0
+                  ? emptyState("Nobody from this ranking is left", "Every candidate scored in this run has since been removed from your database.", "clock")
+                  : rankedList}
+              </>
+            ) : historyLoading ? (
+              <div className="space-y-2.5">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+                    <div className="h-3 rounded bg-neutral-200 animate-pulse" style={{ width: "40%" }} />
+                    <div className="h-2.5 rounded bg-neutral-200 animate-pulse mt-2.5" style={{ width: "60%" }} />
+                  </div>
+                ))}
+              </div>
+            ) : historyRuns.length === 0 ? (
+              emptyState("No rankings yet", "Every AI Rank you run is saved here, so you can come back to it after a refresh instead of paying to run it again.", "clock")
+            ) : (
+              <div className="space-y-2.5">
+                <p className="text-xs mb-1" style={{ color: "var(--ink-3)" }}>
+                  Your last {historyRuns.length} ranking{historyRuns.length === 1 ? "" : "s"}. Older ones are removed automatically.
+                </p>
+                {historyRuns.map((run) => (
+                  <div key={run.id} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5 transition-all hover:-translate-y-0.5 shadow-[0_2px_5px_rgba(16,19,42,0.05),0_16px_32px_-20px_rgba(16,19,42,0.30)]" style={{ borderColor: "var(--line)" }}>
+                    <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                      <Icon name={run.source === "applicants" ? "users" : "briefcase"} className="w-4 h-4" />
+                    </span>
+                    <button onClick={() => openRun(run)} className="text-left min-w-0 flex-1 group">
+                      <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--ink)" }}>{run.job_title}</p>
+                      <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{runSummary(run)}</p>
+                    </button>
+                    <button onClick={() => removeRun(run)} title="Delete this ranking"
+                      className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                      <Icon name="trash" className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -16878,11 +17088,19 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       <ConfirmDialog
         open={!!confirmRun}
         title="Run AI Rank?"
-        body={limits.aiRunsPerMonth === Infinity
-          ? "AI Rank scores your candidates with Claude and explains the fit."
-          : outOfRuns
-            ? `This uses 1 AI Rank credit (1 per 50 candidates), drawn from your purchased balance (${purchasedAiRank} left). Your monthly plan is used up.`
-            : `This uses 1 AI Rank credit (1 per 50 candidates). You have ${runsLeft} left this cycle${purchasedAiRank > 0 ? ` + ${purchasedAiRank} purchased` : ""}.`}
+        body={(() => {
+          const n = confirmUnits;
+          const cost = `${n.toLocaleString()} AI Rank credit${n === 1 ? "" : "s"} (1 per ${PER_UNIT} candidates)`;
+          if (limits.aiRunsPerMonth === Infinity) return `AI Rank scores your candidates with Claude and explains the fit. This run uses ${cost}.`;
+          const have = runsLeft + purchasedAiRank;
+          // Quote the shortfall rather than letting the run stop halfway with no
+          // warning: scoring a whole database can cost more credits than a cycle
+          // includes, and that is worth knowing before it starts, not after.
+          if (n > have) return `Scoring every candidate against this role needs ${cost}, and you have ${have.toLocaleString()}. The run will score the best ${(have * PER_UNIT).toLocaleString()} your credits cover and stop there.`;
+          return outOfRuns
+            ? `This uses ${cost}, drawn from your purchased balance (${purchasedAiRank.toLocaleString()} left). Your monthly plan is used up.`
+            : `This uses ${cost}. You have ${runsLeft.toLocaleString()} left this cycle${purchasedAiRank > 0 ? ` + ${purchasedAiRank.toLocaleString()} purchased` : ""}.`;
+        })()}
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
@@ -17055,6 +17273,12 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       const scores = data.ranked.filter((r) => r && r.id).map((r) => ({ candidateId: r.id, score: (Number(r.score) || 0) / 100, rationale: r.reason || "" }));
       const saved = await dbSaveMatchScores(companyId, roleFilter, scores);
       if (!saved?.ok) { setRankMsg(`Ranked, but couldn't save: ${saved?.error || "try again."}`); setRanking(false); return; }
+      // Also file it under Rank history (0176), so every AI Rank a workspace pays
+      // for is in one place rather than only on the board that produced it.
+      dbSaveRankRun({
+        jobId: job.id, jobTitle: job.title, source: "applicants", credits: units,
+        scores: scores.map(({ candidateId, score, rationale }) => ({ candidateId, score, reason: rationale })),
+      }).catch(() => { /* history is best effort, never fails the run */ });
       setRankMsg(`Ranked ${scores.length} candidate${scores.length === 1 ? "" : "s"}. Refreshing…`);
       reloadPurchasedAiRank?.(); // a run may have drawn from the top-up balance
       onRanked();
@@ -28590,6 +28814,12 @@ function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activ
       // the scores on load. AWAIT it: if the write fails we must NOT show "synced"
       // and must NOT lock the job, or the run is trapped (locked, no saved scores).
       const saved = await dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
+      // File it under Rank history too (0176). Not awaited and never throws: this
+      // is the record of the run, and losing it must not block locking the job.
+      dbSaveRankRun({
+        jobId: activeJobId, jobTitle: job.title, source: "applicants", credits: units,
+        scores: Object.entries(map).map(([candidateId, v]) => ({ candidateId, score: v.score, reason: v.rationale })),
+      }).catch(() => { /* best effort */ });
       if (!saved?.ok) {
         setMatchErr(`Ranked, but the scores couldn't be saved: ${saved?.error || "unknown error"}. The job was not locked, so you can try again.`);
       } else {
