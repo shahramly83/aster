@@ -3,6 +3,113 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "should-you-let-ai-auto-reject-candidates",
+    "title": "Should you let AI auto-reject candidates?",
+    "category": "ai-hiring",
+    "excerpt": "AI can screen and rank every application. Deciding who gets a no is a different question. Here's where to automate and where to keep a human.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-17",
+    "readMins": 5,
+    "tags": [
+      "ai-screening",
+      "automation",
+      "candidate-experience",
+      "hiring-process"
+    ],
+    "body": [
+      {
+        "p": "An AI screener can read every resume the moment it lands, pull out skills and experience, and rank the pile against the role. That part is settled: it works, and it saves real hours. The harder question shows up right after. Once the scores are in, do you let the tool send the rejections automatically, or does a person sign off first?"
+      },
+      {
+        "p": "It's tempting to close the loop. If AI ranked applicant 44 dead last, why not let it send the polite no and move on? But rejection is the one action in hiring you can't take back cheaply. A wrong yes costs you an interview slot. A wrong no costs you a good hire you'll never know you missed, and sometimes a public complaint about a company that ghosts people. This piece is about drawing that line deliberately instead of by accident."
+      },
+      {
+        "h": "What the score is actually telling you"
+      },
+      {
+        "p": "A match score is a **ranking signal, not a verdict**. It tells you how well a resume lines up with the criteria you defined, based on what the candidate chose to write down. That's genuinely useful for ordering a pile so the strongest fits sit on top. It is not a measurement of whether someone can do the job."
+      },
+      {
+        "p": "Two things follow from that. First, the gap between rank 3 and rank 5 is often noise, not signal. Second, the score can only see what's on the page. It misses the career-changer whose transferable skills don't use your keywords, the person who undersold themselves, and the strong candidate applying from an adjacent field. These are exactly the people an automatic reject quietly removes before anyone notices."
+      },
+      {
+        "quote": "A wrong yes costs you an interview slot. A wrong no costs you a hire you'll never know you missed."
+      },
+      {
+        "h": "The case for keeping a human on the no"
+      },
+      {
+        "p": "Rejection is asymmetric. The downside of a false negative is invisible and permanent, which is the worst combination for any automated decision. You never see the résumé you auto-declined, so you never learn the tool was wrong, so it keeps being wrong the same way. Nothing corrects it."
+      },
+      {
+        "p": "There's also the plain matter of how it feels. Candidates increasingly assume software is involved, and most are fine with that. What they resent is a rejection that arrives in nine seconds for a role they spent an hour applying to. Speed reads as care when you say yes and as contempt when you say no. A short pause before a rejection, even an hour, costs you nothing and protects your name in a market where candidates talk."
+      },
+      {
+        "h": "Where automation earns its keep"
+      },
+      {
+        "p": "None of this means a person should touch every application. The point of an AI screener is to spend human attention where it changes an outcome, and rejection review is a place it does. Everything upstream of the decision is fair game to automate:"
+      },
+      {
+        "ul": [
+          "**Reading and structuring** every resume as it arrives: skills, experience, a one-line summary. No judgment involved, just parsing.",
+          "**Ranking** the pile against the role so the strongest fits surface first and you're not scrolling.",
+          "**Hard, factual gates** you'd apply anyway: a required license the role legally needs, or work authorization for a role you can't sponsor. Keep these narrow and defensible, not proxies for something softer.",
+          "**Scheduling** once a human has said yes: one link, candidate self-books, the calendar invite creates itself. No back-and-forth email."
+        ]
+      },
+      {
+        "p": "That last one matters. A lot of the time you're trying to save isn't in the reading, it's in the coordination after. Automate the logistics aggressively. Automate the judgment carefully."
+      },
+      {
+        "h": "A practical middle ground"
+      },
+      {
+        "p": "You don't have to choose between reviewing 300 applications by hand and letting a bot decide. A tiered approach handles most volume without handing over the final no:"
+      },
+      {
+        "ul": [
+          "**Top of the ranking:** review and advance quickly. These are why you bought the tool.",
+          "**The middle:** this is where a human eye pays for itself. Skim for the transferable-skills candidate and the one the score underrated. Spend your minutes here.",
+          "**Bottom of the ranking:** batch-review rather than read one by one. A quick scan of the bottom of the list often takes a few minutes and catches the rare misfire. Then send rejections as a reviewed batch, not an automatic trigger."
+        ]
+      },
+      {
+        "p": "This keeps a person on the reject decision while still letting you clear hundreds of applications in an afternoon. The human isn't re-reading everything. They're doing a fast, structured check on the one action that's expensive to get wrong."
+      },
+      {
+        "note": "An AI screener should decide the order of your pile. A person should decide who gets a no. Keep those two jobs separate and most of the risk disappears.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Questions to answer before you turn anything on"
+      },
+      {
+        "p": "If you're setting up automated screening, walk through these once with whoever owns hiring:"
+      },
+      {
+        "ul": [
+          "**What would a false reject cost us here?** For a high-volume, well-defined role the cost is low. For a rare or senior hire it's high, so keep more humans in the loop.",
+          "**Can we explain every automatic gate to a candidate's face?** If a rule would embarrass you when read aloud, it shouldn't run unattended.",
+          "**Are we auditing the nos?** Periodically pull a sample of rejected applications and read them cold. If you keep finding people who should have advanced, your criteria or your threshold is off.",
+          "**Who owns the exception?** There should be a named person a hiring manager can go to when they want a second look at someone the ranking buried."
+        ]
+      },
+      {
+        "h": "The honest summary"
+      },
+      {
+        "p": "AI is very good at the parts of screening that are tedious and low-stakes: reading, structuring, ranking, and scheduling. It is not good at the part that's high-stakes and irreversible, which is telling someone no with confidence that no is correct. Those failures are silent, and silent failures are the ones that hurt you longest."
+      },
+      {
+        "p": "So let the tool do what it's good at. Let it read every CV, rank the pile, and book the interviews once you've said yes. Keep a human on the rejection, even a light one, because that's the decision you can't undo and can't see when it goes wrong. **Start from a shortlist, not a pile, but sign the rejections yourself.**"
+      }
+    ]
+  },
+  {
     "slug": "how-to-run-a-screening-call-that-respects-everyones-time",
     "title": "How to run a screening call that respects everyone's time",
     "category": "interviewing",
