@@ -3,6 +3,135 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "interview-scheduling-is-where-good-candidates-go-cold",
+    "title": "Interview scheduling is where good candidates go cold",
+    "category": "recruiting-ops",
+    "excerpt": "Scheduling looks like admin, but the gap between yes and a booked slot is where strong candidates drift. Here's how to close it.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-20",
+    "readMins": 6,
+    "tags": [
+      "scheduling",
+      "candidate-experience",
+      "recruiting-ops",
+      "time-to-hire"
+    ],
+    "body": [
+      {
+        "p": "Everyone worries about sourcing and interviews. Almost no one plans the boring bit in between: getting a time on the calendar. That gap, from \"we'd like to talk\" to a confirmed slot, is quietly one of the leakiest parts of a hiring process."
+      },
+      {
+        "p": "A candidate who was excited on Monday is fielding two other offers by Friday. Every day the invite sits in a draft, or bounces between three email threads, is a day their attention drifts somewhere else. Scheduling isn't admin. It's a speed test you're running on yourself, and candidates can feel the result."
+      },
+      {
+        "h": "Why scheduling leaks candidates"
+      },
+      {
+        "p": "The mechanics are unglamorous, which is exactly why they get ignored. A few patterns show up again and again:"
+      },
+      {
+        "ul": [
+          "**The reply-tennis loop.** You propose three times, they're free for none, they propose two, you've now got a meeting somewhere else. Four emails in, two days gone.",
+          "**The timezone mismatch.** \"2pm\" means nothing when you're in London and they're in Austin. One misread and someone joins an empty call.",
+          "**The single-point-of-failure coordinator.** One person owns every calendar. They take a day off and the whole pipeline stalls.",
+          "**The silent hand-off.** A candidate passes the screen, but no one is clearly on the hook for booking the next round. It sits for three days because everyone assumed someone else had it."
+        ]
+      },
+      {
+        "p": "None of these are dramatic. That's the problem. Each one costs a day here, two days there, and the total is a candidate who has cooled off before they ever met the hiring manager."
+      },
+      {
+        "quote": "Scheduling isn't admin. It's a speed test you're running on yourself, and candidates can feel the result."
+      },
+      {
+        "h": "Measure the gap you can't see"
+      },
+      {
+        "p": "You probably track time-to-hire. Break out the part between stages and you'll usually find scheduling hiding a surprising amount of it. Two numbers are worth pulling:"
+      },
+      {
+        "ul": [
+          "**Time from \"advance\" to \"booked\":** the hours between deciding to interview someone and having a confirmed slot on the calendar.",
+          "**Time from \"booked\" to \"happened\":** how far out your first available interview slot actually sits."
+        ]
+      },
+      {
+        "p": "If it routinely takes three days to book and the first opening is a week out, that's ten days a candidate spends waiting, thinking, and talking to other companies. You can't fix what you don't name, so name it before you try to speed it up."
+      },
+      {
+        "h": "Give candidates the pen"
+      },
+      {
+        "p": "The fastest scheduling is the kind you don't do. Instead of proposing times and waiting, hand the candidate a link to your real availability and let them self-book. It flips the work: they pick a slot that fits their life, and it lands on your calendar already confirmed."
+      },
+      {
+        "p": "This does three useful things at once. It **removes the back-and-forth**, it **respects the candidate's time** (they book around their own day, not yours), and it **shows the slot in their timezone**, so nobody joins an empty room. The invite, the video link, the calendar hold: all created in one step instead of five."
+      },
+      {
+        "p": "There's a fairness angle too. When everyone gets the same self-book link with the same available windows, you're not quietly giving the well-connected candidate a faster path. The process looks the same from every seat."
+      },
+      {
+        "note": "Self-booking works best when your availability is honest. If you expose slots you don't actually intend to keep, you've just moved the reschedule from before the interview to after it.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Decide who owns the hand-off"
+      },
+      {
+        "p": "Most scheduling delays are ownership delays. A candidate clears a stage and then sits in limbo because the next move belongs to \"the team\" instead of a person. Fix this once, in your process, not repeatedly in your inbox."
+      },
+      {
+        "ul": [
+          "Name a single owner for each stage transition. When a candidate advances, one person is responsible for the invite going out, same day.",
+          "Set a simple internal rule: an advanced candidate gets a scheduling link within one business day. Treat a slip like a missed deadline, not a nice-to-have.",
+          "When the owner is out, the fallback is written down, not improvised. A shared pipeline everyone can see beats a coordinator's private to-do list."
+        ]
+      },
+      {
+        "p": "The goal is that no candidate ever waits on a question of \"whose job was this?\" That question should already have an answer before anyone applies."
+      },
+      {
+        "h": "Keep interviewers' calendars real"
+      },
+      {
+        "p": "Self-booking only helps if the availability behind it is trustworthy. That means interviewers keep their calendars current, block focus time honestly, and agree on a few standing interview windows. A recurring \"open for interviews\" block, even two hours twice a week, gives candidates near-term options without anyone playing calendar detective."
+      },
+      {
+        "p": "Panels are the harder case. When four people need to be in one room, waiting for a mutual gap is the delay. Two things help: keep panels small (three focused interviewers usually beat five distracted ones), and let people interview slightly out of sequence when a schedule demands it. A great candidate held up for a week to get the \"perfect\" order is a worse outcome than a good-enough order this week."
+      },
+      {
+        "h": "Where AI actually helps, and where it doesn't"
+      },
+      {
+        "p": "Automated scheduling is one of the clearest, least controversial uses of software in hiring. There's no judgment call to get wrong. A tool that reads calendars, offers real slots, handles timezones, and creates the Meet or Teams invite is just doing arithmetic and clicking buttons faster than a person can. This is where Aster earns its keep: one link, the candidate self-books, the invite appears, and the whole team sees it on the same board."
+      },
+      {
+        "p": "Be clear about the limit, though. **Software can get a time on the calendar. It can't make the interview good.** Automation frees up the hours you were spending on logistics so you can put them where judgment matters: writing sharp questions, briefing the panel, and giving candidates a real reason to say yes. Speed gets them in the room. What happens in the room is still on you."
+      },
+      {
+        "h": "A short checklist"
+      },
+      {
+        "p": "Before your next role goes live, make sure the in-between is as ready as the interview itself:"
+      },
+      {
+        "ul": [
+          "Every stage transition has a named owner and a same-day target.",
+          "Candidates self-book from a link, in their own timezone, with the video invite created automatically.",
+          "Interviewers hold standing availability so the first slot is days away, not weeks.",
+          "You're tracking time from \"advance\" to \"booked\" and watching it, not guessing.",
+          "The whole team can see the pipeline, so nothing stalls in one person's inbox."
+        ]
+      },
+      {
+        "p": "Get this right and the payoff is quiet but real: fewer candidates cooling off, a shorter path to hire, and a process that feels considered from the outside. The best candidates are comparing you to everyone else they're talking to. A booking that just works is a small signal that the rest of the job might, too."
+      }
+    ]
+  },
+  {
     "slug": "should-you-let-ai-auto-reject-candidates",
     "title": "Should you let AI auto-reject candidates?",
     "category": "ai-hiring",
