@@ -3,6 +3,121 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-design-an-interview-loop-where-every-stage-earns-its-place",
+    "title": "How to design an interview loop where every stage earns its place",
+    "category": "interviewing",
+    "excerpt": "Most interview loops repeat the same questions in different rooms. Here's how to map competencies to stages so every round tells you something new.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-24",
+    "readMins": 5,
+    "tags": [
+      "interview design",
+      "interview loop",
+      "structured hiring",
+      "candidate experience"
+    ],
+    "body": [
+      {
+        "p": "Ask most teams why their interview loop has five rounds and you'll get an honest shrug. It grew that way. Someone added a culture chat after a bad hire, someone else insisted on a second technical round, and now every candidate sits through the better part of a working week to answer roughly the same questions three times."
+      },
+      {
+        "p": "A good loop isn't about how many people a candidate meets. It's about **how much you learn per hour of their time**. The test for any stage is simple: does it tell you something the other stages don't? If two rounds are probing the same signal, one of them is a scheduling delay dressed up as diligence."
+      },
+      {
+        "h": "Start from the competencies, not the calendar"
+      },
+      {
+        "p": "Before you decide how many rounds you need, write down what the role actually requires. Keep it to four to six things that genuinely predict success, not a wish list. For a mid-level backend engineer that might be: writes clean, correct code; reasons about system tradeoffs; communicates decisions clearly; collaborates without ego; owns problems end to end."
+      },
+      {
+        "p": "Now the loop designs itself. Each competency needs at least one stage where you can observe it directly, and no competency should be spread thin across every round with nobody responsible for a verdict. Map it on one line each:"
+      },
+      {
+        "ul": [
+          "Coding quality: a hands-on exercise or take-home review",
+          "System reasoning: a design discussion with an open prompt",
+          "Communication: how they explain the design, in every stage",
+          "Collaboration and ownership: behavioral questions with real examples"
+        ]
+      },
+      {
+        "p": "When you lay it out like this, the redundancy jumps out. If three interviewers are all planning to ask \"tell me about a hard project,\" you don't need three interviewers for that. You need one to own it and go deep, and you need to free the other two to test something else."
+      },
+      {
+        "h": "Give each stage a single job"
+      },
+      {
+        "p": "The strongest loops assign each stage a clear owner and a clear question it exists to answer. Not \"the onsite,\" but \"the round that decides whether they can reason about tradeoffs under ambiguity.\" When a stage has one job, the interviewer knows what to dig into, and the debrief has somewhere to put the evidence."
+      },
+      {
+        "p": "This also fixes the most common loop failure: the vague final round where a senior leader \"just wants to get a feel for them.\" A feel is not a competency. If that conversation matters, name what it's checking (motivation, seniority, judgment on a specific kind of problem) and give it a rubric like every other stage."
+      },
+      {
+        "quote": "A loop isn't measured by how many people a candidate meets. It's measured by how much you learn per hour of their time."
+      },
+      {
+        "h": "Sequence for signal, then for kindness"
+      },
+      {
+        "p": "Order matters for two reasons. First, put the highest-signal, most role-specific stage early. If someone can't do the core of the job, you want to know before you've spent four other calendars on them, and before the candidate has taken three days off work. Front-loading the decisive stage is respectful to everyone."
+      },
+      {
+        "p": "Second, don't make people repeat context. If a candidate explains their current project in round one, that context should be written down and passed forward, not re-extracted in round three. Nothing signals a disorganized team faster than four interviewers who clearly haven't read each other's notes."
+      },
+      {
+        "note": "A candidate who answers the same question in three rounds doesn't feel thoroughly vetted. They feel like nobody on your side is talking to each other.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "How many rounds is enough?"
+      },
+      {
+        "p": "There's no universal number, but there is a useful ceiling: **you need one stage per competency you can't test any other way, plus a screen.** For most individual-contributor roles that lands at three or four touchpoints total, including the recruiter screen. Executive and highly cross-functional roles justify more, because there are genuinely more stakeholders whose read matters."
+      },
+      {
+        "p": "If your loop is longer than that, one of these is usually true:"
+      },
+      {
+        "ul": [
+          "Two stages are testing the same thing and nobody has merged them.",
+          "A stage exists to reassure the team, not to gather signal.",
+          "You're using rounds to compensate for a weak scorecard, hoping volume of opinions adds up to a decision.",
+          "Nobody has ever audited the loop, so it only ever grows."
+        ]
+      },
+      {
+        "p": "More rounds feel safer, but they rarely improve the decision. They add days to time-to-hire, they lose you candidates who take a faster offer, and they dilute accountability: when eight people interview someone, everyone assumes someone else caught the problem."
+      },
+      {
+        "h": "Write the loop down and share it"
+      },
+      {
+        "p": "Once you've mapped competencies to stages, document it as a short interview plan: the stages in order, who owns each one, the competency it tests, and the format. Share it with the candidate too. \"Here are the three conversations, here's what each one covers, here's who you'll meet\" is a small courtesy that consistently makes people prepare better and rate the process higher. It costs you nothing and it removes the anxiety of guessing what's coming."
+      },
+      {
+        "p": "A written plan also makes the loop editable. You can look back after ten hires and ask which stage actually changed a decision. If a round has never once flipped a yes to a no or a no to a yes, it isn't screening anyone. Cut it or fix its rubric."
+      },
+      {
+        "h": "Where automation helps, and where it doesn't"
+      },
+      {
+        "p": "AI can take the mechanical weight off the loop so your human stages stay focused on judgment. Screening and ranking against the role trims the top of the funnel, so the people who reach your carefully designed stages are worth the calendar time. Automated scheduling removes the back-and-forth between rounds, which is where fast candidates quietly slip away. And a shared pipeline keeps everyone's notes in one place, so context carries forward instead of getting re-asked."
+      },
+      {
+        "p": "What automation can't do is decide what your loop should test. A match score tells you a resume fits the role on paper. It doesn't tell you whether someone reasons well under pressure or explains a tradeoff clearly. Those are exactly the things your stages exist to observe, which is why the design work is worth doing by hand."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "p": "Treat your interview loop like a product with a limited budget of the candidate's time. Spend it on distinct, high-signal questions, give each stage one job and one owner, sequence the decisive round early, and audit the whole thing against real outcomes. A tighter loop isn't a lower bar. It's the same bar, cleared faster, by candidates who still want the job at the end."
+      }
+    ]
+  },
+  {
     "slug": "interview-scheduling-is-where-good-candidates-go-cold",
     "title": "Interview scheduling is where good candidates go cold",
     "category": "recruiting-ops",
