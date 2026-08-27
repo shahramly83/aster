@@ -3,6 +3,114 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "what-a-resume-cant-tell-your-ai-screener-and-how-to-fill-the-gap",
+    "title": "What a resume can't tell your AI screener (and how to fill the gap)",
+    "category": "ai-hiring",
+    "excerpt": "AI can read every resume in seconds, but a resume only holds part of the story. Here's what it misses, and how to catch it before you decide.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-27",
+    "readMins": 5,
+    "tags": [
+      "ai-screening",
+      "resumes",
+      "hiring-signal",
+      "shortlisting"
+    ],
+    "body": [
+      {
+        "p": "An AI screener is very good at one thing: reading what's on the page. It pulls out skills, maps experience against the role, and gives you a ranked list in seconds instead of a weekend. That's real, and it saves real time. But the resume itself is a limited document, and no screener (human or AI) can rank on signal that was never written down."
+      },
+      {
+        "p": "If you treat the AI score as the whole picture, you'll trust it too much in places it can't see. If you understand exactly where the resume runs out, you can use the score for what it's great at and put your own effort where it counts. Here's what a resume genuinely can't tell your screener, and what to do about each gap."
+      },
+      {
+        "h": "What the resume actually contains"
+      },
+      {
+        "p": "A resume is a self-reported summary of roles, dates, titles, and a list of skills the candidate chose to include. A good AI screener structures all of that reliably: it will find the three years of Python, the SaaS background, the team-lead title, and match them against your role. **What it reads, it reads well and consistently**, without getting tired on resume number forty."
+      },
+      {
+        "p": "The trouble starts when you ask the score to carry weight the source document can't support. Everything below is invisible on the page, so it's invisible to the screener, no matter how good the model is."
+      },
+      {
+        "h": "1. Whether the work was actually theirs"
+      },
+      {
+        "p": "A resume says \"led migration to a new billing system.\" It doesn't say whether the person drove that project or sat two seats away from the person who did. Titles and bullet points don't distinguish the owner from the contributor from the bystander. An AI screener will credit the claim as written, because that's all it has."
+      },
+      {
+        "p": "This is where a screening call earns its place. One question (\"walk me through your specific part of that migration\") separates the three within a minute. Use the AI to decide who's worth that call, not to skip it."
+      },
+      {
+        "h": "2. Why they left, and why they moved"
+      },
+      {
+        "p": "Short tenures, gaps, and job changes look identical on a resume whether the reason was a layoff, a relocation, a bad manager, or a pattern of getting pushed out. The dates are facts; the story behind them isn't on the page. A screener that penalizes short stints will down-rank a strong candidate who was caught in two rounds of restructuring, and it can't know the difference."
+      },
+      {
+        "quote": "A resume records what happened. It almost never records why, and the why is usually what you're actually hiring on."
+      },
+      {
+        "p": "Don't let the model infer motive from timelines. If a gap or a short stint matters to you, ask about it directly. You'll often find the reason is mundane and the candidate is glad to explain it."
+      },
+      {
+        "h": "3. How they'll work with your team"
+      },
+      {
+        "p": "Collaboration style, how someone handles disagreement, whether they lift the people around them: none of it fits in a bullet point, and candidates wouldn't be trusted to self-assess it honestly anyway. This is judgment work, and it belongs to structured interviews with a scorecard, not to a resume parser."
+      },
+      {
+        "p": "The same goes for communication. A well-written resume tells you the candidate (or a tool they used) can produce a tidy document. It doesn't tell you how they explain a hard tradeoff to a nervous stakeholder. Test the thing you care about, in the format you care about it."
+      },
+      {
+        "h": "4. Skills the candidate didn't think to list"
+      },
+      {
+        "p": "This one cuts the other way, and it's the gap people forget. Plenty of strong candidates undersell themselves. Someone who's shipped production work in a language will leave it off because they don't consider themselves an \"expert.\" A career-changer's most relevant experience might be buried under an unrelated job title. The screener can only rank what's on the page, so a modest resume can hide a great fit."
+      },
+      {
+        "ul": [
+          "Write job posts that describe outcomes, not just keyword lists, so the screener has more to match against than exact skill names.",
+          "Treat the bottom of a shortlist as \"lower confidence,\" not \"rejected.\" A quick human scan of the near-misses catches the underseller.",
+          "Watch for adjacent experience the model may not connect: a support engineer who's effectively been doing QA, a founder who's done every job at once."
+        ]
+      },
+      {
+        "h": "5. Whether they actually want this job"
+      },
+      {
+        "p": "Motivation is the strongest predictor of someone sticking and doing their best work, and it's completely absent from the resume. A candidate can look perfect on paper and be applying to fifty roles with no particular interest in yours. The screener sees the match; it can't see the intent behind the application. That only shows up in conversation, in the questions they ask, and in how they engage with your process."
+      },
+      {
+        "note": "The AI score answers \"could this person do the job?\" It doesn't answer \"did they do it, why did they move, how will they work here, and do they want it?\" Those four questions are yours to ask.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "How to use the score without over-trusting it"
+      },
+      {
+        "p": "None of this is an argument against AI screening. Reading every resume against the role, consistently and in seconds, is exactly the work you want off your plate. The point is to be clear about the division of labor."
+      },
+      {
+        "ul": [
+          "Let the AI do the reading and ranking so nobody skims fifty resumes at 11pm and misses a good one.",
+          "Read the reasons behind the score, not just the number. A screener that shows its work tells you which requirements a candidate met and which it wasn't sure about, and the uncertain ones are your interview questions.",
+          "Keep a human in the loop for the near-misses. The strongest hires are sometimes just below an arbitrary cutoff.",
+          "Spend the time you saved on the things only humans can judge: ownership, motive, collaboration, and fit."
+        ]
+      },
+      {
+        "p": "A screener that saves you two weeks of reading has already paid for itself. The mistake isn't using it. The mistake is asking it to answer questions the resume never held the answer to. **Use the score to decide who to talk to, and use the conversation to decide who to hire.**"
+      },
+      {
+        "p": "Start from a shortlist, then go find the things the page couldn't tell you. That's the whole job, and it's a much better use of an afternoon than the pile ever was."
+      }
+    ]
+  },
+  {
     "slug": "how-to-design-an-interview-loop-where-every-stage-earns-its-place",
     "title": "How to design an interview loop where every stage earns its place",
     "category": "interviewing",
