@@ -3,6 +3,129 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-close-a-candidate-without-playing-games",
+    "title": "How to close a candidate without playing games",
+    "category": "recruiting-ops",
+    "excerpt": "The offer stage decides whether weeks of work turn into a hire. Here's how to close strong candidates without gimmicks, pressure, or lowball first offers.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-08-31",
+    "readMins": 6,
+    "tags": [
+      "offers",
+      "closing",
+      "candidate-experience",
+      "recruiting-ops"
+    ],
+    "body": [
+      {
+        "p": "You screened the pile, ran the loop, and picked the person. Then the offer goes out and they say they're weighing another option, or they go quiet, or they take a counteroffer from their current employer. Weeks of work, gone in a week of silence."
+      },
+      {
+        "p": "The offer stage is where a lot of good hiring quietly falls apart. It gets treated as a formality: send a number, wait, negotiate. But closing a candidate is a process that starts long before the number, and the teams that are good at it aren't using pressure tactics. They're removing reasons to say no."
+      },
+      {
+        "h": "Closing starts before the final interview"
+      },
+      {
+        "p": "By the time you send an offer, the candidate has usually decided how they feel. If the offer is the first time you've talked about money, growth, or why they'd actually want the job, you're too late to influence any of it."
+      },
+      {
+        "p": "The strongest closes are built during the process, not after it. That means:"
+      },
+      {
+        "ul": [
+          "Ask about their timeline and what else they're considering early, not on offer day. \"Where are you in other processes?\" is a normal, respectful question.",
+          "Surface the compensation range before the final stage so there are no surprises. A candidate who walks at offer over money you could have flagged in week one is a scheduling failure, not a negotiation one.",
+          "Learn what the job needs to give them. More scope? A shorter commute? A manager who won't disappear? You can't sell to a motivation you never asked about."
+        ]
+      },
+      {
+        "p": "None of this is manipulation. It's the same information you'd want if you were the one deciding whether to change jobs."
+      },
+      {
+        "h": "Know what they actually want"
+      },
+      {
+        "p": "\"They took another offer for more money\" is the story people tell, but it's often not the whole truth. Money is the easiest reason to give and the hardest to argue with, so it becomes the cover story for a dozen quieter concerns: the role felt vague, the team seemed tense, nobody explained the path to promotion, the process dragged and made the company look disorganized."
+      },
+      {
+        "p": "Before you send an offer, you should be able to answer three things about the candidate: what they're optimizing for, what their real alternatives are, and what would make them say no. If you can't, you're negotiating blind. Ask directly. Most people will tell you if you ask like you mean it."
+      },
+      {
+        "quote": "Money is the easiest reason to give and the hardest to argue with, so it becomes the cover story for a dozen quieter concerns."
+      },
+      {
+        "h": "Make the offer fast and make it real"
+      },
+      {
+        "p": "Speed matters more than most teams admit. A candidate at the offer stage is usually at the offer stage somewhere else too. Every day between \"we want to hire you\" and a real, written offer is a day a competitor can move first, or a day for doubt to grow."
+      },
+      {
+        "p": "Two things separate offers that land from offers that stall:"
+      },
+      {
+        "ul": [
+          "**Speed.** Have the number approved before the final interview, not after. When the internal approval chain takes four days, you've handed those four days to whoever moves faster.",
+          "**A strong first number.** Lowballing to \"leave room to negotiate\" is a tactic that costs more than it saves. It signals you don't value the person, it invites a drawn-out back-and-forth, and it sours the relationship before day one. Lead with a number you'd be happy for them to accept immediately."
+        ]
+      },
+      {
+        "p": "When you make the verbal offer, do it as a conversation, not an email drop. Say why you chose them, what excited the team, and what the first few months look like. Then follow with the written offer the same day."
+      },
+      {
+        "note": "An offer that arrives fast, at a fair number, with a real reason attached beats a higher offer that arrives slowly with silence around it. You are competing on how the whole thing feels, not just the total.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Handle the counteroffer without games"
+      },
+      {
+        "p": "When a candidate says they have another offer or a counter from their employer, the instinct is either to panic-match or to get defensive. Neither works. Instead, get specific."
+      },
+      {
+        "p": "Ask what the other offer includes, not just the number: the role, the team, the trajectory, the reason they applied to you in the first place. Often the competing offer is stronger on cash and weaker on the thing they told you mattered most. That's the conversation to have, honestly, without trashing the other company."
+      },
+      {
+        "p": "On counteroffers from a current employer, it's fair to gently name the pattern: a company that suddenly finds more money and a better title the moment you resign is telling you what they could have done all along. You don't have to say it aggressively. You just help them see clearly. And if the counteroffer genuinely is the better move for them, respect it. A candidate who feels pushed into the wrong choice becomes a bad hire or a fast quit."
+      },
+      {
+        "h": "The small things that lose offers"
+      },
+      {
+        "p": "Plenty of offers fall through on details that have nothing to do with the offer itself:"
+      },
+      {
+        "ul": [
+          "Radio silence between the verbal yes and the paperwork. Fill it. Introduce them to a future teammate, send onboarding details, keep the momentum warm.",
+          "A written offer that reads like a legal document with no human in it. The letter can be clear and still sound like the person they just talked to.",
+          "No named contact for questions, so a benefits question turns into a two-day wait and a growing doubt.",
+          "Making them chase you. If they have to follow up to find out what happens next, you've already told them what working here is like."
+        ]
+      },
+      {
+        "p": "The gap between accepting and starting is its own stage, and it's where signed candidates ghost. Treat the weeks before day one as part of the close, not the end of it."
+      },
+      {
+        "h": "Track whether it's working"
+      },
+      {
+        "p": "You can't fix a close you don't measure. Two numbers tell you most of what you need:"
+      },
+      {
+        "ul": [
+          "**Offer accept rate.** What share of offers get a yes? A low rate usually means something upstream broke: the range was never aligned, the process ran cold, or you're selling a role people don't actually want once they see it clearly.",
+          "**Reason for every decline.** Ask, and write it down. Over ten offers, the pattern is louder than any single answer. If \"compensation\" shows up every time, your range is wrong. If it's \"the process felt slow\" or \"the role wasn't clear,\" the problem is one you can fix without spending a dollar more."
+        ]
+      },
+      {
+        "p": "A shortlist you trust and a loop that's fair still end at one moment: a person deciding whether to say yes. Close it like it matters, because everything before it was leading here. **The best offer isn't the highest one. It's the one that arrives fast, means what it says, and gives the candidate no reason to look elsewhere.**"
+      }
+    ]
+  },
+  {
     "slug": "what-a-resume-cant-tell-your-ai-screener-and-how-to-fill-the-gap",
     "title": "What a resume can't tell your AI screener (and how to fill the gap)",
     "category": "ai-hiring",
