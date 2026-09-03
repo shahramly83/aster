@@ -3,6 +3,133 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "reference-checks-that-actually-tell-you-something",
+    "title": "Reference checks that actually tell you something",
+    "category": "interviewing",
+    "excerpt": "Most reference calls confirm what you already decided. Here's how to run one that surfaces real signal before you make an offer.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-03",
+    "readMins": 6,
+    "tags": [
+      "reference-checks",
+      "interviewing",
+      "hiring-decisions",
+      "structured-hiring"
+    ],
+    "body": [
+      {
+        "p": "By the time you're calling references, you've usually made up your mind. The candidate impressed the panel, the scorecards are strong, and the reference call feels like a formality: a friendly chat with someone the candidate hand-picked to say nice things. Twenty minutes later you've heard that they're smart, hardworking, and a pleasure to work with, and you've learned nothing you didn't already believe."
+      },
+      {
+        "p": "That's the trap. A reference check done as a rubber stamp is worse than useless, because it gives you the feeling of due diligence without the substance. Done well, it's one of the few chances to hear how someone actually operated on a team, from a person who watched them do it. The difference is entirely in how you run the call."
+      },
+      {
+        "h": "Decide what the call is for"
+      },
+      {
+        "p": "A reference check isn't a second opinion on whether to hire. If a single 20-minute call with a friendly referee can flip your decision, your interview process wasn't strong enough. Treat references as a tool for two narrower jobs:"
+      },
+      {
+        "ul": [
+          "**Confirming the basics:** dates, role, scope, and reporting line, so you catch the rare case where the story doesn't match.",
+          "**Sharpening the onboarding:** how this person works best, what environments they struggle in, and what a new manager should know in week one."
+        ]
+      },
+      {
+        "p": "That second job is where the real value lives, and almost nobody uses references for it. You're not trying to catch the candidate out. You're trying to set them up to succeed once they start."
+      },
+      {
+        "h": "Ask for the right references, not the easy ones"
+      },
+      {
+        "p": "Candidates offer references who will glow. That's fine, but be specific about who you want. Ask for **a former manager and a peer who worked closely with them**, ideally on the projects they described in interviews. A manager sees delivery and judgment; a peer sees how someone behaves when there's no one to impress."
+      },
+      {
+        "p": "If a candidate can't produce a single former manager as a reference, that's not automatically damning, people leave jobs on bad terms for reasons that have nothing to do with performance, but it's worth a gentle question. The pattern matters more than any one gap."
+      },
+      {
+        "h": "Run it like a structured interview"
+      },
+      {
+        "p": "You wouldn't run an unstructured interview and trust the result, so don't run an unstructured reference call. Prepare the same questions for every referee on a given role, tie them to the competencies you actually care about, and take notes against them. Consistency is what lets you compare and what keeps the call from drifting into vague praise."
+      },
+      {
+        "p": "Open by framing it honestly: you're not looking for a thumbs-up, you're trying to understand how the person works so you can support them well. That single sentence changes the tone. It gives the referee permission to be specific instead of protective."
+      },
+      {
+        "quote": "A good reference call doesn't ask whether the person is great. It asks what they're great at, and what they're not."
+      },
+      {
+        "h": "Questions that get past the script"
+      },
+      {
+        "p": "The best reference questions make it hard to fall back on generic praise. A few that consistently earn real answers:"
+      },
+      {
+        "ul": [
+          "\"What did they own end to end, and what did someone else have to cover?\" This maps the real edges of their scope, which resumes always round up.",
+          "\"Walk me through a time they were stretched or underperforming. What was going on?\" Everyone has one. If the referee genuinely can't think of anything, they either don't know the person well or they're guarding.",
+          "\"How did they take feedback that they disagreed with?\" This tells you more about coachability than any interview answer.",
+          "\"Who did they work best with, and who did they clash with?\" You learn about working style without asking anyone to badmouth.",
+          "\"Would you hire them again, and into what kind of role?\" The pause before the answer is often the answer."
+        ]
+      },
+      {
+        "p": "Notice that none of these can be answered with \"they're a great person.\" They ask for a story, and stories are hard to fake on the spot."
+      },
+      {
+        "h": "Listen for what isn't said"
+      },
+      {
+        "p": "Reference calls carry a lot of signal in tone and omission. A referee who talks fluidly about specific projects clearly knows the person. One who stays abstract (\"strong contributor, great attitude\") may know them less well, or may be choosing words carefully. Neither is proof of anything, but both are worth noticing."
+      },
+      {
+        "p": "Damning-with-faint-praise is real. \"They were reliable\" delivered flatly, when you asked about their biggest strength, is a signal. So is a long silence after \"would you hire them again.\" You're not trying to read tea leaves, but you should write down the texture of the answer, not just the words."
+      },
+      {
+        "note": "A reference who only gives you praise hasn't given you a reference. Push, gently, for one thing the candidate should work on. If nothing comes, weight the call lightly.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Where AI helps, and where it can't"
+      },
+      {
+        "p": "AI can do the mechanical parts of reference-checking well. It can verify that stated employment dates and titles line up with what the candidate submitted, flag inconsistencies for a human to look at, and keep every candidate's file in one place so nothing sits forgotten in an inbox. On the scheduling side, coordinating a call across three busy calendars is exactly the kind of back-and-forth worth automating away."
+      },
+      {
+        "p": "What AI can't do is the call itself. Reading hesitation, following a story into an unexpected corner, and knowing when a careful non-answer means something: that's human work, and it's the whole point. **Reference checks are one of the least automatable parts of hiring, and that's a feature, not a gap.** Use tools to clear the busywork so you have the attention for the conversation that matters."
+      },
+      {
+        "h": "Write it down and feed it forward"
+      },
+      {
+        "p": "The output of a reference call shouldn't be a verbal \"yeah, they're good\" in a hallway. Write a short summary against the same competencies you used in interviews, note anything that changes your confidence, and, most importantly, capture the onboarding advice. If a former manager tells you this person thrives with clear priorities and struggles with ambiguity, that belongs in the new manager's hands on day one."
+      },
+      {
+        "p": "That's the quiet compounding value of doing references properly. Even when they confirm the hire, you walk away knowing how to make the person successful faster. A shortlist you trust plus a reference call that teaches you how to onboard is a much stronger position than a gut-feel yes."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "ul": [
+          "References aren't a veto on a decision you've already made well; they're for confirming basics and sharpening onboarding.",
+          "Ask for a manager and a close peer, not just the friendliest names.",
+          "Run the call structured, with the same questions every time, tied to real competencies.",
+          "Ask for stories, not verdicts, and listen to tone and omission.",
+          "Automate the verification and scheduling; keep the conversation human.",
+          "Write it down against your scorecard and hand the onboarding notes to the new manager."
+        ]
+      },
+      {
+        "p": "Done as a formality, a reference check protects no one and teaches you nothing. Done as a real conversation, it's twenty minutes that can save a new hire their hardest first month."
+      }
+    ]
+  },
+  {
     "slug": "how-to-close-a-candidate-without-playing-games",
     "title": "How to close a candidate without playing games",
     "category": "recruiting-ops",
