@@ -3,6 +3,121 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "where-ai-should-stop-and-you-should-start-in-screening",
+    "title": "Where AI should stop and you should start in screening",
+    "category": "ai-hiring",
+    "excerpt": "AI is good at reading and ranking. You're good at judgment calls it can't make. Here's how to split the screening work so neither of you wastes time.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-07",
+    "readMins": 5,
+    "tags": [
+      "ai-screening",
+      "human-in-the-loop",
+      "hiring-process",
+      "shortlists"
+    ],
+    "body": [
+      {
+        "p": "The fastest way to get burned by an AI screener is to expect it to do the whole job. The slowest way to hire is to double-check every decision it makes. The teams who get real leverage out of screening automation do neither. They draw a clean line: AI handles the reading and the ranking, humans handle the judgment calls that reading and ranking can't settle."
+      },
+      {
+        "p": "That line is worth drawing on purpose, because if you don't, it gets drawn for you. Either you drift into rubber-stamping whatever the tool surfaces, or you trust it so little that you re-read the pile anyway. Both waste the thing you bought the tool to save."
+      },
+      {
+        "h": "What AI is genuinely good at"
+      },
+      {
+        "p": "An AI screener earns its keep on the mechanical parts of screening, the parts that are tedious for a person and easy to do inconsistently at 5pm on a Friday with 60 resumes left."
+      },
+      {
+        "ul": [
+          "Reading every resume the moment it arrives, not just the first 20 before you run out of time.",
+          "Pulling structured facts out of messy documents: years of experience, tools used, scope of past roles, a one-line summary.",
+          "Ranking candidates against the role you described, with the strongest fits on top and a reason attached to each score.",
+          "Applying the same yardstick to applicant 3 and applicant 43, without fatigue or drift."
+        ]
+      },
+      {
+        "p": "None of that is glamorous, and none of it requires taste. It requires patience and consistency, which is exactly what a person runs out of first. **This is where automation buys back your afternoon.** A shortlist that used to take two weeks of skimming becomes something you review over a coffee."
+      },
+      {
+        "h": "What AI can't do, and shouldn't pretend to"
+      },
+      {
+        "p": "The trouble starts when people expect the model to make the calls that depend on context it was never given. A resume is a lossy record of a career. A match score is a reading of that record. Neither knows things you know."
+      },
+      {
+        "ul": [
+          "Whether a career gap was a layoff, a caregiving stretch, or a failed startup that taught the person more than the last three roles combined.",
+          "Whether a candidate from an unrelated industry has exactly the transferable instinct your team is missing.",
+          "Whether \"managed a team of 8\" meant real leadership or an inflated title.",
+          "What your team is actually short on right now, versus what the job post says on paper.",
+          "Whether a borderline candidate is worth a conversation because of one specific, non-obvious signal."
+        ]
+      },
+      {
+        "p": "An AI screener will rank all of these. It just can't be right about them in the way you'd want, because the deciding information isn't in the document. Treat the score as a strong first read, not a verdict."
+      },
+      {
+        "quote": "The score tells you where to look first. It doesn't tell you what to think when you get there."
+      },
+      {
+        "h": "A practical division of labor"
+      },
+      {
+        "p": "Here's a split that holds up across most roles. Let the tool do the first pass end to end, then spend your attention where it actually changes the outcome."
+      },
+      {
+        "ul": [
+          "**Let AI rank the whole pool.** Every applicant, same criteria, no exceptions. This is the part you should not do by hand.",
+          "**Read the top of the list closely.** These are your likely interviews. Confirm the score's reasoning matches the resume, and check for the things a model can't weigh.",
+          "**Skim the middle band deliberately.** The candidates just below your cutoff are where good hires hide. This is the human's highest-value zone, not the obvious top or the clear bottom.",
+          "**Spot-check the bottom.** Pull a handful of low-ranked resumes and ask why they scored low. If the reasons are wrong, your criteria are wrong, and that affects the whole list.",
+          "**Make every reject a human decision, or an audited one.** If you let the tool auto-reject, keep the bar high and review a sample regularly."
+        ]
+      },
+      {
+        "note": "The middle of the ranked list is where a human adds the most. The top and bottom are usually right. The band around your cutoff is where judgment beats the score.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Read the reasons, not just the number"
+      },
+      {
+        "p": "A match score with no explanation is a coin flip you can't argue with. A score with reasons attached is something you can actually work with. When you disagree with a ranking, the reasons tell you why: maybe the model weighted a certification you don't care about, or missed a project buried in the last third of the resume."
+      },
+      {
+        "p": "That disagreement is useful data. If you keep overriding the tool in the same direction, your criteria and the model's are out of sync. **The fix is usually in your inputs, not the model.** Tighten the job description, spell out what \"strong\" looks like, and re-run the pool. A vague brief produces a vague ranking, and no amount of squinting at scores fixes that."
+      },
+      {
+        "h": "Keep the human in the loop without the loop slowing you down"
+      },
+      {
+        "p": "\"Human in the loop\" often becomes an excuse to review everything, which defeats the point. The goal isn't more oversight, it's oversight aimed at the decisions that matter. A few habits keep it fast:"
+      },
+      {
+        "ul": [
+          "Time-box the review. If the top of the list is well ranked, you don't owe every candidate a full read, you owe the borderline ones one.",
+          "Write down why you moved someone up or down. It keeps you honest and gives the next hire a pattern to reuse.",
+          "Revisit your criteria after the first batch, not after 200 applicants. Early corrections compound.",
+          "Share the ranked pipeline with the hiring manager so the debate happens on one board, not across a dozen forwarded emails."
+        ]
+      },
+      {
+        "h": "The mindset that makes it work"
+      },
+      {
+        "p": "The best way to think about an AI screener is as a very fast, very consistent junior recruiter who has read every resume and formed an opinion, but who has never met your team and doesn't know what the last hire got wrong. You would never let that person make the final call alone. You also wouldn't re-read all 60 resumes just to second-guess them. You'd take their shortlist, ask good questions about the borderline cases, and make the human calls yourself."
+      },
+      {
+        "p": "Do that, and the tool does what it's actually good at while you spend your judgment where it counts. You start from a shortlist instead of a pile, and the decisions that decide the hire stay with the person accountable for it. That's the whole trade: **let the machine read, and keep the judgment for yourself.**"
+      }
+    ]
+  },
+  {
     "slug": "reference-checks-that-actually-tell-you-something",
     "title": "Reference checks that actually tell you something",
     "category": "interviewing",
