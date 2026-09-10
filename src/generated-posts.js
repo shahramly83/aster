@@ -3,6 +3,130 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-run-a-weekly-pipeline-review-that-keeps-roles-moving",
+    "title": "How to run a weekly pipeline review that keeps roles moving",
+    "category": "recruiting-ops",
+    "excerpt": "A 30-minute weekly review that catches stalled candidates, unblocks decisions, and keeps every open role moving forward.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-10",
+    "readMins": 6,
+    "tags": [
+      "pipeline review",
+      "recruiting ops",
+      "hiring cadence",
+      "time-to-hire"
+    ],
+    "body": [
+      {
+        "p": "Most hiring doesn't stall because of a bad candidate. It stalls because a good one is sitting in a stage no one owns, waiting on a decision no one made. A resume screened Tuesday, an interview never scheduled, a debrief that three people meant to write up. Each gap is small. Together they add a week, then two, and by the time anyone notices, the candidate has another offer."
+      },
+      {
+        "p": "The fix is boring and it works: a short, standing pipeline review every week. Not a status update where people read numbers aloud, but a working session that finds the stuck candidates and unsticks them before Friday. Here is how to run one that a hiring team will actually keep on the calendar."
+      },
+      {
+        "h": "What the review is for"
+      },
+      {
+        "p": "A pipeline review has one job: **make sure no candidate is waiting on something no one is doing.** Everything else is secondary. You are not reviewing strategy, rewriting the job post, or debating whether to open a new role. You are walking the board and asking, for each person in play, \"what happens next and who owns it?\""
+      },
+      {
+        "p": "Keep the scope tight and the cadence fixed. Thirty minutes, same time every week, same people. If it runs long, you are solving the wrong problems in the room."
+      },
+      {
+        "h": "Who should be there"
+      },
+      {
+        "p": "Small group, real decision-makers. For most growing teams that means the recruiter or coordinator running the process, plus the hiring manager for each active role. If one person owns recruiting across several roles, they run the meeting and pull in each hiring manager for their slice. Skip the full-panel attendance. Interviewers don't need to be there; they need clear asks coming out of it."
+      },
+      {
+        "ul": [
+          "The person who owns scheduling and candidate communication",
+          "The hiring manager who makes the yes/no call on each role",
+          "Anyone whose sign-off is currently blocking a candidate from moving"
+        ]
+      },
+      {
+        "h": "Walk the board, newest stage first"
+      },
+      {
+        "p": "Start from the stage closest to an offer and work backward. Candidates near the finish line are the ones you can lose fastest, and they are the ones a delay hurts most. Someone in final interviews who slips a week is a real risk. Someone still in the applicant pile can wait a day without consequence."
+      },
+      {
+        "p": "For each candidate still active, ask three questions and nothing more:"
+      },
+      {
+        "ul": [
+          "What stage are they in, and how long have they been there?",
+          "What is the next concrete step, and who owns it?",
+          "Is anything blocking that step right now?"
+        ]
+      },
+      {
+        "p": "If the answer to the second question is vague (\"we're thinking about it,\" \"waiting to hear back\"), that is your signal. Turn it into a named owner and a date before you move on. \"Priya sends the take-home by end of day tomorrow\" is an outcome. \"We should probably follow up\" is not."
+      },
+      {
+        "quote": "A pipeline review has one job: make sure no candidate is waiting on something no one is doing."
+      },
+      {
+        "h": "Watch time-in-stage, not just count"
+      },
+      {
+        "p": "The number that matters most in this meeting is **how long each candidate has been sitting where they are.** A stage with five people in it looks healthy until you notice two of them have been there eleven days. Time-in-stage is the early warning that a candidate is going cold, and it is almost always fixable in the room."
+      },
+      {
+        "p": "If your applicant tracking system shows this automatically, use it. If it doesn't, a shared board with a date on each card is enough. The point is that anyone glancing at the pipeline can see the person who has been stuck longest, because that person is the one you are about to lose."
+      },
+      {
+        "note": "Sort your active candidates by time-in-stage before the meeting, longest first. The name at the top is usually the most urgent conversation you'll have all week.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Where AI helps and where it doesn't"
+      },
+      {
+        "p": "AI is genuinely useful for the front of this pipeline. It reads every application as it lands, structures the skills and experience, and ranks candidates against the role, so the top of your board is a shortlist instead of an unread pile. That means the review isn't spent arguing about who to screen. It's spent moving the people already worth moving. Automated scheduling helps too: when a candidate self-books from a link, the \"waiting to schedule\" stage stops being a graveyard."
+      },
+      {
+        "p": "What AI can't do is make the human decisions this meeting exists to force. It won't decide whether a borderline candidate advances, whether to stretch on comp, or whether a hiring manager's silence means \"no\" or \"too busy.\" A ranked shortlist gets you to a good starting point faster. The pipeline review is where people commit to the next step. Keep those jobs separate and both get easier."
+      },
+      {
+        "h": "End with owned actions, not a summary"
+      },
+      {
+        "p": "The meeting fails if it ends with a shared understanding and no assignments. Every stuck candidate should leave the room attached to a person and a deadline. Write them down where everyone can see them, and read them back at the start of next week's review. Two or three weeks of \"did the thing we said\" builds the habit faster than any process document."
+      },
+      {
+        "p": "A useful action list looks like this:"
+      },
+      {
+        "ul": [
+          "Send Dana the offer paperwork by tomorrow noon (owner: recruiter)",
+          "Chase the two open debrief write-ups from Thursday's panel (owner: hiring manager)",
+          "Reject the three candidates we've decided against, today, with a real note (owner: recruiter)",
+          "Decide by Wednesday whether Marcus advances to final (owner: hiring manager)"
+        ]
+      },
+      {
+        "h": "Close the loop on the ones you're passing on"
+      },
+      {
+        "p": "A pipeline review is also where you catch the candidates you've quietly decided against but never told. Leaving them in limbo is the most common courtesy failure in hiring, and it costs you nothing to fix in this meeting. If the answer to \"what's next?\" is \"honestly, nothing, we're not moving forward,\" then the next step is a clear, prompt rejection. Assign it and send it that day. **A fast no protects your reputation as much as a fast yes closes a hire.**"
+      },
+      {
+        "h": "Keep it small, keep it weekly"
+      },
+      {
+        "p": "The temptation is to expand: add metrics, add attendees, add a monthly deep-dive. Resist it. The value of this meeting is entirely in its regularity and its narrowness. Thirty minutes, the active board, named owners, gone. A role that gets looked at every week rarely goes quiet for a month, and a candidate who is being actively moved rarely feels ignored."
+      },
+      {
+        "p": "You don't need new software or a bigger team to start. You need a standing invite, a shared view of who's in play, and the discipline to turn every \"we should\" into a name and a date. Do that for a month and you'll feel the difference where it counts: fewer good candidates lost to silence, and shortlists that turn into hires instead of stalling in the middle."
+      }
+    ]
+  },
+  {
     "slug": "where-ai-should-stop-and-you-should-start-in-screening",
     "title": "Where AI should stop and you should start in screening",
     "category": "ai-hiring",
