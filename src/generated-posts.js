@@ -3,6 +3,137 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-take-interview-notes-that-stand-up-in-a-debrief",
+    "title": "How to take interview notes that stand up in a debrief",
+    "category": "interviewing",
+    "excerpt": "Good interview decisions come from good notes. Here's how to capture evidence in the room so your debrief argues about facts, not memory.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-14",
+    "readMins": 6,
+    "tags": [
+      "interviewing",
+      "note-taking",
+      "scorecards",
+      "hiring-decisions",
+      "debriefs"
+    ],
+    "body": [
+      {
+        "p": "Most interview debriefs run on memory, and memory is a bad witness. Two hours after a conversation, what you recall is a feeling: the candidate was sharp, or a bit off, or you just clicked. By the debrief, that feeling has hardened into a rating, and nobody can say exactly what it's based on."
+      },
+      {
+        "p": "The fix isn't a better rating scale. It's better notes. Notes taken in the room, tied to what the candidate actually said, turn a debrief from a swap of impressions into a review of evidence. This is the least glamorous interviewing skill and one of the highest-leverage. Here's how to do it well."
+      },
+      {
+        "h": "Why memory fails you by the debrief"
+      },
+      {
+        "p": "Interviews are cognitively loaded. You're listening, forming the next question, managing time, and reacting to the person in front of you, all at once. Under that load, a few predictable things happen to what you remember."
+      },
+      {
+        "ul": [
+          "**Recency bias:** the last ten minutes overwrite the first forty.",
+          "**Halo and horns:** one strong or weak moment colors your read of everything else.",
+          "**Confirmation:** if you liked them early, you remember the answers that fit and forget the ones that didn't.",
+          "**Compression:** a nuanced 45-minute conversation collapses into a single word like \"strong\" or \"junior.\""
+        ]
+      },
+      {
+        "p": "None of this means you're a bad interviewer. It means you're human, and you need a record that outlives the conversation."
+      },
+      {
+        "h": "Capture evidence, not verdicts"
+      },
+      {
+        "p": "The most common note-taking mistake is writing conclusions in real time: \"great communicator,\" \"not senior enough,\" \"lacks ownership.\" These are useless in a debrief because nobody can check them. A conclusion is your interpretation; the debrief's job is to test interpretations against facts."
+      },
+      {
+        "p": "Instead, write down what actually happened. The specific project they described. The number they cited. The tradeoff they weighed out loud. The question they couldn't answer. Aim to capture enough that a colleague who wasn't in the room could read your notes and reach their own view."
+      },
+      {
+        "quote": "A conclusion is where the debrief starts, not what your notes should contain."
+      },
+      {
+        "p": "A simple test: for every rating you plan to give, you should be able to point to at least one line in your notes that supports it. If you can't, you don't have evidence, you have a vibe."
+      },
+      {
+        "h": "A note-taking structure that works"
+      },
+      {
+        "p": "You don't need shorthand or a special app. You need a structure that matches your scorecard so notes sort themselves as you write. Before the interview, list the competencies you're assessing (say, three or four), leave space under each, and drop observations into the right bucket as they come up."
+      },
+      {
+        "ul": [
+          "**Quote the key line.** If a candidate says something revealing, capture their words, not your paraphrase. \"We shipped it without QA because I owned the deadline\" tells you more than \"took ownership.\"",
+          "**Note what you asked.** A weak answer to a vague question is on you, not the candidate. Recording the question keeps the debrief honest.",
+          "**Mark the gaps.** Write down what you didn't get to. \"Didn't probe the team conflict story\" is valuable; it tells the next interviewer what to cover.",
+          "**Flag your own uncertainty.** \"Not sure if this was their work or the team's\" is a fair, useful note. It invites a follow-up rather than a guess."
+        ]
+      },
+      {
+        "p": "Keep a small margin for reactions if you must, but label them. A quick \"(my read: seemed rehearsed)\" is fine as long as it's clearly separated from what was said. The point is that anyone reading later can tell fact from opinion."
+      },
+      {
+        "h": "How much to write, and when"
+      },
+      {
+        "p": "You can't transcribe and interview at the same time, and trying to will wreck your rapport. Write in bursts. While the candidate answers, listen fully; jot two or three keywords. When they finish and you're framing the next question, that's your moment to fill in the detail. The pause reads as thoughtful, not awkward."
+      },
+      {
+        "p": "If you type, warn the candidate up front: \"I'll be taking notes so I can represent you accurately to the team.\" It reframes the laptop from a distraction into a courtesy. If notes pull you out of the conversation too much, go back to paper. A candidate who feels ignored gives worse answers, and then your notes are recording a worse interview."
+      },
+      {
+        "note": "The best time to write your fullest notes is the five minutes right after the interview, before the next meeting starts. Block it on your calendar. This is when detail is still fresh and hasn't yet compressed into a single impression.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Score before you talk to anyone"
+      },
+      {
+        "p": "Submit your rating and the evidence behind it before the debrief, and before you see anyone else's. This is the single biggest protection against groupthink. Once you've heard a respected colleague say \"strong yes,\" it's very hard to hold onto your quiet reservation, even when your reservation is right."
+      },
+      {
+        "p": "Good notes make independent scoring possible. If your assessment is grounded in specific moments you wrote down, you can stand behind it in the room even when the loudest voice disagrees. If it's grounded in a feeling, you'll fold."
+      },
+      {
+        "h": "What this looks like in the debrief"
+      },
+      {
+        "p": "When everyone comes in with evidence-based notes, the conversation changes shape. Instead of \"I liked them\" versus \"I didn't,\" you get \"I rated ownership low because when I asked about the failed launch, they described what the team did but never what they decided.\" Now the group can respond to that: maybe another interviewer got a clear ownership story on a different project. You've turned a clash of opinions into a comparison of data points."
+      },
+      {
+        "p": "You'll also catch the coverage gaps. If three interviewers all probed communication and nobody tested technical depth, the notes make that obvious, and you fix it in the next round instead of hiring on a blind spot."
+      },
+      {
+        "h": "Where tooling helps, and where it doesn't"
+      },
+      {
+        "p": "Structured scorecards, shared pipelines, and AI screening all reduce the load before the interview so you walk in already knowing which competencies matter and what to probe. Aster ranks applicants against the role and gives you the reasons behind each match, so your interview can focus on the open questions instead of re-covering the resume."
+      },
+      {
+        "p": "But the room itself is still yours. **AI can summarize a call; it can't decide what mattered in it.** A tool can transcribe every word and miss the one moment that told you everything. Your judgment about what to write down, which follow-up to ask, and what a hesitation meant is exactly the part that doesn't automate. Good notes are how you preserve that judgment long enough to make a fair decision with it."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "ul": [
+          "Write what was said, not what you concluded.",
+          "Match your notes to your scorecard so evidence sorts itself.",
+          "Record your questions and your gaps, not just their answers.",
+          "Fill in detail in the five minutes right after, while it's fresh.",
+          "Score independently, with evidence, before the debrief starts."
+        ]
+      },
+      {
+        "p": "None of this takes special talent. It takes the discipline to treat an interview as evidence-gathering rather than a conversation you'll summarize later from memory. Do that, and your debriefs stop being a contest of confidence and start being a review of what actually happened."
+      }
+    ]
+  },
+  {
     "slug": "how-to-run-a-weekly-pipeline-review-that-keeps-roles-moving",
     "title": "How to run a weekly pipeline review that keeps roles moving",
     "category": "recruiting-ops",
