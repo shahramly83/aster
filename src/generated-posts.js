@@ -3,6 +3,122 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-pilot-an-ai-screener-before-you-let-it-touch-a-live-role",
+    "title": "How to pilot an AI screener before you let it touch a live role",
+    "category": "ai-hiring",
+    "excerpt": "Before an AI screener ranks real candidates, prove it works. A practical way to run a backtest and a shadow pilot on roles you already know.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-17",
+    "readMins": 6,
+    "tags": [
+      "ai-screening",
+      "evaluation",
+      "rollout",
+      "hiring-tools"
+    ],
+    "body": [
+      {
+        "p": "Buying an AI screener is easy. Trusting it is the hard part. The vendor demo always looks great, but the demo runs on their data, not yours, and it ranks candidates for a role that isn't the one you're actually hiring for. The only way to know whether a tool works for your hiring is to test it on your hiring."
+      },
+      {
+        "p": "The good news: you don't have to gamble a live role to find out. A pilot gives you evidence before you hand over any real decisions. Here's how to run one that tells you something honest, in about two weeks, without slowing down a search you care about."
+      },
+      {
+        "h": "Start with a role you already understand"
+      },
+      {
+        "p": "Pick a role you've hired for recently and know well. Ideally one where you have a closed pipeline: applicants who applied, people you interviewed, and the person you hired. You already know how that story ended, which makes it the perfect test case. You can compare the screener's judgment against decisions you stand behind."
+      },
+      {
+        "p": "Avoid piloting on a brand-new, fuzzy role where even your own team disagrees on what good looks like. If humans can't agree on the bar, you can't fairly grade the machine against it."
+      },
+      {
+        "h": "Run a backtest before anything touches a live candidate"
+      },
+      {
+        "p": "A backtest is the fastest, safest first step. Feed the screener a batch of resumes from a role you've already closed, then compare its ranking to what actually happened. You're looking for a few specific things:"
+      },
+      {
+        "ul": [
+          "Did the people you interviewed cluster near the top of its ranking, or scatter randomly through the pile?",
+          "Did the person you hired score well? If your best hire landed in the bottom half, that's a serious flag.",
+          "Did anyone the tool ranked highly get rejected early by a human, and if so, was the human right or did the tool catch something you missed?",
+          "Are the reasons it gives for a score actually tied to the resume, or vague filler that could apply to anyone?"
+        ]
+      },
+      {
+        "p": "That last point matters more than the score itself. A number with no defensible reasoning is a coin flip with a decimal point. **You want to see the evidence, not just the verdict.** If the tool says a candidate is a strong match \"because of relevant experience\" without naming which experience, it isn't reading closely enough to trust."
+      },
+      {
+        "quote": "A number with no defensible reasoning is a coin flip with a decimal point."
+      },
+      {
+        "h": "Then run a shadow pilot on a live role"
+      },
+      {
+        "p": "A backtest tells you how the tool handles the past. A shadow pilot tells you how it handles the present. Point the screener at a role you're actively hiring for, let it rank every applicant as they arrive, but keep making your decisions the way you always have. The tool runs in parallel, watching, without touching a single candidate's fate."
+      },
+      {
+        "p": "For a week or two, screen manually as usual. Then compare. Where did you and the tool agree? Where did you diverge, and who was right on review? You'll usually find three buckets:"
+      },
+      {
+        "ul": [
+          "Clear agreement: strong candidates you both liked, weak ones you both passed. This is the easy majority, and it's where the tool saves you the most time.",
+          "Tool caught someone you'd have missed: a resume buried on page four that reads well against the role. These are the wins that justify the tool.",
+          "You caught something the tool missed: context, a career pivot, a referral you trust. These show you where the human still has to stay in the loop."
+        ]
+      },
+      {
+        "p": "That third bucket isn't a failure. It's the map of where AI should stop and you should start. Every tool has edges. The pilot's job is to find yours before a real hire depends on them."
+      },
+      {
+        "h": "Check for the failure modes that matter"
+      },
+      {
+        "p": "General accuracy isn't the only thing to watch. Some errors are worse than others because they're systematic. During the pilot, look specifically for:"
+      },
+      {
+        "ul": [
+          "Bias against non-linear paths: candidates with career gaps, career changers, or non-traditional backgrounds who are strong on substance but score low on pattern-matching.",
+          "Keyword gaming: does a resume stuffed with the right terms outrank a better candidate who simply wrote plainly? If so, the tool is reading words, not fit.",
+          "Consistency: run the same resume through twice, or two near-identical resumes with different names. The scores should hold steady. If they wobble, you can't rely on the ranking.",
+          "Overconfidence on thin resumes: some tools reward length and formatting over actual signal. Watch what happens with short, honest resumes from junior candidates."
+        ]
+      },
+      {
+        "note": "A screener that agrees with you 95% of the time is only useful if the 5% it gets wrong isn't always the same kind of person. Check who falls through, not just how often.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Decide what \"good enough\" actually means"
+      },
+      {
+        "p": "Before you start, write down what would make you trust the tool and what would make you walk away. Deciding after you've seen the results is how motivated reasoning creeps in. A reasonable bar looks something like this: the people you'd have shortlisted almost all appear in the tool's top group, the reasons it gives hold up when you read them, and you didn't find a systematic blind spot that would quietly filter out good people."
+      },
+      {
+        "p": "Be honest that the goal isn't perfection. A human recruiter reading 200 resumes at 11pm makes plenty of mistakes too, and gets slower and less consistent as the pile grows. The right comparison isn't the tool against a flawless ideal. It's the tool against **what actually happens when a person screens tired, rushed, and at volume.**"
+      },
+      {
+        "h": "Keep a human on the decisions that end an application"
+      },
+      {
+        "p": "Even a tool that passes your pilot with flying colors should rank and surface, not auto-reject, at least while you're building trust. Let it do the heavy lifting of reading every resume and putting the strongest fits on top, so you start from a shortlist instead of a pile. Keep the reject decision with a person until you've watched the tool long enough to know exactly where it errs."
+      },
+      {
+        "p": "That's the real win from a good pilot: not blind faith, but calibrated trust. You know what the tool is great at, you know the handful of cases where it needs a second look, and you've got the evidence to explain both to a skeptical hiring manager."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "p": "Don't take a screener's word for it, and don't take the vendor's either. Backtest it on a role you've closed to see if it agrees with decisions you already trust. Shadow it on a live role to see how it handles real applicants in real time. Watch specifically for systematic blind spots, not just overall accuracy. Write your pass/fail bar before you look at results. Then let the tool do the reading while a person still owns the calls that matter. Two weeks of that will teach you more than any demo ever could."
+      }
+    ]
+  },
+  {
     "slug": "how-to-take-interview-notes-that-stand-up-in-a-debrief",
     "title": "How to take interview notes that stand up in a debrief",
     "category": "interviewing",
