@@ -3,6 +3,134 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-reject-candidates-well-and-keep-your-pipeline-warm",
+    "title": "How to reject candidates well, and keep your pipeline warm",
+    "category": "recruiting-ops",
+    "excerpt": "Most teams treat rejection as an afterthought. Done well, it protects your brand, your future pipeline, and the candidates you do want to hire.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-21",
+    "readMins": 6,
+    "tags": [
+      "candidate-experience",
+      "rejections",
+      "recruiting-ops",
+      "talent-pool"
+    ],
+    "body": [
+      {
+        "p": "Every hire creates dozens of rejections. For one open role you might screen 60 people, interview eight, and hire one. That means the vast majority of your candidate experience is not the offer call. It is the no."
+      },
+      {
+        "p": "And yet rejection is the part of the process most teams put the least effort into. Applicants get silence, or a generic template that arrives three weeks late, or nothing at all. That is a mistake with a cost, because the people you turn down today are your applicants next quarter, your referrers, and sometimes your customers. **How you say no is part of how you hire.**"
+      },
+      {
+        "h": "Why rejections are a pipeline problem, not a courtesy"
+      },
+      {
+        "p": "It is tempting to file rejections under manners: nice to do, not urgent. But the practical case is stronger than the polite one."
+      },
+      {
+        "ul": [
+          "Rejected candidates talk. A bad experience gets shared with peers and posted publicly, and it reaches exactly the people you want to source next.",
+          "Silver-medal candidates matter. The person who came second in a five-stage loop is often a strong hire for the next similar role. Burn that relationship and you start from zero.",
+          "Referrals dry up. Someone treated well is far more likely to point a friend at your next opening, even if they did not get the job themselves.",
+          "Your reputation compounds. Candidates remember teams that closed the loop, and they remember the ones that ghosted them."
+        ]
+      },
+      {
+        "p": "None of this requires you to hire people who are not right. It requires you to end the process cleanly."
+      },
+      {
+        "h": "The three rejection moments that actually matter"
+      },
+      {
+        "p": "Not every no carries the same weight. Match your effort to how much of the candidate's time you asked for."
+      },
+      {
+        "p": "**After the application, no interview.** This is the bulk of your volume. The bar here is simple: a prompt, clear message so the person can move on. They gave you a resume and a few minutes. They deserve a real answer, not indefinite silence, but not a page of feedback either."
+      },
+      {
+        "p": "**After a screening or first call.** Now they have spent 30 minutes talking to you. A short, specific line about why it was not a fit goes a long way, and it takes almost no time to write."
+      },
+      {
+        "p": "**After a full loop or take-home.** This is where ghosting does the most damage. Someone gave you hours, sometimes a full day of work. They have earned a phone call or a genuinely personal note, ideally with something they can use."
+      },
+      {
+        "h": "What a good rejection actually says"
+      },
+      {
+        "p": "You do not need to write an essay. You need to be clear, human, and honest about what you can and cannot offer."
+      },
+      {
+        "ul": [
+          "Be timely. A fast no beats a warm no that arrives a month later. Speed is the single biggest lever on how a rejection lands.",
+          "Be plain. \"We've decided to move forward with other candidates for this role\" is honest and clear. Do not bury it under three paragraphs of praise.",
+          "Say something true. If there was a specific gap, name it kindly. Vague flattery reads as a form letter.",
+          "Leave a door open when you mean it. If you would genuinely welcome them for a future role, say so, and be specific about what kind.",
+          "Don't overpromise. \"We'll keep your resume on file\" is meaningless if you never look at it. Only say it if it is true."
+        ]
+      },
+      {
+        "note": "A rejection that arrives fast and reads like a person wrote it beats a beautifully worded one that shows up three weeks later. Timeliness is the message.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "On feedback: how much to give"
+      },
+      {
+        "p": "Candidates ask for feedback, and it feels generous to give it. Be careful. Detailed feedback can help someone, but it also invites debate, and in some regions it carries legal risk if it strays near protected characteristics. A workable rule: offer specific, behavioral feedback to people who reached your later stages, keep it to things they did or demonstrated (not who they are), and stay brief."
+      },
+      {
+        "p": "For high-volume early-stage rejections, feedback at scale is not realistic and pretending otherwise sets a promise you will break. A clear, respectful no is enough at that stage."
+      },
+      {
+        "quote": "The person who came second today is the strongest applicant for the role you open next quarter. Rejection is where you decide whether they pick up the phone."
+      },
+      {
+        "h": "Where automation helps, and where it doesn't"
+      },
+      {
+        "p": "Rejection is one of the clearest cases for using tooling well. The volume is high, the timing matters, and most of the message is repeatable. This is exactly the kind of work where an AI recruitment platform earns its place: when a candidate is not moving forward, the system can flag it, draft a clear message, and make sure no one falls through the cracks in an inbox."
+      },
+      {
+        "p": "But keep the judgment human where it counts. Two rules hold up well:"
+      },
+      {
+        "ul": [
+          "Automate the early-stage, high-volume nos with clear, honest templates that go out promptly. This is where silence does the most reputational damage and where a person cannot keep up by hand.",
+          "Personalize the late-stage nos yourself. Anyone who sat through a full loop should not get a form email. Have the recruiter or hiring manager send it, and make it specific."
+        ]
+      },
+      {
+        "p": "The failure mode to avoid is auto-rejecting people the moment they apply, with no human ever having looked. That is fast, but it is how you turn away good candidates and damage trust at the same time. Let the machine handle the message and the timing. Keep a human on the decision."
+      },
+      {
+        "h": "Building a rejection habit your team can keep"
+      },
+      {
+        "p": "Good intentions collapse under a busy week. Make the behavior part of the process instead of a personal virtue."
+      },
+      {
+        "ul": [
+          "Write your templates once, per stage, in your own voice. Three or four covers most situations.",
+          "Set an SLA: no candidate waits more than a set number of days for an answer after a decision is made.",
+          "Tag your silver-medal candidates as you go, with a note on what role they'd fit. Future you will thank present you.",
+          "Close the loop the same day you make a decision, not the day you finally get around to your inbox.",
+          "Review your rejection timing the same way you review time-to-hire. If nos are piling up, so is the damage."
+        ]
+      },
+      {
+        "h": "The bottom line"
+      },
+      {
+        "p": "You will say no far more often than you say yes. That is the nature of hiring. The teams that treat those noes as part of the product, prompt, honest, and human, build a talent pool that keeps paying off: silver-medal candidates who come back, referrals that keep coming, and a reputation that makes the next role easier to fill. **A clean no is not the end of a relationship. It is often the start of the next one.**"
+      }
+    ]
+  },
+  {
     "slug": "how-to-pilot-an-ai-screener-before-you-let-it-touch-a-live-role",
     "title": "How to pilot an AI screener before you let it touch a live role",
     "category": "ai-hiring",
