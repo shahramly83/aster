@@ -3,6 +3,127 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-follow-up-on-a-vague-answer-without-feeding-the-candidate-the-a",
+    "title": "How to follow up on a vague answer without feeding the candidate the answer",
+    "category": "interviewing",
+    "excerpt": "The best interview signal usually comes from your second and third questions, not your first. Here's how to probe a vague answer without leading the witness.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-24",
+    "readMins": 5,
+    "tags": [
+      "interviewing",
+      "follow-up questions",
+      "interview skills",
+      "structured interviews",
+      "hiring signal"
+    ],
+    "body": [
+      {
+        "p": "Most interviewers write good opening questions and then let the interview drift. The candidate gives a smooth, general answer, and the interviewer nods, writes \"good communicator,\" and moves to the next item. But the first answer is rarely where the signal lives. It's the follow-up, the second and third question, that tells you whether someone actually did the thing they're describing or just knows how to talk about it."
+      },
+      {
+        "p": "The trap is that probing badly is worse than not probing at all. Ask a leading follow-up and you hand the candidate the answer you wanted, then congratulate yourself for finding it. This article is about the narrow, useful skill in between: how to dig into a vague answer and come out with real evidence, without coaching the person across the line."
+      },
+      {
+        "h": "Why first answers are usually vague"
+      },
+      {
+        "p": "A vague answer isn't always a red flag. People generalize because they're nervous, because they don't know how much detail you want, or because they've told the story so many times it's been sanded down to a highlight reel. \"We shipped a big migration and it went really well\" might sit on top of genuinely strong work. It might also sit on top of nothing. You can't tell yet, and that's the point: **a vague answer is an invitation to probe, not a verdict.**"
+      },
+      {
+        "p": "What you're trying to move from is the summary to the specifics: what exactly they did, what they decided, what they'd do differently. Summaries are easy to fake. Specifics, under a little pressure, are hard to invent on the spot and keep consistent."
+      },
+      {
+        "h": "The probes that work"
+      },
+      {
+        "p": "Good follow-ups are open, neutral, and aimed at concrete detail. They don't hint at a right answer. A few reliable ones:"
+      },
+      {
+        "ul": [
+          "\"Walk me through what you actually did, step by step.\" This drags a summary down into the sequence of real actions.",
+          "\"What was your part specifically?\" Teams do things; you're hiring a person. This separates the two without accusing anyone of overclaiming.",
+          "\"What were the other options you considered, and why did you pick that one?\" Real decisions have alternatives. Invented ones usually don't.",
+          "\"What went wrong, or what would you do differently now?\" Genuine experience comes with scar tissue. A flawless story is often a thin one.",
+          "\"How did you know it worked?\" This pushes past assertion into measurement and evidence."
+        ]
+      },
+      {
+        "p": "Notice that none of these contain the answer. \"Did you use caching to fix the latency?\" tells the candidate that caching is the word you're listening for, and a quick thinker will simply agree. \"How did you bring the latency down?\" makes them supply the mechanism themselves. Same topic, completely different signal."
+      },
+      {
+        "h": "The silence probe"
+      },
+      {
+        "p": "The most underused follow-up isn't a question at all. When someone finishes an answer and you stay quiet for three or four seconds, most people keep talking, and the second half is usually more honest and more specific than the first. They fill the space with the detail they left out. Let the pause do the work. Interviewers rush to fill silence because it feels awkward, but that pause is one of the cheapest tools you have."
+      },
+      {
+        "quote": "A vague answer is an invitation to probe, not a verdict."
+      },
+      {
+        "h": "How to tell rehearsed from real"
+      },
+      {
+        "p": "Depth is the tell. A rehearsed story is smooth on the surface and thin underneath: fluent until you ask about the second decision, the tradeoff, the thing that didn't work, and then it stalls. Someone who lived the experience can go three or four questions deep and still surface new, coherent detail. They can tell you about the boring parts, the constraint they hated, the colleague who disagreed."
+      },
+      {
+        "p": "So keep following the same thread rather than jumping to a new question. If you skip topics every time an answer gets thin, you never test depth. Pick the most relevant claim in their answer and stay on it: \"You mentioned you had to convince the team. Who pushed back, and what did they say?\" You're not trying to catch anyone out. You're checking whether the story has floors below floors."
+      },
+      {
+        "note": "Follow the thread down, don't hop across topics. Depth on one real example beats a shallow tour of five.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Probes that quietly lead the witness"
+      },
+      {
+        "p": "Some follow-ups feel neutral but aren't. Watch for these:"
+      },
+      {
+        "ul": [
+          "Yes/no framings that name the answer: \"So you prioritized based on customer impact?\" Ask \"How did you decide what to do first?\" instead.",
+          "Praise mid-answer: \"That's exactly right\" teaches the candidate what you want and shapes everything after it.",
+          "Loaded adjectives: \"That must have been really challenging\" invites them to agree it was, whether or not it was.",
+          "Finishing their sentence when they hesitate. The hesitation is data. Let them find the word."
+        ]
+      },
+      {
+        "p": "The habit to build is simple: before you ask a follow-up, check whether it contains the answer. If a candidate could score well just by agreeing with your question, rewrite it into something they have to fill in themselves."
+      },
+      {
+        "h": "Write down what you actually heard"
+      },
+      {
+        "p": "Probing is wasted if you record only your conclusion. \"Strong on ownership\" is an opinion; it doesn't survive a debrief. Capture the specifics that led you there: the decision they described, the tradeoff they named, the number they gave when you asked how they knew it worked. Quote the candidate where you can. When two interviewers disagree later, the transcript of what was actually said settles it faster than two competing impressions."
+      },
+      {
+        "p": "This is also where structure pays off. If everyone on the loop knows to probe for specifics against the same competencies, your notes line up and calibration gets easier. A follow-up that surfaces real evidence is only useful if the evidence makes it to the room where the decision happens."
+      },
+      {
+        "h": "A short pattern to practice"
+      },
+      {
+        "p": "You don't need a script, just a loop you run whenever an answer stays general:"
+      },
+      {
+        "ul": [
+          "Ask an open question, then let them answer fully without interrupting.",
+          "If it's a summary, ask them to walk through the specifics, step by step.",
+          "Isolate their personal role: what did they decide, do, and own.",
+          "Probe the tradeoff and the thing that went wrong.",
+          "Pause. Let the silence pull out the second half.",
+          "Write down what they actually said, not what you concluded."
+        ]
+      },
+      {
+        "p": "None of this is about interrogation, and it shouldn't feel adversarial to a good candidate. Strong people usually enjoy the deeper questions, because they finally get to show the work instead of reciting the summary. The vague answer was never the problem. Whether you followed up well is."
+      }
+    ]
+  },
+  {
     "slug": "how-to-reject-candidates-well-and-keep-your-pipeline-warm",
     "title": "How to reject candidates well, and keep your pipeline warm",
     "category": "recruiting-ops",
