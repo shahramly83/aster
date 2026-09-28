@@ -3,6 +3,123 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "when-your-ai-screener-and-your-hiring-manager-disagree",
+    "title": "When your AI screener and your hiring manager disagree",
+    "category": "ai-hiring",
+    "excerpt": "An AI screener ranks a candidate high and your hiring manager wants them out. Here's how to treat that gap as useful signal, not a fight.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-09-28",
+    "readMins": 6,
+    "tags": [
+      "ai-screening",
+      "hiring-managers",
+      "calibration",
+      "shortlists"
+    ],
+    "body": [
+      {
+        "p": "Your AI screener puts a candidate in the top five. Your hiring manager reads the same resume and says, \"No, not this one.\" Or the reverse: the manager loves someone the model buried at rank 30. It happens more than vendors like to admit, and how you handle it decides whether the tool earns trust or gets quietly ignored."
+      },
+      {
+        "p": "A disagreement between a model and a person is not a bug. It's information. Most of the time it means one of them is looking at something the other can't see. The job is to find out which, quickly, without turning every shortlist into an argument."
+      },
+      {
+        "h": "Why the two disagree in the first place"
+      },
+      {
+        "p": "Before you referee, understand the usual causes. They fall into a few buckets, and each one points to a different fix."
+      },
+      {
+        "ul": [
+          "**The model saw something the manager skimmed.** Reviewers read the top of a resume and the last two jobs. A screener reads all of it, including a relevant project buried on page two.",
+          "**The manager knows something the resume doesn't say.** A referral, a mutual contact, context on why a company folded, a nuance about the domain that never made it into text.",
+          "**The role description and the real role drifted apart.** The model ranks against what you wrote. If the manager is now screening for something that isn't in the job post, the model can't know that.",
+          "**The candidate wrote a resume the model over-rewarded.** Keyword-dense, all the right phrases, thin on actual evidence. A good manager smells this; a naive screener doesn't.",
+          "**The manager is running on a pattern, not a reason.** Same school, same former employer, a gut \"vibe.\" This is exactly the bias you bought the tool to counter."
+        ]
+      },
+      {
+        "p": "Notice that in two of these the model is probably right, in two the human is probably right, and in one nobody is. That's why \"just trust the score\" and \"just trust the manager\" are both wrong. You need a quick way to tell them apart."
+      },
+      {
+        "h": "Make the disagreement legible"
+      },
+      {
+        "p": "You can only resolve a disagreement if you can see the reasons on both sides. This is the single most useful habit: never accept a bare verdict, from the model or the person."
+      },
+      {
+        "p": "A good screener gives you more than a number. It should tell you what it matched on and what it counted against the candidate. If your tool only shows a score, you're stuck comparing a number to an opinion, and the number will lose every time because nobody argues with a person's face."
+      },
+      {
+        "p": "On the human side, ask the manager for one sentence: what specifically makes this a no, or a yes? \"Not enough B2B experience\" is checkable. \"I just don't see it\" is not, and should be pushed on. When both sides state reasons, the disagreement usually resolves itself in under a minute, because one reason is clearly stronger than the other."
+      },
+      {
+        "quote": "A disagreement you can't explain isn't a judgment call. It's a coin flip wearing a suit."
+      },
+      {
+        "h": "A simple way to adjudicate"
+      },
+      {
+        "p": "When the score and the manager clash, run through this in order:"
+      },
+      {
+        "ul": [
+          "**Read the model's reasons out loud.** If they cite real evidence the manager missed, the manager reconsiders. Often that's the end of it.",
+          "**Ask the manager for the countervailing fact.** If they know something the resume doesn't contain, that fact wins, and you should write it down so the next reviewer sees it too.",
+          "**Check the role definition.** If the manager is screening for a requirement that isn't in the job post, the post is wrong, not the model. Fix the criteria and re-rank. Everyone benefits.",
+          "**Default to a short conversation.** When you still can't tell, a 15-minute screening call costs less than an argument and settles it with actual data. Ambiguity is a reason to talk to the candidate, not to guess harder."
+        ]
+      },
+      {
+        "p": "The point of this list is speed. You are not building a courtroom. You're deciding whether one more candidate gets a call, and that decision should take minutes."
+      },
+      {
+        "note": "A model that can't tell you why it ranked someone is a model you can't argue with, or learn from. Reasons, not just scores, are what make disagreements productive.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "When to override the model, and when not to"
+      },
+      {
+        "p": "Override freely when you have a **specific fact the resume doesn't contain**: a strong reference, direct knowledge of the person's work, context that changes what the text means. That's your edge, and no screener has it."
+      },
+      {
+        "p": "Be suspicious of overrides that come down to pattern-matching on pedigree, familiarity, or a feeling you can't put into words. Those are the exact judgments that quietly narrow a pipeline. If your only reason to reject a high-ranked candidate is that they don't look like your last hire, sit with that for a second before you click no."
+      },
+      {
+        "p": "And be honest about the reverse. Pulling someone up from rank 30 because you like them is fine if you can name why. If you can't, you're not adding judgment, you're adding noise, and you'll wonder later why the interview went nowhere."
+      },
+      {
+        "h": "Treat repeated disagreements as a tuning signal"
+      },
+      {
+        "p": "One clash is a moment. A pattern of clashes is a message about your setup. Keep a loose tally over a few roles:"
+      },
+      {
+        "ul": [
+          "**The model keeps ranking people the team rejects for the same reason.** Your criteria are missing that reason. Add it, or weight it, so the model screens for what you actually want.",
+          "**The model keeps burying people who interview well.** Something real isn't showing up in the resume, and you may need a knockout question or a short form to surface it before ranking.",
+          "**One manager overrides constantly, another almost never.** That's a calibration gap between humans, not a model problem. Worth a conversation on its own."
+        ]
+      },
+      {
+        "p": "This is the healthiest outcome of disagreement: it turns a one-off dispute into a permanent improvement. The model gets better at your role, and the team gets clearer about what it's really hiring for. A screener that never surprises you isn't well-calibrated, it's just agreeing with you, which is worth nothing."
+      },
+      {
+        "h": "The stance to hold"
+      },
+      {
+        "p": "Don't rank the model above the manager, and don't rank the manager above the model. Rank **reasons above both**. The score is a fast, tireless first read that never skips page two and never gets tired at 5pm. The manager is the one who knows the team, the domain, and the things resumes leave out. When they agree, you move fast. When they don't, you've found the exact spot that deserves a human minute of attention."
+      },
+      {
+        "p": "Handled this way, disagreement stops feeling like the tool undermining the team. It becomes the most useful thing the tool does: pointing at the handful of candidates where your judgment actually changes the outcome, and leaving the obvious calls behind you."
+      }
+    ]
+  },
+  {
     "slug": "how-to-follow-up-on-a-vague-answer-without-feeding-the-candidate-the-a",
     "title": "How to follow up on a vague answer without feeding the candidate the answer",
     "category": "interviewing",
