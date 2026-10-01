@@ -3,6 +3,136 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "who-owns-what-in-a-hire-a-clean-split-between-recruiter-and-hiring-man",
+    "title": "Who owns what in a hire: a clean split between recruiter and hiring manager",
+    "category": "recruiting-ops",
+    "excerpt": "Most hiring delays come from unclear ownership, not hard decisions. Here's a simple split of work between recruiter and hiring manager.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-01",
+    "readMins": 5,
+    "tags": [
+      "hiring-process",
+      "collaboration",
+      "recruiting-ops",
+      "hiring-managers"
+    ],
+    "body": [
+      {
+        "p": "Ask a stalled hiring team why a role is stuck and you rarely hear \"the candidates were bad.\" You hear \"I thought you were sending the next steps,\" or \"I was waiting on the hiring manager,\" or \"nobody told me the panel was booked.\" The decisions were fine. The handoffs were not."
+      },
+      {
+        "p": "A hire runs through two people with very different jobs: the **recruiter** who moves the process, and the **hiring manager** who owns the bar. When those roles blur, candidates sit in limbo and each side assumes the other has it covered. A clean split fixes more delay than any new tool."
+      },
+      {
+        "h": "Why ambiguity is the real bottleneck"
+      },
+      {
+        "p": "Hiring is a relay. Every stage ends with a handoff: resume to screen, screen to panel, panel to decision, decision to offer. A good candidate feels every dropped baton as silence. Silence reads as rejection, and by the time someone picks the process back up, your strongest applicant has a competing offer."
+      },
+      {
+        "p": "The usual response is more meetings, which just moves the confusion into a calendar. The better fix is to decide, once, who owns each step, and to make that visible to everyone touching the role. When both sides can see the same pipeline, \"I thought you had it\" stops being a sentence anyone can say."
+      },
+      {
+        "h": "What the recruiter owns"
+      },
+      {
+        "p": "The recruiter owns momentum. Their job is to keep candidates moving and informed, to protect the hiring manager's time, and to make sure no one goes quiet. Concretely:"
+      },
+      {
+        "ul": [
+          "Sourcing and inbound: posting the role, driving applications, and working referrals.",
+          "First-pass screening: filtering against the must-haves so the hiring manager sees a shortlist, not a pile.",
+          "All candidate communication: status updates, scheduling, and rejections that keep people warm.",
+          "Logistics: booking panels, sending the right prep, and chasing feedback that's overdue.",
+          "Process health: flagging where candidates drop off and where the role is slowing down."
+        ]
+      },
+      {
+        "p": "Note what's not on this list: judging whether someone can do the job. The recruiter screens for fit against an agreed spec, but they don't invent the bar. If a recruiter is quietly deciding who's \"good enough\" on criteria the hiring manager never wrote down, that's a sign the intake was too thin."
+      },
+      {
+        "h": "What the hiring manager owns"
+      },
+      {
+        "p": "The hiring manager owns the bar and the decision. They are the one person who has to live with the hire, so they define what \"qualified\" means and make the call. Concretely:"
+      },
+      {
+        "ul": [
+          "The spec: the three or four must-haves, the nice-to-haves, and what a strong answer actually sounds like.",
+          "The scorecard: what each interview stage is testing, so feedback is comparable.",
+          "Decisions at each gate: who advances, who doesn't, and why, within a day of getting feedback.",
+          "The close: selling the role, answering hard questions, and championing the offer internally."
+        ]
+      },
+      {
+        "p": "The most common failure here is a hiring manager who treats recruiting as someone else's department. They skip the intake, rubber-stamp the shortlist, then reject everyone after the first panel because \"I'll know it when I see it.\" That's not a high bar. That's an undefined one, and it burns weeks."
+      },
+      {
+        "quote": "The recruiter owns momentum. The hiring manager owns the bar. Most stalls happen in the gap where neither thinks they own the handoff."
+      },
+      {
+        "h": "Where AI changes the split (and where it doesn't)"
+      },
+      {
+        "p": "An AI screener shifts the recruiter's first-pass work, but it doesn't erase either role. Aster reads every resume as it arrives, pulls out structured skills and experience, and ranks applicants against the role with the reasons attached. That means the recruiter spends less time on the mechanical first sort and more on the parts machines are bad at: judgment calls on edge cases, candidate relationships, and keeping the process honest."
+      },
+      {
+        "p": "What AI does not do is set your bar or make your decision. A match score is a starting point, not a verdict. The hiring manager still defines the must-haves the score ranks against, still reads the top of the list with their own eyes, and still owns the yes or no. If the spec is vague, the ranking inherits the vagueness. Good inputs are still a human job."
+      },
+      {
+        "note": "A match score tells you who to look at first, not who to hire. The hiring manager still owns the bar and the decision; AI just gets them to the shortlist faster.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "A one-page split you can steal"
+      },
+      {
+        "p": "Before you open a role, agree on this in writing. It takes ten minutes and saves days:"
+      },
+      {
+        "ul": [
+          "Spec and scorecard: hiring manager drafts, recruiter pressure-tests for clarity.",
+          "Screening: recruiter (or AI) runs the first pass against the agreed must-haves.",
+          "Shortlist review: hiring manager reviews the ranked top candidates within 48 hours.",
+          "Scheduling: recruiter books every interview and sends prep.",
+          "Decisions at each gate: hiring manager decides within one business day of feedback.",
+          "Candidate comms: recruiter, always, including rejections.",
+          "Offer and close: hiring manager sells, recruiter handles logistics and paperwork."
+        ]
+      },
+      {
+        "p": "The exact lines can move. A founder making their first hires might wear both hats, and that's fine, as long as they know which hat they're in at each step. The point isn't rigid territory. It's that **every step has one owner, and both people can name who it is.**"
+      },
+      {
+        "h": "The two numbers that tell you it's working"
+      },
+      {
+        "p": "You don't need a dashboard to know if the split is holding. Watch two things:"
+      },
+      {
+        "ul": [
+          "Time in each stage: if candidates sit for more than a couple of days between steps, a handoff is unclear or an owner is overloaded.",
+          "Feedback turnaround: if scorecards come in late or not at all, the decision gate has no owner, and your pipeline is quietly rotting."
+        ]
+      },
+      {
+        "p": "When both numbers stay tight, candidates feel a process that respects their time, and your team feels one that respects theirs. A shared pipeline helps here: when the recruiter and hiring manager read from the same board, nobody waits on an email that's buried in an inbox, and the question \"whose turn is it?\" answers itself."
+      },
+      {
+        "h": "Start before the role opens"
+      },
+      {
+        "p": "The best time to divide this work is the intake, before a single application lands. The worst time is mid-process, when a great candidate is waiting and both sides are pointing at each other. Spend the ten minutes up front. Write down who owns the spec, who moves the process, and who makes the call. Then let the recruiter keep things moving and the hiring manager hold the bar."
+      },
+      {
+        "p": "Clear ownership won't make a hard decision easy. It will make sure that when the decision arrives, the right person makes it fast, and the candidate you want is still around to say yes."
+      }
+    ]
+  },
+  {
     "slug": "when-your-ai-screener-and-your-hiring-manager-disagree",
     "title": "When your AI screener and your hiring manager disagree",
     "category": "ai-hiring",
