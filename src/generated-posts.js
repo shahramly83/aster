@@ -3,6 +3,136 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-interview-for-a-skill-you-dont-have-yourself",
+    "title": "How to interview for a skill you don't have yourself",
+    "category": "interviewing",
+    "excerpt": "You're hiring a specialist you can't personally evaluate. Here's how to get real signal without faking expertise you don't have.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-05",
+    "readMins": 6,
+    "tags": [
+      "interviewing",
+      "hiring-managers",
+      "scorecards",
+      "structured-interviews"
+    ],
+    "body": [
+      {
+        "p": "At some point you have to hire someone who's better than you at the thing you're hiring for. A founder hiring their first designer. An engineering lead bringing on a data scientist. A head of marketing recruiting a performance specialist who lives in ad platforms you've never touched. The candidate knows more than you do, and you still have to decide whether they're any good."
+      },
+      {
+        "p": "This feels uncomfortable, so people tend to do one of two things: they wing it and go on gut feel, or they lean entirely on a technical screener and rubber-stamp whoever passes. Both are a mistake. You can run a sharp, fair interview for a skill you don't have, as long as you stop trying to out-expert the expert and start probing the things you can actually judge."
+      },
+      {
+        "h": "Separate what you can judge from what you can't"
+      },
+      {
+        "p": "You are not qualified to grade the correctness of a deep technical answer. You are very qualified to judge how someone thinks, decides, and explains. Those are not the same test, and the second one is where most hiring signal lives anyway."
+      },
+      {
+        "p": "Before the interview, split the skills into two buckets:"
+      },
+      {
+        "ul": [
+          "**Depth you can't verify alone:** the actual craft. Whether their SQL is elegant, whether their design system scales, whether their media mix model holds up. This needs an expert or a work sample, not you.",
+          "**Signal you can read without the expertise:** how they scope an ambiguous problem, how they handle being wrong, how they weigh tradeoffs, how clearly they teach something complex to someone outside their field (you)."
+        ]
+      },
+      {
+        "p": "Your job in the room is the second bucket. Outsource the first one deliberately, don't pretend you've covered it."
+      },
+      {
+        "h": "Make them teach you something"
+      },
+      {
+        "p": "The single best question for a skill you lack is some version of: **\"Walk me through a decision in your work that a smart outsider would get wrong.\"** Then make them explain it until you understand it."
+      },
+      {
+        "p": "Strong specialists can take something genuinely complex and make it legible without dumbing it down to nothing. Weak ones either can't explain it, or hide behind jargon when you ask a follow-up. You don't need to know the domain to feel the difference. When you ask \"why not the other approach?\" and the answer gets clearer, that's a good sign. When it gets vaguer or more defensive, note it."
+      },
+      {
+        "quote": "You can't grade the answer, but you can always grade how someone handles being asked why."
+      },
+      {
+        "p": "Keep pulling the thread. \"What would have to be true for you to pick the opposite approach?\" A real practitioner has thought about the boundaries of their own choices. Someone running on pattern-matching usually hasn't."
+      },
+      {
+        "h": "Use a work sample, and borrow an expert to read it"
+      },
+      {
+        "p": "The most reliable way to evaluate craft you can't judge is to see the work, not to talk about it. A short, paid work sample or a walkthrough of real past work tells you more than any amount of conversation. But the sample is only useful if someone who has the skill reviews it."
+      },
+      {
+        "p": "You have more options here than you think:"
+      },
+      {
+        "ul": [
+          "A trusted contact in the field who'll do one evaluation as a favor or for a small fee.",
+          "A contractor or fractional expert you bring in for a single calibration session.",
+          "A later-stage panelist who does have the depth, scheduled before you make the call, not after.",
+          "An existing team member in an adjacent role who can at least flag obvious red or green flags."
+        ]
+      },
+      {
+        "p": "Give your reviewer a specific question, not \"is this good?\" Ask: \"Would you trust this person to own our analytics unsupervised? What would worry you?\" Specific prompts get specific, useful answers."
+      },
+      {
+        "note": "If you genuinely cannot get any expert eyes on the work before deciding, say so out loud to yourself and to the candidate's future manager. An unverified craft hire is a known risk, not a hidden one.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Ask about failures, not just wins"
+      },
+      {
+        "p": "When you can't assess the ceiling of someone's skill, assess the floor. Ask what they've broken, missed, or gotten wrong, and what they changed as a result. This works across every discipline and it doesn't require you to know the craft."
+      },
+      {
+        "p": "Listen for a few things:"
+      },
+      {
+        "ul": [
+          "Do they describe a real, specific failure, or a humblebrag disguised as one (\"I cared too much\")?",
+          "Do they own their part, or is every problem caused by other people and bad luck?",
+          "Did they actually learn a transferable lesson, or just a one-off patch?",
+          "Can they tell you how they'd catch it earlier next time?"
+        ]
+      },
+      {
+        "p": "Someone who can narrate their own mistakes honestly is usually someone you can trust to flag problems once they're on your team. That matters doubly when you can't look over their shoulder and check the work yourself."
+      },
+      {
+        "h": "Pressure-test the story for consistency"
+      },
+      {
+        "p": "You may not know the domain, but you know how real work goes. Timelines, team sizes, who did what, what the constraints were. Ask enough concrete follow-ups and an inflated story starts to wobble. \"You said you led that project. Who else was on it, and which parts were yours specifically?\" is a fair question in any field."
+      },
+      {
+        "p": "This isn't about catching liars. It's that **ownership and specificity are legible even when the craft isn't.** A person who really did the work can zoom in on any detail. A person who was nearby stays at the altitude of buzzwords."
+      },
+      {
+        "h": "Be honest about what you're testing"
+      },
+      {
+        "p": "Tell the candidate the shape of your process. Something like: \"I'm going to dig into how you think and how you've worked. The deep technical review happens with our contractor in the next stage.\" Good specialists respect this. It signals that you take the role seriously enough not to fake-evaluate it, and it means they'll bring their real depth to the right conversation instead of performing for someone who can't follow along."
+      },
+      {
+        "p": "It also protects the candidate. Nobody wants to be judged by someone bluffing their way through territory they don't understand, and strong people can tell when it's happening."
+      },
+      {
+        "h": "Write down what you actually saw"
+      },
+      {
+        "p": "Score the things you were qualified to assess, and leave the craft rating to whoever did the technical review. A clean scorecard might read: strong on problem scoping, clear communicator under follow-up, honest about a real failure, timeline and ownership checked out, craft depth deferred to expert review (passed). That's a defensible decision. \"Seemed smart, good vibe\" is not."
+      },
+      {
+        "p": "Hiring above your own expertise is normal, and it's how teams grow. The trap is pretending you can personally grade everything, or giving up and trusting a gut feeling. Judge what you can judge well, get an expert on the part you can't, and be straight about which is which. That's a better interview than most experts run on their own turf."
+      }
+    ]
+  },
+  {
     "slug": "who-owns-what-in-a-hire-a-clean-split-between-recruiter-and-hiring-man",
     "title": "Who owns what in a hire: a clean split between recruiter and hiring manager",
     "category": "recruiting-ops",
