@@ -3,6 +3,132 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-screen-career-changers-without-your-ai-writing-them-off",
+    "title": "How to screen career changers without your AI writing them off",
+    "category": "ai-hiring",
+    "excerpt": "Non-linear resumes trip up pattern-matching. Here's how to screen career changers fairly without lowering your bar.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-08",
+    "readMins": 6,
+    "tags": [
+      "ai-screening",
+      "career-changers",
+      "fair-hiring",
+      "match-scores"
+    ],
+    "body": [
+      {
+        "p": "A career changer's resume rarely reads like the role you posted. The job titles are from another field, the keywords are off, and the most relevant work might be a side project buried at the bottom. A screener that rewards clean, linear paths will quietly push that person down the pile, even when they'd be one of your strongest hires."
+      },
+      {
+        "p": "This matters more than it used to. People switch fields mid-career, come back after a break, or move from an adjacent discipline where the skills transfer but the vocabulary doesn't. If your screening (AI or human) only recognizes the obvious path, you lose those candidates before anyone reads a word they wrote. The fix isn't to ignore the match score. It's to understand what the score can and can't see, and to build a couple of checks around the gap."
+      },
+      {
+        "h": "Why a career changer confuses pattern matching"
+      },
+      {
+        "p": "An AI screener ranks a resume by how closely it maps to the role: the skills named, the seniority implied, the shape of the experience. That works well when the candidate comes from the same lane. It gets shaky when the signal is there but encoded differently."
+      },
+      {
+        "p": "Three things tend to go wrong with non-linear resumes:"
+      },
+      {
+        "ul": [
+          "**Vocabulary mismatch.** A teacher who now builds training software may have run complex projects, managed stakeholders, and shipped curriculum on deadline, but none of it reads as \"project management\" or \"product.\" The skill is real; the words don't match.",
+          "**Recency bias in the layout.** The most relevant experience might be a bootcamp, a contract, or a volunteer build that sits below years of unrelated work. A screener weighting recent full-time roles can miss it.",
+          "**Gaps read as risk.** A break to retrain, caregive, or switch fields shows up as empty time. The model has no story for it, so the absence counts against the candidate even though the reason might be exactly why they're ready now."
+        ]
+      },
+      {
+        "p": "None of this means the screener is broken. It means it's doing what it was built to do (match against a pattern) on a resume that deliberately breaks the pattern."
+      },
+      {
+        "h": "Write the role so transferable skills can score"
+      },
+      {
+        "p": "The cheapest fix happens before anyone applies. Most job posts describe the person you imagine, not the work you need done. A career changer can do the work without looking like the imagined person."
+      },
+      {
+        "p": "When you write the role, separate the two:"
+      },
+      {
+        "ul": [
+          "List the **outcomes and skills** the job actually requires, in plain terms. \"Can run a project with five stakeholders to a fixed deadline\" beats \"3+ years in a PM role.\"",
+          "Mark which requirements are genuinely non-negotiable and which are just the usual path people took to get there. Years in a specific title is almost always the second kind.",
+          "Name the adjacent backgrounds you'd welcome. If a support lead or an analyst could do this job, say so. Your screener ranks against what you wrote, so write the door open."
+        ]
+      },
+      {
+        "note": "A match score is only as good as the role you ranked against. Vague, title-heavy requirements punish anyone whose title came from a different field.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Read the score as a starting point, not a verdict"
+      },
+      {
+        "p": "A high score is a strong signal. A low score is a weaker one, because a low score can mean \"not qualified\" or it can mean \"qualified, but doesn't look like it.\" Those are different problems, and only one of them should end the conversation."
+      },
+      {
+        "quote": "A low match score tells you the resume didn't map cleanly. It doesn't tell you the person can't do the job."
+      },
+      {
+        "p": "In practice, that means treating the bottom and middle of your ranked list differently than you'd treat an auto-reject queue. Before a career changer drops off entirely, a short human pass is worth it. You're not re-reading everyone. You're spot-checking the cases most likely to be mis-ranked."
+      },
+      {
+        "h": "Add a transferable-skills pass"
+      },
+      {
+        "p": "You don't need a new tool for this, just a habit. For candidates who score lower but come from an adjacent field, ask the reader (or a well-prompted second look) a few targeted questions:"
+      },
+      {
+        "ul": [
+          "What has this person actually done that maps to the core outcomes, regardless of the title it happened under?",
+          "Is there a recent signal (a project, a course finished, a contract, a portfolio) that the screener may have underweighted because it wasn't a full-time role?",
+          "If there's a gap, is there a plausible, low-risk reason it's there, and does the work before and after suggest readiness rather than drift?"
+        ]
+      },
+      {
+        "p": "A good AI screener can help here if you ask it the right thing. Instead of \"rank against the role,\" have it summarize the relevant transferable experience and flag where the candidate's skills show up under non-obvious labels. The model is often better at surfacing that evidence than at judging whether it's enough. Let it find the signal; you decide if it clears the bar."
+      },
+      {
+        "h": "Let a short task settle it"
+      },
+      {
+        "p": "The most honest way to evaluate a career changer is to look at the work, not the paper trail. This is where a non-linear background stops mattering and current ability takes over."
+      },
+      {
+        "p": "A focused, paid, time-boxed task tied to the actual job tells you more than another resume read. The person who switched fields and the person who stayed in lane do the same exercise under the same rubric. If the career changer can do the work, the unusual path becomes irrelevant. If they can't, you've learned that fairly, from evidence, not from a keyword mismatch."
+      },
+      {
+        "p": "Keep it small and respectful of their time. You're testing for the one or two skills that actually decide the role, not running them through a gauntlet to prove they belong."
+      },
+      {
+        "h": "What AI can and can't do here"
+      },
+      {
+        "p": "Be clear-eyed about the division of labor. The screener is excellent at reading every resume, pulling structured skills out of messy formatting, and giving you a ranked starting point in seconds. That saves the hours you'd otherwise spend on the easy sorts."
+      },
+      {
+        "p": "What it can't do is know why someone's path bends the way it does, or weigh a career change the way a thoughtful recruiter would. It doesn't understand that a nurse moving into clinical data brings judgment that no bootcamp grad has. That context is yours to add."
+      },
+      {
+        "ul": [
+          "**Let AI do:** read everything, extract real skills, surface transferable evidence, rank the obvious fits.",
+          "**You do:** decide which requirements are real, spot-check the mis-ranked, judge whether a non-linear path is a risk or an asset, and confirm with a task."
+        ]
+      },
+      {
+        "h": "The quiet payoff"
+      },
+      {
+        "p": "Career changers are often the most motivated people in your pipeline. They've already made a deliberate choice to do this work, and they bring a second discipline most of your applicants don't have. The teams that hire them well aren't ignoring their screener. They're using it for what it's good at, and reserving human judgment for exactly the resumes where a pattern match falls short. Start from a shortlist, then make sure the shortlist didn't quietly drop the people worth meeting."
+      }
+    ]
+  },
+  {
     "slug": "how-to-interview-for-a-skill-you-dont-have-yourself",
     "title": "How to interview for a skill you don't have yourself",
     "category": "interviewing",
