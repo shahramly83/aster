@@ -3,6 +3,120 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-post-a-salary-range-that-does-its-job",
+    "title": "How to post a salary range that does its job",
+    "category": "recruiting-ops",
+    "excerpt": "A good salary range filters out mismatches, builds trust, and saves you a week of awkward conversations. Here's how to set and post one.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-12",
+    "readMins": 6,
+    "tags": [
+      "compensation",
+      "job-posts",
+      "candidate-experience",
+      "recruiting-ops"
+    ],
+    "body": [
+      {
+        "p": "A salary range in a job post is doing more work than most teams realize. It decides who applies and who scrolls past. It sets the frame for every offer conversation that follows. And it tells candidates, before they've spoken to anyone, whether you respect their time."
+      },
+      {
+        "p": "Done badly, a range is a 60k spread that means nothing, or it's absent entirely and every screening call opens with the same guarded dance. Done well, it filters out mismatches, builds trust, and saves you a week of back-and-forth per hire. This is a recruiting-ops problem, not an HR afterthought, and it's worth getting right."
+      },
+      {
+        "h": "Why the range matters before anyone talks"
+      },
+      {
+        "p": "When a candidate reads a job post, they're making a fast decision with limited information. The salary range is one of the few concrete signals you give them. If it's missing, two things happen. Strong candidates who are already employed often don't bother applying, because they won't risk a process that might waste three weeks and land 20k below their number. And the people who do apply span a range so wide that your screening calls become salary negotiations in disguise."
+      },
+      {
+        "p": "A clear range does the opposite. It **pre-qualifies candidates on the single factor most likely to kill a deal at the end.** Someone who applies to a posted range of 90k to 110k has told you, by applying, that the number works for them. You've resolved the hardest conversation before it started."
+      },
+      {
+        "quote": "A salary range isn't a disclosure you're forced to make. It's a filter that works while you sleep."
+      },
+      {
+        "h": "Set the range before you post, not during the offer"
+      },
+      {
+        "p": "The most common failure is backing into a number. A team posts \"competitive salary,\" interviews five people, falls in love with one, and then scrambles to figure out what they can actually pay. By then the candidate has anchored high, the hiring manager is emotionally committed, and finance is frowning. Everyone loses leverage and goodwill."
+      },
+      {
+        "p": "Do the work up front. Before the req goes live, agree on three numbers with the hiring manager and whoever holds the budget:"
+      },
+      {
+        "ul": [
+          "The floor: what you'd pay a solid candidate who meets the bar but needs some ramp.",
+          "The target: what you expect to pay the person you actually hire.",
+          "The ceiling: what you'd stretch to for someone clearly above the bar, and what that costs you in internal equity."
+        ]
+      },
+      {
+        "p": "If you can't agree on these three numbers, you're not ready to open the role. The range you post is usually the floor to the target, with the ceiling held in reserve for a standout. That keeps you honest and leaves room to reward someone exceptional without blowing up your pay bands."
+      },
+      {
+        "h": "Keep the range narrow enough to mean something"
+      },
+      {
+        "p": "A range of 70k to 130k is not a range. It's an admission that you haven't decided what the job is. Candidates read a wide spread as a warning: either the level is undefined, or the number is really the bottom and the top is bait."
+      },
+      {
+        "p": "Aim for a spread of roughly 15 to 25 percent between floor and top. For most individual-contributor roles that lands you somewhere like 95k to 115k, which is wide enough to account for experience and narrow enough to be believable. If your real spread is genuinely huge because the role could be filled at two different levels, that's a sign you should post two roles, not one blurry one."
+      },
+      {
+        "note": "If you need a 50k spread to cover everyone who might apply, you haven't defined the level yet. Split the role or tighten the scope before you post.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Say what the range includes"
+      },
+      {
+        "p": "A number with no context invites misreading. Make clear what the range refers to so candidates compare like with like:"
+      },
+      {
+        "ul": [
+          "Base salary, stated as an annual figure (or hourly where that's the norm).",
+          "Whether bonus, commission, or equity sits on top, and roughly how much.",
+          "The currency and the location assumption, especially for remote roles where pay may vary by region.",
+          "Whether the range is for this specific level, not the whole career ladder."
+        ]
+      },
+      {
+        "p": "You don't need a paragraph. One honest line does it: \"Base salary 95k to 115k, plus equity and our standard benefits. This is a mid-level role; we hire senior separately.\""
+      },
+      {
+        "h": "Handle the candidate who's above your range"
+      },
+      {
+        "p": "Sometimes someone excellent applies and their number is above your ceiling. A posted range doesn't trap you here, it gives you a clean place to start. You can say plainly: \"Our range for this level tops out at 115k. If that's a dealbreaker, I'd rather tell you now than waste your time. If there's flexibility on your side, let's keep talking.\" That's a far better conversation than discovering the gap in week four."
+      },
+      {
+        "p": "It also surfaces a real question for the hiring manager: is this person actually a level up from what you scoped? If so, the fix isn't to quietly overpay against a mid-level band. It's to decide whether you're hiring at a higher level, with the responsibilities and expectations that come with it."
+      },
+      {
+        "h": "Keep pay bands consistent across roles"
+      },
+      {
+        "p": "The quiet risk of posting ranges is internal equity. The moment a range is public, your current team can see it, and so can anyone they talk to. If a new hire comes in above someone who's been doing the same job for two years, you've created a morale problem that outlasts the hire. **Posting a range forces a discipline that's good for you: pay people against a band, not against how hard they negotiated.**"
+      },
+      {
+        "p": "Before you post, check the range against what you already pay people in similar roles. If the new range is higher, you may owe your existing team a correction. That's uncomfortable, but it's cheaper than losing someone who found out they're underpaid from a job post."
+      },
+      {
+        "h": "Where this fits in your process"
+      },
+      {
+        "p": "A salary range is one piece of a job post that does real work. The job post defines the role clearly enough that candidates self-select and your screening (human or AI) has something concrete to rank against. The range filters on compensation. Together they mean the people who reach your shortlist are already a fit on scope, level, and pay, which is most of what sinks a hire at the finish line."
+      },
+      {
+        "p": "None of this requires a compensation team or a survey subscription. It requires one honest conversation before the req opens, a narrow range you can defend, and the discipline to pay against it. Do that, and the range stops being a disclosure you dread and becomes one of the most useful filters in your pipeline."
+      }
+    ]
+  },
+  {
     "slug": "how-to-screen-career-changers-without-your-ai-writing-them-off",
     "title": "How to screen career changers without your AI writing them off",
     "category": "ai-hiring",
