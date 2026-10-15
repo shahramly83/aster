@@ -3,6 +3,125 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-interview-for-culture-add-without-the-culture-fit-trap",
+    "title": "How to interview for culture add without the culture-fit trap",
+    "category": "interviewing",
+    "excerpt": "Culture fit quietly rewards sameness. Here's how to assess values and ways of working without screening out everyone who isn't already in the room.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-15",
+    "readMins": 6,
+    "tags": [
+      "culture add",
+      "interviewing",
+      "bias",
+      "scorecards",
+      "hiring"
+    ],
+    "body": [
+      {
+        "p": "\"Culture fit\" is one of the most common reasons a strong candidate gets rejected, and one of the least examined. Ask an interviewer what they mean by it and you often get a shrug: \"I just don't think they'd mesh with the team.\" That feeling might be real. It might also be a polite cover for \"they didn't remind me of us.\""
+      },
+      {
+        "p": "The problem isn't that culture doesn't matter. It does. The problem is that most culture questions measure familiarity, not fit. They reward the candidate who shares your humor, your background, and your references, and they punish the one who would actually stretch the team. This is how a company ends up with ten people who think the same way and calls it a strong culture. Here's how to interview for the thing you actually want, how someone works and what they value, without defaulting to sameness."
+      },
+      {
+        "h": "Name the difference between fit and add"
+      },
+      {
+        "p": "**Culture fit** asks: does this person match the people we already have? **Culture add** asks: does this person share our non-negotiables, and do they bring something the team is missing? The first question is backward-looking and tends to shrink the gene pool. The second is forward-looking and keeps the bar high without demanding a clone."
+      },
+      {
+        "p": "The catch is that \"add\" can become its own kind of mush if you don't define it. You can't assess a vague wish for \"someone different.\" So before the interview, you need two short lists: the values that genuinely don't bend, and the gaps the current team has. Those two lists are what you interview against. Everything else, the small talk, the shared alma mater, the easy rapport, is noise you should actively discount."
+      },
+      {
+        "h": "Decide what your non-negotiables actually are"
+      },
+      {
+        "p": "Most teams have never written down their real values, only the poster version. \"Integrity\" and \"excellence\" are not interviewable; everyone claims them. You need the specific, behavioral things that would make someone miserable or disruptive on your team if they didn't have them. Examples:"
+      },
+      {
+        "ul": [
+          "Gives direct feedback and can take it without going quiet for a week.",
+          "Makes decisions with incomplete information instead of waiting for certainty.",
+          "Writes things down so the rest of the team isn't dependent on a meeting.",
+          "Comfortable disagreeing with someone more senior in the room.",
+          "Treats support, sales, and junior colleagues with the same respect as peers."
+        ]
+      },
+      {
+        "p": "Notice that none of these are about personality, hobbies, or background. They're about how a person operates. A quiet introvert and a loud extrovert can both give direct feedback. A career changer and a 20-year veteran can both write things down. That's the point: **a real value is something people of very different backgrounds can all hold.**"
+      },
+      {
+        "quote": "If your culture criteria can only be met by people who look and sound like your current team, you're not screening for culture. You're screening for sameness."
+      },
+      {
+        "h": "Ask about behavior, not vibes"
+      },
+      {
+        "p": "Once you know what you're looking for, the questions get concrete. Replace \"would they fit in?\" with questions that surface how someone has actually behaved. A few that work:"
+      },
+      {
+        "ul": [
+          "\"Tell me about a time you disagreed with your manager's decision. What did you do?\"",
+          "\"Describe a situation where you got critical feedback you didn't agree with. What happened next?\"",
+          "\"When you joined your last team, what did you change or push back on in the first few months?\"",
+          "\"Tell me about a working style on a past team that drove you up the wall. How did you handle it?\""
+        ]
+      },
+      {
+        "p": "These questions do two things. They let you check your non-negotiables against real evidence, and they reveal what the candidate brings that you don't have. If someone describes building the first onboarding doc on a team that ran on tribal knowledge, and your team runs on tribal knowledge, that's a concrete add, not a gut feeling."
+      },
+      {
+        "h": "Score it, or you'll drift back to gut"
+      },
+      {
+        "p": "Culture is exactly where interviewers abandon structure and fall back on instinct, which is exactly why bias creeps in. Put culture criteria on the scorecard like any other dimension. For each non-negotiable value, interviewers rate the evidence they heard, not the warmth they felt, and write the specific example that justifies the score. If the only note is \"great energy, loved them,\" that's not evidence. Send it back."
+      },
+      {
+        "p": "A useful discipline in the debrief: before anyone gives a culture verdict, they have to answer \"what did they bring that we're missing?\" out loud. If no one can name anything, you're probably about to hire for fit and dress it up as add. And if the only objection to a candidate is a vague unease, ask the room to translate it into a specific behavior that conflicts with a specific value. Often it can't be done, which tells you the unease was about familiarity all along."
+      },
+      {
+        "note": "Vague discomfort is not data. If an interviewer can't tie a \"culture\" concern to a specific behavior and a specific value, treat it as a bias flag, not a veto.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Watch for the tells that it's drifting into bias"
+      },
+      {
+        "p": "Even with good intentions, culture assessment slides toward sameness. A few warning signs worth catching in yourself and your panel:"
+      },
+      {
+        "ul": [
+          "The positives are all about rapport: \"easy to talk to,\" \"we clicked,\" \"felt like one of us.\"",
+          "The negatives are about style, not substance: too quiet, too intense, \"a bit much,\" \"not polished.\"",
+          "The evidence leans on shared background: same school, same prior company, same hobbies.",
+          "The team keeps hiring people who interview well socially but add nothing new to how it works."
+        ]
+      },
+      {
+        "p": "None of these are automatically disqualifying, but they should make you slow down and ask what you're really reacting to. Rapport is pleasant and almost entirely irrelevant to whether someone will do good work and hold the team's values six months in."
+      },
+      {
+        "h": "Where AI helps, and where it doesn't"
+      },
+      {
+        "p": "An AI screener is good at the early, structured part: it reads every resume, pulls out skills and experience, and ranks candidates against the role so you start from a shortlist instead of a pile. What it should not do is guess at culture from a document. A resume can't tell you whether someone gives direct feedback or writes things down, and a model inferring \"fit\" from word choice or school names is just bias with a confidence score. **Culture is the part you keep for the humans in the room,** backed by a scorecard, not a feeling."
+      },
+      {
+        "p": "Used this way, AI frees up the time you'd have spent on the pile and lets you spend it on the conversation that actually needs judgment. The goal isn't to automate culture. It's to make sure the people you interview are a fair slate, and that the way you judge them rewards what you value instead of who you already know."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "p": "Write down the values that genuinely don't bend. Define the gaps your team has. Ask behavioral questions that test both. Score the evidence, not the vibe. And when someone raises a culture concern, make them name the behavior behind it. Do that, and you'll stop confusing \"people like us\" with \"people who make us better,\" which is the whole reason to interview for culture in the first place."
+      }
+    ]
+  },
+  {
     "slug": "how-to-post-a-salary-range-that-does-its-job",
     "title": "How to post a salary range that does its job",
     "category": "recruiting-ops",
