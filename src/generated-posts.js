@@ -3,6 +3,117 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-screen-for-the-right-level-not-the-most-experience",
+    "title": "How to screen for the right level, not the most experience",
+    "category": "ai-hiring",
+    "excerpt": "More experience isn't always the right fit. Here's how to keep your AI screener from over-rewarding seniority and burying the person the role actually needs.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-19",
+    "readMins": 5,
+    "tags": [
+      "ai-screening",
+      "seniority",
+      "job-levels",
+      "shortlisting"
+    ],
+    "body": [
+      {
+        "p": "Most screening tools, human and AI alike, share a quiet bias: more is better. More years, bigger titles, larger teams managed, more logos. So when you open a role for a mid-level engineer or a first marketing hire, the candidates who float to the top are often the most senior people in the pile, not the best-matched ones."
+      },
+      {
+        "p": "That feels like a win until you run the interviews. The over-experienced director is bored by the scope. The staff engineer wants to architect, not ship. The person who would have thrived in the role sat ten slots down because they had six years instead of twelve. **The right level is a real requirement, and most screeners treat it as an afterthought.**"
+      },
+      {
+        "h": "Why AI over-rewards seniority"
+      },
+      {
+        "p": "An AI screener reads a resume and compares it to your role. If your job post lists responsibilities and skills but never pins down the level, the model does the sensible thing: it rewards evidence. A candidate who has done more of the listed work, at a bigger scale, for longer, looks like a stronger match. Seniority correlates with all of those signals, so seniority wins."
+      },
+      {
+        "p": "That isn't a bug so much as a gap in what you told it. The screener optimizes for what you wrote down. If \"5 to 8 years, owns projects end to end but doesn't manage\" lives only in the hiring manager's head, the model can't rank for it. It fills the silence with the one heuristic that's always available: more is safer."
+      },
+      {
+        "h": "Name the level as a requirement, not a hope"
+      },
+      {
+        "p": "The fix starts in the job description, before any resume arrives. Write the level the way you'd write a must-have skill, in concrete terms the screener and a reviewer can both check:"
+      },
+      {
+        "ul": [
+          "Scope: \"owns features end to end\" vs \"owns a roadmap\" vs \"sets technical direction across teams.\"",
+          "People: individual contributor, lead without reports, or manages a team of a given size.",
+          "Years, as a range with a reason: \"3 to 6 years\" reads differently from \"3+ years,\" which quietly invites a 15-year candidate.",
+          "Ambiguity you'll accept: say whether a slightly junior person who's growing fast, or a senior person stepping back, is genuinely in scope or not."
+        ]
+      },
+      {
+        "p": "When the level is written down, the screener has something to rank against. \"Manages a 20-person org\" stops being a point in favor and starts being a mismatch for a hands-on role."
+      },
+      {
+        "quote": "The right level is a requirement, not a tiebreaker. If it lives only in your head, your screener will optimize for the opposite."
+      },
+      {
+        "h": "Separate \"can do the work\" from \"is at this level\""
+      },
+      {
+        "p": "These are two different questions, and collapsing them is where ranking goes wrong. A principal engineer can obviously do a mid-level job. The question isn't capability, it's fit: will they stay engaged, accept the comp band, and not leave in eight months when the scope doesn't grow?"
+      },
+      {
+        "p": "Treat level as its own axis in how you read the pile. Capability tells you whether someone clears the bar. Level tells you whether the role matches where they are and where they want to go. A candidate can ace the first and fail the second. Your shortlist should reflect both, not blend them into a single \"strength\" score that a twenty-year veteran always wins."
+      },
+      {
+        "note": "A high match score on an underscoped role often means the candidate is over-leveled, not perfect. Read the reasons, not just the number.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Read the reasons, not just the rank"
+      },
+      {
+        "p": "A good AI screener doesn't just hand you a number, it shows why. This is where you catch level mismatches. When a candidate scores high, look at what's driving it. If the reasons are all \"led,\" \"directed,\" \"scaled from 5 to 50,\" and your role is a hands-on build job, the score is telling you they're strong, not that they fit."
+      },
+      {
+        "p": "Make this a habit on both ends of the ranking. At the top, check whether high scores are inflated by seniority you don't need. Near the middle, look for the well-matched people who got out-ranked by heavier resumes. That's usually where the person you actually want is sitting."
+      },
+      {
+        "h": "What AI can't decide for you"
+      },
+      {
+        "p": "AI can flag that someone looks over-leveled. It cannot know whether this particular director is itching to get back to hands-on work, or whether your scrappy role is exactly the reset they want. People step down levels deliberately, after burnout, after a move, to join something early. A resume reads that as a downgrade. A conversation reads it correctly."
+      },
+      {
+        "p": "So use the screener to surface the question, not to answer it. If a strong candidate looks a level or two above the role, that's not an auto-reject. It's a note to raise on the screening call:"
+      },
+      {
+        "ul": [
+          "\"This role is hands-on and won't have reports for a while. Is that what you're looking for right now?\"",
+          "\"The band for this level is X. Does that work for you?\"",
+          "\"What made this role interesting enough to apply, given your background?\""
+        ]
+      },
+      {
+        "p": "Their answers tell you more than any score. Someone who's genuinely excited to go deep again will say so plainly. Someone using you as a backup while they hunt for a bigger title will get vague. **The screener gets you to the right question faster; the candidate still has to answer it.**"
+      },
+      {
+        "h": "A quick checklist before you post"
+      },
+      {
+        "ul": [
+          "Is the level written into the job post in concrete terms, not implied?",
+          "Did you give a years range with an upper bound, not an open-ended \"plus\"?",
+          "Did you state the people-management scope explicitly, even if it's \"none\"?",
+          "When you review the ranked list, are you reading the reasons, not just the top scores?",
+          "For over-leveled candidates who clear the bar, do you have a screening question that tests fit instead of auto-rejecting?"
+        ]
+      },
+      {
+        "p": "Get the level onto the page and your whole pipeline sharpens. The screener stops padding the top of your list with people who'll be gone by spring, and the well-matched candidates stop getting buried under heavier resumes. You still make the judgment calls that need a human. You just start from a shortlist that's ranked for the job you're actually filling, not the most impressive CVs that happened to apply."
+      }
+    ]
+  },
+  {
     "slug": "how-to-interview-for-culture-add-without-the-culture-fit-trap",
     "title": "How to interview for culture add without the culture-fit trap",
     "category": "interviewing",
