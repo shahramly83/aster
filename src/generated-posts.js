@@ -3,6 +3,129 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-run-a-high-volume-role-without-drowning-your-team",
+    "title": "How to run a high-volume role without drowning your team",
+    "category": "recruiting-ops",
+    "excerpt": "A practical playbook for roles that pull hundreds of applicants: funnel math, a consistent first pass, and batching that keeps good people from going cold.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-22",
+    "readMins": 6,
+    "tags": [
+      "high-volume hiring",
+      "recruiting ops",
+      "pipeline",
+      "candidate experience",
+      "process"
+    ],
+    "body": [
+      {
+        "p": "Some roles trickle in ten applicants over two weeks. Others open on Monday and have 300 by Friday. Support, sales development, operations, retail, early-career engineering: the moment a role is broad, remote-friendly, or junior, the applicant count stops being a number you skim and starts being a workload that eats your week."
+      },
+      {
+        "p": "High-volume roles don't fail because the talent isn't there. They fail because the **process that works at ten applicants quietly breaks at three hundred**. The first pass slips, replies go out late, strong people take another offer, and your team is exhausted by candidates they never even got to read. Here is how to run one without that happening."
+      },
+      {
+        "h": "Know when a role is actually high-volume"
+      },
+      {
+        "p": "A role is high-volume when the number of applicants is larger than any one person can read carefully in the time you have. For most teams that threshold is lower than they think: once a single reviewer is facing more than 40 or 50 resumes, careful reading stops and skimming starts. Skimming is where good candidates get missed and your decisions get inconsistent."
+      },
+      {
+        "p": "Name it early. If a role is likely to flood, you plan differently from day one instead of reacting when the inbox is already underwater. The signs are usually obvious before you post:"
+      },
+      {
+        "ul": [
+          "The title is common and the skills are transferable (coordinator, SDR, analyst, support).",
+          "It's fully remote, which widens the funnel by an order of magnitude.",
+          "It's early-career, where one posting can draw hundreds of eager applicants.",
+          "You've run the same role before and have the numbers to prove it."
+        ]
+      },
+      {
+        "h": "Do the funnel math before you open it"
+      },
+      {
+        "p": "The biggest mistake in high-volume hiring is treating every applicant as a maybe. You can't. Work backwards from one hire instead. If experience tells you roughly one in forty applicants becomes an offer, then 300 applicants is about 7 or 8 realistic finalists, maybe 20 to 25 worth a real conversation. That's the pipeline you're actually managing. The other 275 need a fast, fair, respectful no, not a slow silence."
+      },
+      {
+        "p": "Decide your stage targets up front: how many people reach a screening call, how many reach the hiring manager, how many reach the final round. When you know the shape of the funnel, you can staff for it and spot a leak the moment a stage runs dry."
+      },
+      {
+        "note": "The job of a high-volume process isn't to read everyone equally. It's to find the strongest fits fast and treat everyone, including the no's, like a human on a deadline.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Standardize the first pass"
+      },
+      {
+        "p": "At volume, the first pass is the make-or-break step, and it's exactly where human attention runs out. The first resume gets ten minutes; the hundredth gets ten seconds. That's not bias in principle, it's just fatigue, and it makes your early and late applicants play by different rules."
+      },
+      {
+        "p": "This is where an AI screener earns its keep. Not to decide who you hire, but to **read every resume with the same attention and rank them against the role you actually defined**. A structured summary, a match score, and the reasons behind it turn 300 resumes into a ranked list you can work through top-down, with the strongest fits already in view. You start from a shortlist instead of a pile."
+      },
+      {
+        "quote": "At three hundred applicants, consistency isn't a nice-to-have. It's the only way the hundredth candidate gets a fair read."
+      },
+      {
+        "p": "A few guardrails keep the first pass honest:"
+      },
+      {
+        "ul": [
+          "Write the job post so it describes the real must-haves, not a wish list. A screener can only rank against what you told it to value.",
+          "Spot-check the ranking. Read a handful from the top, the middle, and the bottom to make sure the scores match your judgment before you trust them.",
+          "Keep a human on the borderline cases. A clear top and a clear bottom are easy; the gray band in the middle is where you look, not the machine."
+        ]
+      },
+      {
+        "h": "Keep one pipeline, not twelve inboxes"
+      },
+      {
+        "p": "Volume multiplies the cost of a messy system. If resumes are landing in email, a shared drive, and three people's heads, you will double-review some candidates and lose others entirely. Everyone working the role needs to see the same board, the same stages, and the same notes."
+      },
+      {
+        "p": "One shared pipeline does three things at once: it stops the same candidate getting two different answers, it shows you at a glance where people are piling up, and it means no strong applicant is buried in someone's unread mail. When a role moves fast, the system has to hold the state so your team doesn't have to."
+      },
+      {
+        "h": "Protect speed by batching the work"
+      },
+      {
+        "p": "High-volume roles punish delay harder than any other kind of hire. The candidates applying to a broad role are usually applying to several at once, so the first team to move often wins. But you also can't drop everything every time a resume arrives. The answer is batching: set fixed windows and work the pipeline in blocks."
+      },
+      {
+        "ul": [
+          "Review new applicants in one or two daily passes, not continuously. You stay fast without living in the tool.",
+          "Batch screening calls into a couple of blocks a week so the hiring manager isn't context-switching all day.",
+          "Use one scheduling link that lets candidates self-book. At volume, manual back-and-forth email is where days leak and good people cool off.",
+          "Send decisions in batches too, so no one waits a week for a no you decided on Monday."
+        ]
+      },
+      {
+        "p": "Batching also protects your team. The dread of a high-volume role comes from the feeling that it's always on. Fixed windows turn it back into work you can finish and close for the day."
+      },
+      {
+        "h": "Don't let volume become an excuse for sloppy fairness"
+      },
+      {
+        "p": "When the pile is huge, it's tempting to lean on crude filters: the right school, a familiar company, a keyword. Those feel efficient and they quietly narrow your funnel to people who look like your last hire. A ranked first pass helps here, but only if you've checked what it's rewarding. Make sure the signals driving the score are about the work, not proxies for background."
+      },
+      {
+        "p": "The same goes for the no's. A fast, plain rejection is part of the job, not an afterthought. People remember how you treated them when the answer was no, and at volume you're touching hundreds of them. A short, honest message beats silence every time, and it keeps your employer brand intact for the next time you open the role."
+      },
+      {
+        "h": "Close it out, then write down what you learned"
+      },
+      {
+        "p": "When the hire is made, resist the urge to just move on. High-volume roles are the ones most worth measuring, because you'll likely run them again. Capture the real numbers: how many applied, how many reached each stage, how long each step took, and where people dropped. That turns next quarter's flood from a surprise into a plan."
+      },
+      {
+        "p": "Run this way and a high-volume role stops being the thing your team dreads. You read everyone fairly, you move fast enough to win the good ones, and you close the role in an afternoon of focused work instead of two weeks of drowning. The volume was never the problem. The process was."
+      }
+    ]
+  },
+  {
     "slug": "how-to-screen-for-the-right-level-not-the-most-experience",
     "title": "How to screen for the right level, not the most experience",
     "category": "ai-hiring",
