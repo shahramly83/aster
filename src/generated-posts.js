@@ -3,6 +3,121 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-run-a-panel-interview-that-doesnt-gang-up-on-the-candidate",
+    "title": "How to run a panel interview that doesn't gang up on the candidate",
+    "category": "interviewing",
+    "excerpt": "Panel interviews save time but often turn into an interrogation. Here's how to split roles, avoid repeat questions, and still get a clean read.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-26",
+    "readMins": 6,
+    "tags": [
+      "panel interviews",
+      "interviewing",
+      "candidate experience",
+      "scorecards"
+    ],
+    "body": [
+      {
+        "p": "A panel interview is supposed to be efficient: three or four people get the signal they need in one sitting, the candidate tells their story once, and the debrief writes itself. That's the promise. The reality is often a candidate facing a wall of faces, fielding the same question three different ways, while the panelists quietly compete to ask the sharpest one."
+      },
+      {
+        "p": "Done well, a panel is the fairest format you have. Everyone hears the same answers at the same time, so no one is relying on a secondhand summary. Done badly, it's an intimidation exercise that tells you how someone performs under pressure and almost nothing about whether they can do the job. The difference is entirely in the prep."
+      },
+      {
+        "h": "Decide what a panel is actually for"
+      },
+      {
+        "p": "A panel is not a way to cram more interviewers into less time for its own sake. It's the right format when **several people genuinely need to assess the same thing in real time**: a cross-functional role, a hire who'll work closely with multiple teams, or a senior candidate whose answers benefit from being pressure-tested by different perspectives at once."
+      },
+      {
+        "p": "If each interviewer is really probing a separate area with little overlap, you don't need a panel. You need a sequence of focused one-on-ones. Use a panel when the overlap is the point, when you want three people to hear the same story and interpret it through their own lens."
+      },
+      {
+        "h": "Give every seat a job"
+      },
+      {
+        "p": "The single biggest fix for a messy panel is assigning roles before anyone walks in. Without roles, panelists default to asking whatever occurs to them, which is how candidates get the same question twice. With roles, the hour has a shape."
+      },
+      {
+        "ul": [
+          "A lead who owns the clock, opens the session, introduces everyone, and makes sure the candidate knows what to expect.",
+          "One primary questioner per competency: someone on the technical depth, someone on collaboration, someone on the specific domain. Each owns their 12 to 15 minutes.",
+          "A designated note-taker for each segment, so the person asking isn't also scrambling to write.",
+          "A closer who handles the candidate's questions and explains next steps honestly."
+        ]
+      },
+      {
+        "p": "These roles can rotate across interviews, but within a single panel they should be fixed and known. When everyone knows their lane, the follow-up questions get better because people are listening instead of rehearsing the question they're about to ask."
+      },
+      {
+        "h": "Map the questions in advance so they don't collide"
+      },
+      {
+        "p": "Build the question set as a group, not as four private plans that happen to meet in a room. Fifteen minutes in a shared doc before the interview prevents the most common panel failure: the candidate explaining the same project for the third time because nobody checked who was covering what."
+      },
+      {
+        "p": "A simple grid works. List the competencies you're assessing down one side, the panelists across the top, and mark who leads each one. If two people have questions that touch the same project, decide who goes first and how the second person builds on it rather than restarting it. The goal is that each question **moves the conversation forward**, never resets it."
+      },
+      {
+        "quote": "A good panel feels like one coherent conversation with four people in it, not four interviews stacked on top of each other."
+      },
+      {
+        "h": "Protect the candidate's airtime"
+      },
+      {
+        "p": "In a bad panel, the interviewers talk more than the candidate. Side comments, debates between panelists, and long preambles eat the minutes you're supposed to be spending listening. The candidate leaves having said less than they would in a single one-on-one, and you have less signal, not more."
+      },
+      {
+        "p": "Set a norm: whoever is leading a segment runs it, and the others hold their follow-ups until there's room. If a panelist has a burning tangent, they note it and pick it up in their own slot. The lead's job includes gently steering back when the room drifts. Silence is fine. Give the candidate a beat to think instead of filling the gap with a reworded question."
+      },
+      {
+        "h": "Brief the candidate like you want them to succeed"
+      },
+      {
+        "p": "A panel is harder to prepare for because the candidate doesn't know who they're meeting or what each person cares about. Close that gap. Before the session, tell them who will be in the room, their roles, and roughly what each segment will cover. This isn't giving away the answers. It's removing the needless surprise that makes nervous people underperform and tells you nothing useful."
+      },
+      {
+        "p": "At the top of the interview, the lead should restate it: who everyone is, how long you'll spend, and that there will be time for the candidate's questions at the end. Thirty seconds of orientation changes the whole tone from interrogation to conversation."
+      },
+      {
+        "note": "A candidate who feels ambushed gives you their stress response, not their ability. Clear expectations don't make the bar lower, they make the signal cleaner.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Score independently, then compare"
+      },
+      {
+        "p": "The great risk of a panel is that everyone hears the same answers and then anchors on whoever speaks first in the debrief. You hear one confident voice say \"strong yes\" and the room quietly converges. That's not consensus, it's groupthink, and the panel format makes it worse because everyone shares the same memory of the session."
+      },
+      {
+        "p": "Guard against it the same way you would for a sequence of interviews:"
+      },
+      {
+        "ul": [
+          "Have each panelist write their rating and evidence against the shared scorecard before anyone talks.",
+          "Submit scores independently, ideally without seeing each other's first.",
+          "In the debrief, start with the lowest-confidence or most junior voice, not the loudest.",
+          "Treat disagreement as information to dig into, not a tie to break by seniority."
+        ]
+      },
+      {
+        "p": "Because each panelist owned a competency, their scores should be strongest in their lane. Weight accordingly. The person who ran the technical segment has the best read on technical depth; the collaboration lead has the best read on how this person works with others."
+      },
+      {
+        "h": "Keep the panel small"
+      },
+      {
+        "p": "Three is usually enough. Four is the ceiling. Past that, the candidate can't build rapport with anyone, airtime gets sliced too thin, and the debrief turns into a committee. If more than four people have a stake in the hire, that's a signal to tighten who actually needs to be in the room, not to add chairs. The others can read the notes."
+      },
+      {
+        "p": "Panels get a bad reputation because most of them are run on autopilot: a handful of busy people in a room with no plan, taking turns. The format isn't the problem. A panel with assigned roles, a mapped question set, protected airtime, and independent scoring gives you something a string of one-on-ones can't: several trained observers reacting to the same moment. Build it that way and the candidate gets a fair hearing, and you get a decision you can actually defend."
+      }
+    ]
+  },
+  {
     "slug": "how-to-run-a-high-volume-role-without-drowning-your-team",
     "title": "How to run a high-volume role without drowning your team",
     "category": "recruiting-ops",
