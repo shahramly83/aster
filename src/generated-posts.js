@@ -3,6 +3,116 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-work-the-maybe-pile-your-ai-screener-leaves-behind",
+    "title": "How to work the maybe pile your AI screener leaves behind",
+    "category": "ai-hiring",
+    "excerpt": "The top of your ranking is easy and the bottom is easy. The middle is where good hires hide. Here's how to work it.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-10-29",
+    "readMins": 6,
+    "tags": [
+      "screening",
+      "match-scores",
+      "shortlisting",
+      "ai-hiring",
+      "pipeline"
+    ],
+    "body": [
+      {
+        "p": "An AI screener sorts your applicants into three rough groups. The top is easy: strong matches with clear reasons, the people you'll almost certainly interview. The bottom is easy too: wrong role, wrong level, missing the one non-negotiable. The interesting part is the middle, the candidates who score a 6 or 7 out of 10, close enough to be plausible and far enough down that nobody looks twice."
+      },
+      {
+        "p": "That middle band is the **maybe pile**, and it's where teams either find a quietly great hire or waste a week chasing people who were never going to work. Both outcomes come from the same mistake: treating the middle like a smaller version of the top. It isn't. It needs its own read."
+      },
+      {
+        "h": "Why the middle exists in the first place"
+      },
+      {
+        "p": "A match score is a summary. It compresses skills, experience, level, and fit into one number so you can sort a list. Compression is the whole point, and it's also where detail goes missing. A candidate lands in the middle for very different reasons, and the score alone won't tell you which."
+      },
+      {
+        "ul": [
+          "**Strong but narrow:** a near-perfect match on the core skill, with a gap somewhere the role listed as nice-to-have. The score drags down, the fit might not.",
+          "**Broad but shallow:** touches every requirement, masters none. Looks reasonable on paper, thin under questioning.",
+          "**Hard to read:** a non-standard resume, a career change, an overseas background, or a title that means something different at their last company.",
+          "**Genuinely mid:** a fine candidate who is simply a worse fit than the people above them, and the ranking is right."
+        ]
+      },
+      {
+        "p": "Four candidates, same score, four different next steps. The number can't separate them, but the reasons behind the number can. This is why a screener that only outputs a score is less useful than one that shows **its reasons**, the specific skills it matched and the gaps it flagged."
+      },
+      {
+        "h": "Read the reasons, not the number"
+      },
+      {
+        "p": "Before you spend any human time on the middle, open the explanation behind each score. You're looking for one thing: is the gap that lowered this score a real blocker, or an artifact of how the resume was written?"
+      },
+      {
+        "p": "A real blocker is a missing qualification the role genuinely needs, something you'd reject for even after a good conversation. An artifact is the screener reacting to surface text: a skill the candidate clearly has but never named, a job title that undersells the work, three months between roles that reads as a gap but was a planned move. The score treats both the same. You shouldn't."
+      },
+      {
+        "quote": "The top of your ranking is the people who wrote the best resumes. It is not always the people who'll do the best work."
+      },
+      {
+        "p": "That line is worth sitting with. A ranking rewards legible resumes, and legibility correlates with experience writing resumes, not with talent. The maybe pile is full of people who did the work but described it plainly. Reading the reasons is how you catch them."
+      },
+      {
+        "h": "A fast triage for the middle"
+      },
+      {
+        "p": "You don't have time to deep-read every mid-ranked applicant, and you don't need to. Run a quick pass with a fixed question for each one, so the triage stays consistent instead of drifting with your mood."
+      },
+      {
+        "ul": [
+          "**Does this person clear every must-have?** If a real non-negotiable is missing, move on. Don't talk yourself into it because the rest looks good.",
+          "**Is the gap a writing problem or a skill problem?** If the resume is just thin or oddly structured, a ten-minute look at a portfolio or a single clarifying question often resolves it.",
+          "**Would one fact change my mind?** If there's exactly one thing you'd need to confirm to move them up, that's a cheap screening-call question, not a reason to reject.",
+          "**Is anyone above them actually better, or just louder on paper?** Compare the mid candidate to your bottom shortlist pick, not to the top. That's the real contest."
+        ]
+      },
+      {
+        "p": "Most of the middle will sort itself in a few minutes per candidate. You'll clear some to the shortlist, drop some to reject, and be left with a short list of genuine maybes who need one quick signal before you decide."
+      },
+      {
+        "note": "A mid score is a flag that says look closer, not a verdict. The screener did its job by surfacing the candidate and showing why. Deciding what the gap means is yours.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "The cheapest signal is a good question"
+      },
+      {
+        "p": "For the maybes that survive triage, resist the urge to either reject them quietly or schedule a full interview loop. Both are expensive in the wrong direction. The right move is a single, targeted question that resolves the one uncertainty."
+      },
+      {
+        "p": "If the screener flagged a thin match on a core tool, ask them to describe the last project where they used it, in two sentences. If the concern is level, ask what they owned versus what the team owned. If it's a career change, ask what from their old field transfers and what they've had to relearn. You're not running an interview. You're buying the one fact that was missing from the resume, for the price of an email."
+      },
+      {
+        "p": "Candidates who answer these well often jump straight past people who out-ranked them, because a good answer carries far more signal than a well-phrased bullet point. Candidates who dodge the question have told you something useful too."
+      },
+      {
+        "h": "Keep a record of why the middle moved"
+      },
+      {
+        "p": "The maybe pile is where bias has the most room to operate, because the decisions are close and the reasons are soft. Two candidates with the same score, and you advance one on a hunch. Do that enough times without writing anything down, and your shortlist starts to reflect your instincts more than the role."
+      },
+      {
+        "p": "So note the reason, briefly, every time you move a mid candidate up or down. Not a paragraph, a line: cleared the tooling gap on the call, or no evidence of the ownership the role needs. This does two things. It keeps your decisions reviewable, and it gives you a record to check later against who actually performed. Over a few hires, that record tells you whether your middle reads are good or whether you keep rejecting a type of person you should be hiring."
+      },
+      {
+        "h": "What this changes"
+      },
+      {
+        "p": "Working the maybe pile properly costs an hour, maybe two, per role. In return you stop two quiet failures: the strong candidate who got buried under a plainer resume, and the week spent interviewing a middle candidate who was never going to clear the bar. **The shortlist you interview is only as good as the reads you make on the people just below it.**"
+      },
+      {
+        "p": "Let the AI do what it's good at: reading every resume, scoring it, and showing the reasons. Then spend your judgment where it's actually scarce. Not on the obvious yeses or the obvious nos, but on the handful of maybes where one honest question turns a guess into a decision."
+      }
+    ]
+  },
+  {
     "slug": "how-to-run-a-panel-interview-that-doesnt-gang-up-on-the-candidate",
     "title": "How to run a panel interview that doesn't gang up on the candidate",
     "category": "interviewing",
