@@ -3,6 +3,136 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-run-an-employee-referral-program-that-surfaces-more-than-your-f",
+    "title": "How to run an employee referral program that surfaces more than your friends' friends",
+    "category": "recruiting-ops",
+    "excerpt": "Referrals are your highest-converting source and your easiest way to accidentally hire more of the same. Here's how to run one that stays both.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-11-02",
+    "readMins": 6,
+    "tags": [
+      "referrals",
+      "sourcing",
+      "recruiting-ops",
+      "diversity",
+      "hiring-process"
+    ],
+    "body": [
+      {
+        "p": "Referred candidates tend to apply faster, interview better, and stay longer. That is why almost every team eventually leans on referrals. It is also why referral programs quietly go wrong: the easiest person to refer is someone who looks and thinks like the person referring them, and the loudest referrers are usually the most connected people on the team, not the best judges of talent."
+      },
+      {
+        "p": "A good referral program keeps the quality without narrowing the funnel. That takes more than a bonus and a Slack reminder. Here is how to build one that actually works, and where to put the guardrails."
+      },
+      {
+        "h": "Start by being specific about what you need"
+      },
+      {
+        "p": "The weakest referral prompt is \"we're hiring, send us anyone good.\" People respond to it by scanning their closest circle and forwarding the first familiar name. You get volume, not fit."
+      },
+      {
+        "p": "Instead, ask for a specific role with a one-line picture of the person. Not the full job description, which nobody reads, but the kind of detail a colleague can actually match against:"
+      },
+      {
+        "ul": [
+          "\"Backend engineer who has run a migration under load, not just shipped features.\"",
+          "\"First sales hire who's comfortable with no playbook and no warm leads.\"",
+          "\"Someone who has supported customers in a regulated industry.\""
+        ]
+      },
+      {
+        "p": "The more concrete the ask, the more your team reaches past the obvious names and into \"actually, I worked with someone three jobs ago who did exactly that.\" **The best referrals come from a specific prompt, not a general one.**"
+      },
+      {
+        "h": "Make referring take two minutes, not twenty"
+      },
+      {
+        "p": "Every bit of friction costs you referrals, and it costs you the good ones first, because busy high performers will not fill out a form. Strip the submission down to a name, a way to reach the person, and one sentence on why. You can gather the rest once the candidate is in the pipeline."
+      },
+      {
+        "p": "Just as important: tell the referrer what happens next, and then actually do it. The fastest way to kill a referral program is to let a referred name sit for two weeks with no reply. People stick their reputation on a referral. If it vanishes into a black hole, they stop."
+      },
+      {
+        "ul": [
+          "Acknowledge every referral within a day, even if it's \"got it, we'll review this week.\"",
+          "Give the referrer a real status update at least once, not just the final yes or no.",
+          "If you pass, tell them briefly why, so their next referral is sharper."
+        ]
+      },
+      {
+        "h": "Treat a referral as a strong signal, not a shortcut"
+      },
+      {
+        "p": "Here is the line that matters most. A referral should move someone to the front of the review queue. It should not move them past your bar. The moment a referral skips the screen, skips a stage, or gets a softer scorecard, two things happen: the hire quality drops, and everyone watching learns that who you know beats what you can do."
+      },
+      {
+        "p": "Run referred candidates through the same structured interview and the same scorecard as everyone else. The referral earns them a fast, serious look. It does not earn them a pass."
+      },
+      {
+        "quote": "A referral should get someone to the front of the line, never past the bar."
+      },
+      {
+        "p": "This is also where an AI screener helps keep things honest. When Aster ranks a referred applicant against the role on the same criteria as the rest of the pile, you can see at a glance whether the referral actually fits or whether it is riding on a relationship. A referral that lands near the top of the ranking is a great sign. One that lands near the bottom is worth an honest conversation before you spend a loop on it."
+      },
+      {
+        "h": "Watch the diversity math before it narrows on you"
+      },
+      {
+        "p": "Referrals pull from your team's existing networks, and networks cluster. If your team is mostly men who went to the same three schools, a referral-heavy funnel will quietly hand you more men from the same three schools. That is not anyone acting in bad faith. It is just how social graphs work."
+      },
+      {
+        "p": "You do not have to abandon referrals to fix this. You do have to measure and balance:"
+      },
+      {
+        "ul": [
+          "Track what share of hires come from referrals. If it creeps past half, your other sources are probably withering.",
+          "Look at who gets referred, not just how many. If one slice of the team sends most of the names, your funnel is inheriting their network.",
+          "Actively prompt referrals for roles where your pipeline is thin, and prompt under-networked parts of the team, not just the usual contributors.",
+          "Pair every referral push with at least one outbound or community-sourcing effort so the two balance each other."
+        ]
+      },
+      {
+        "note": "Referrals are a sourcing channel, not a hiring policy. Keep them under half your hires and they stay a strength instead of a monoculture.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Design the bonus so it rewards the right behavior"
+      },
+      {
+        "p": "A referral bonus is fine. The mechanics decide whether it helps or just generates noise. A few rules that keep incentives clean:"
+      },
+      {
+        "ul": [
+          "Pay for quality, not submission. Reward when the hire starts and clears probation, not when a name gets dropped in a form.",
+          "Keep the amount meaningful but not distorting. Big enough to notice, small enough that nobody is gaming it with low-quality names.",
+          "Pay the same for every role at a level. If one req pays triple, people stop referring for the others.",
+          "Consider rewarding referrals that lead to a hire from an under-represented group a little more, if that fits your goals and your legal context. Check this with someone who knows your local rules."
+        ]
+      },
+      {
+        "p": "And separate the bonus from the decision. The person who referred a candidate should not sit on that candidate's interview loop. Their judgment is compromised, and even if it isn't, it will look like it is."
+      },
+      {
+        "h": "Handle the awkward ones honestly"
+      },
+      {
+        "p": "Someone will refer a friend who clearly isn't a fit. Someone will refer their manager's spouse. These moments are where a program earns trust or loses it. The fix is to lean on the process, not on your relationship with the referrer: everyone goes through the same screen and the same bar, and you can point to that. \"We ran them through our standard process and it wasn't a match for this role\" is a clean, defensible answer that keeps the referrer's goodwill and your standards intact."
+      },
+      {
+        "p": "When the structure is the same for everyone, saying no to a referral stops feeling personal. That is the whole point of structure."
+      },
+      {
+        "h": "The short version"
+      },
+      {
+        "p": "A referral program works when it is specific, fast, and held to the same bar as everything else. Ask for the exact person you need, make referring effortless, reply quickly, and run every referred candidate through the same ranking and scorecard as the open pile. Keep an eye on the diversity math and don't let referrals quietly become most of your hires. Do that, and referrals become what they should be: your fastest route to strong candidates, not a backdoor around your own standards."
+      }
+    ]
+  },
+  {
     "slug": "how-to-work-the-maybe-pile-your-ai-screener-leaves-behind",
     "title": "How to work the maybe pile your AI screener leaves behind",
     "category": "ai-hiring",
