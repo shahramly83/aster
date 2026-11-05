@@ -3,6 +3,116 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "what-a-candidates-questions-tell-you-and-how-to-use-them",
+    "title": "What a candidate's questions tell you, and how to use them",
+    "category": "interviewing",
+    "excerpt": "The questions a candidate asks you are evidence too. Here's how to read them, prompt for more, and fold them into your scorecard.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-11-05",
+    "readMins": 6,
+    "tags": [
+      "interviewing",
+      "scorecards",
+      "candidate-experience",
+      "hiring-signal"
+    ],
+    "body": [
+      {
+        "p": "Most interview plans end with the same throwaway line: \"Any questions for me?\" It gets five minutes if there's time, nobody takes notes, and the answers never make it into the debrief. That's a waste. The questions a candidate asks are some of the cleanest signal you'll get in the whole loop, because you didn't script them and they can't be rehearsed into a perfect shape."
+      },
+      {
+        "p": "A candidate answering your questions is performing a task you set. A candidate asking their own questions is showing you what they actually care about, how they think about the work, and how carefully they've prepared. Read that well and you learn things your structured questions can't reach."
+      },
+      {
+        "h": "Why their questions are real evidence"
+      },
+      {
+        "p": "When you ask \"tell me about a time you handled conflict,\" the candidate reaches for a polished story. It's useful, but it's curated. Their own questions come from a different place. They reveal priorities the candidate didn't think to hide."
+      },
+      {
+        "p": "Someone who asks **what the first 90 days look like** is picturing themselves doing the job. Someone who asks only about remote policy and vacation has told you where their attention sits, which is fine to know, just not what you'd hope for in the first conversation. Someone who asks a sharp question about a tradeoff in your product has clearly read past the careers page."
+      },
+      {
+        "p": "None of these are disqualifiers on their own. The point is that unscripted questions give you a second, independent read on the same person. When that read agrees with the rest of the interview, you can be more confident. When it clashes, you've found something worth probing."
+      },
+      {
+        "h": "What good questions tend to look like"
+      },
+      {
+        "p": "There's no perfect checklist, and you should be wary of anyone who claims one. But across strong candidates, a few patterns show up more often than not:"
+      },
+      {
+        "ul": [
+          "Questions about the actual work: what a typical week holds, where the role is stuck today, what success looks like in six months.",
+          "Questions that reference something specific, a product decision, a recent launch, something you said earlier in the conversation.",
+          "Questions about the team: how decisions get made, who they'd work with most, how the manager runs one-on-ones.",
+          "Questions about why the role is open, and what happened to the last person in it. That takes a little nerve and shows they're evaluating you back.",
+          "Follow-ups. When your answer opens a door, do they walk through it, or just move to the next item on their list?"
+        ]
+      },
+      {
+        "p": "That last one matters most. A candidate reading from a list of \"good questions to ask in an interview\" will fire off three generic ones and never react to your answers. A candidate who is genuinely curious listens, then asks the natural next thing. You can feel the difference, and you should write it down while you still remember it."
+      },
+      {
+        "quote": "A candidate's questions come from a place they didn't think to curate. That's exactly why they're worth scoring."
+      },
+      {
+        "h": "What weak questions actually mean"
+      },
+      {
+        "p": "Be careful here, because this is where interviewers over-read. \"No questions\" is the one people punish hardest, and it's often the least informative. By the final round a candidate may have asked everything already across three earlier calls. A nervous person may freeze. A junior candidate may not yet know what to ask. Treat an empty slot as missing data, not a red flag, and give them a path back in."
+      },
+      {
+        "p": "Generic questions are softer signal than people assume too. \"What's the culture like?\" is vague, but it's also what a careers advisor told them to ask. The real tell is whether they can go deeper when you hand them the chance. Answer briefly, then watch: do they build on it, or retreat to the next rehearsed line?"
+      },
+      {
+        "p": "The questions that genuinely give you pause are the ones that contradict what the candidate claimed earlier. Someone who spent twenty minutes describing how much they love ownership and ambiguity, then asks whether every task comes with detailed specs, has shown you a gap between the story and the instinct. That's worth a gentle follow-up, not a silent mark against them."
+      },
+      {
+        "h": "How to get better questions out of people"
+      },
+      {
+        "p": "The format works against you. Saving questions for the last five minutes, when the candidate is tired and watching the clock, produces worse questions than the candidate is capable of. A few small changes help:"
+      },
+      {
+        "ul": [
+          "Invite questions throughout, not just at the end. \"Feel free to stop me anytime\" gives curious candidates room to react in the moment.",
+          "Protect real time for it. Ten minutes, stated up front, signals you take it seriously and lets them slow down.",
+          "If they draw a blank, offer a door: \"A lot of people ask about how the team is structured, or what the first project would be. Anything you're curious about?\" You remove the pressure without feeding them a script.",
+          "Answer honestly, including the hard parts. A candidate who hears a real answer about what's broken will usually ask a better next question than one who gets a brochure."
+        ]
+      },
+      {
+        "p": "The goal is to give every candidate a fair shot at showing this signal, not to reward the ones who happened to be coached. That's the same fairness logic behind structured interviews: standardize the conditions so the differences you see are real."
+      },
+      {
+        "h": "Fold it into the scorecard, don't let it float"
+      },
+      {
+        "p": "If candidate questions never make it onto paper, they turn into vibes, and vibes are where bias hides. Give the moment a home on your scorecard. You don't need a complicated rubric. One line works: **\"Quality of the candidate's own questions,\"** rated the same way as everything else, with a sentence of evidence."
+      },
+      {
+        "p": "Write down what they actually asked, not your interpretation. \"Asked why the last person left and what we'd change about the role\" is evidence a teammate can weigh. \"Seemed engaged\" is not. In the debrief, the specific questions let the room judge for themselves instead of taking your mood on trust."
+      },
+      {
+        "note": "The candidate's questions are a second, independent read on the same person. Score them on evidence, treat silence as missing data, and never let them outweigh the rest of the loop.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Keep it in proportion"
+      },
+      {
+        "p": "This is one signal among many, and it's easy to overweight because it feels revealing. A brilliant engineer can be bad at interview small talk. A warm, curious candidate can still be wrong for the role. Use their questions to sharpen your read of the work and the fit, to confirm or challenge what the rest of the loop told you, and to catch the occasional real contradiction. Don't let a great closing question paper over a shaky work sample, and don't sink a strong candidate because they ran out of things to ask at 4:55 on a Friday."
+      },
+      {
+        "p": "Done well, the last five minutes stop being a formality. They become the part of the interview where the candidate, without meaning to, tells you what they'll be like to work with."
+      }
+    ]
+  },
+  {
     "slug": "how-to-run-an-employee-referral-program-that-surfaces-more-than-your-f",
     "title": "How to run an employee referral program that surfaces more than your friends' friends",
     "category": "recruiting-ops",
