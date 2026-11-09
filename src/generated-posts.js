@@ -3,6 +3,116 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-mine-your-past-applicants-for-a-new-role-before-you-post-it",
+    "title": "How to mine your past applicants for a new role before you post it",
+    "category": "ai-hiring",
+    "excerpt": "Your best next hire may already be in your system. Here's how to re-rank past applicants against a new role before you spend a cent on a job post.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-11-09",
+    "readMins": 6,
+    "tags": [
+      "talent-pool",
+      "ai-screening",
+      "sourcing",
+      "pipeline"
+    ],
+    "body": [
+      {
+        "p": "Every open role starts the same way: write the post, pay for the board, wait for the pile. But before you do any of that, there's a pool you've already paid for. The candidates who applied to your last three roles, got close, and didn't get the offer. The strong resumes you passed on because the timing was wrong or someone else edged them out."
+      },
+      {
+        "p": "Most teams let that pool go cold. It sits in an applicant tracking system, unsorted and unsearched, until the people in it have taken other jobs. An AI screener changes the economics here, because re-ranking hundreds of old applicants against a new role costs you minutes, not a new sourcing budget. This is about doing that well, and knowing where it falls short."
+      },
+      {
+        "h": "Why the pool is worth a look first"
+      },
+      {
+        "p": "A past applicant is a known quantity in ways a cold sourced candidate isn't. They raised their hand for your company at least once. Someone on your team may have already spoken to them. If they reached a late stage before, you have interview notes, not just a resume."
+      },
+      {
+        "ul": [
+          "**They already know you exist**, so your outreach isn't a cold pitch. Reply rates from past applicants beat cold sourcing, in most teams' experience.",
+          "**You have signal beyond the resume.** A silver-medalist from a past loop comes with scorecards and debrief notes that a fresh applicant never does.",
+          "**It's faster.** If a past applicant fits, you skip the post, the wait, and the first-pass screen. You're starting a conversation, not a funnel.",
+          "**It's cheaper.** No job-board spend, no agency fee, for a candidate you've already attracted once."
+        ]
+      },
+      {
+        "h": "Line up the new role before you search"
+      },
+      {
+        "p": "The mistake here is searching your pool for a job title. Titles drift between companies, and a title match will hand you a list of people who had the right words on their resume, not the right fit. You want to rank against the role as it actually is now."
+      },
+      {
+        "p": "Write the requirements the same way you would for a live posting: the three or four skills that genuinely matter, the level you're hiring at, and the parts of the job that are non-negotiable. A good AI screener ranks against that definition and tells you why each person scored where they did. A keyword search just tells you who used the keyword."
+      },
+      {
+        "note": "A past applicant was evaluated for a different role. A high score against that old role means nothing for this one. Always re-rank against the job you're filling today.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Re-rank against the new role, not the old one"
+      },
+      {
+        "p": "Here's the core move. Take your past-applicant pool, point your screener at the new role's requirements, and let it rank everyone fresh. Someone who was a near-miss for a senior role might be a clean fit for a role one level down. Someone who lost out on a frontend job might be exactly right for a full-stack one. The old decision is irrelevant. The new ranking is what matters."
+      },
+      {
+        "quote": "The person you passed on in March wasn't wrong for your company. They were wrong for that role. This one might be different."
+      },
+      {
+        "p": "Read the reasons the screener gives, not just the score. A strong past applicant who now ranks mid-pack usually has one clear gap against the new role. If that gap is something they could have picked up in the months since they applied, they're worth a message to find out."
+      },
+      {
+        "h": "Layer in the context the resume doesn't have"
+      },
+      {
+        "p": "This is where your old notes earn their keep, and where you have to be honest about what the AI can and can't see. The screener reads the resume. It does not know that this candidate was the panel's second choice, that they interviewed beautifully, or that they withdrew last time because of a relocation that's since resolved. You know that. Pull the debrief notes for anyone who reached a late stage, and let them override the ranking where they should."
+      },
+      {
+        "ul": [
+          "**Late-stage losers** who scored well on your old scorecards: prioritize these regardless of the new match score, then confirm the fit against the new requirements.",
+          "**Early rejections** from a different role: trust the fresh ranking here, since you have little else to go on.",
+          "**Withdrawers:** check why they dropped out before. If the reason was circumstantial, it may not apply now."
+        ]
+      },
+      {
+        "h": "Reach out like you remember them, because you can"
+      },
+      {
+        "p": "The outreach is not a fresh cold email, and it shouldn't read like one. You're contacting someone who already invested time in you. Acknowledge that. Be specific about why this new role made you think of them, and be honest that it's a different fit than what they applied for before."
+      },
+      {
+        "p": "Keep it short and human. Something like: you applied for the product role in spring, a new role just opened that lines up more closely with your background in X, and you wanted them to hear about it first before it goes live. That last part is true if you do this before you post, and it's a genuine reason for them to reply quickly."
+      },
+      {
+        "h": "Where this approach breaks down"
+      },
+      {
+        "p": "Mining your pool is powerful, but it is not a substitute for opening the role up, and it comes with real limits you should name out loud."
+      },
+      {
+        "ul": [
+          "**A small pool narrows your field.** If you only ever hire from past applicants, you compound whoever was already applying, which can quietly entrench the makeup of your existing team. Use the pool as a head start, not a closed shortlist.",
+          "**Stale data misleads.** A resume from eighteen months ago doesn't reflect what someone's done since. Treat old applications as a lead to verify, not a current picture.",
+          "**Consent and privacy matter.** Check what you told candidates about how long you'd keep their data and what you'd use it for. Re-ranking people who asked to be removed is not a shortcut worth taking.",
+          "**A low new score isn't a verdict on the person.** It means the fit against this role is weak, nothing more. Don't let an old rejection and a new low score harden into a permanent 'no' in anyone's mind."
+        ]
+      },
+      {
+        "h": "Make it a habit, not a scramble"
+      },
+      {
+        "p": "The teams that get the most from this don't do it in a panic when a role opens. They do it as a standing step. Every time a new role is approved, the first action is to re-rank the existing pool against it, surface the ten strongest past applicants, and decide who's worth a message before the job post goes anywhere. It takes an afternoon, it costs nothing extra, and now and then it closes the role before you've spent a cent on sourcing."
+      },
+      {
+        "p": "You attracted these people once. The least you can do is check whether you already have your next hire before you go looking for strangers."
+      }
+    ]
+  },
+  {
     "slug": "what-a-candidates-questions-tell-you-and-how-to-use-them",
     "title": "What a candidate's questions tell you, and how to use them",
     "category": "interviewing",
