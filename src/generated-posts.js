@@ -3,6 +3,119 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-keep-a-signed-candidate-from-ghosting-before-day-one",
+    "title": "How to keep a signed candidate from ghosting before day one",
+    "category": "recruiting-ops",
+    "excerpt": "A signed offer isn't a closed hire. Here's how to keep new hires engaged through the notice-period gap so they actually show up.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-11-12",
+    "readMins": 6,
+    "tags": [
+      "onboarding",
+      "candidate-experience",
+      "offers",
+      "recruiting-ops"
+    ],
+    "body": [
+      {
+        "p": "The offer is signed. The role shows as filled. Everyone moves on to the next req. Then, two days before the start date, a short email arrives: \"I've decided to stay where I am.\" Or worse, nothing arrives at all, and a desk sits empty on Monday."
+      },
+      {
+        "p": "The gap between a signed offer and day one is the most neglected stretch of the whole hiring process. You've spent weeks screening, interviewing, and closing, and then you go quiet for a month while a candidate works out their notice. That silence is exactly when **a counteroffer, a competing process, or plain cold feet** does its work. Closing the candidate isn't the finish line. Getting them through the door is."
+      },
+      {
+        "h": "Why the gap is so dangerous"
+      },
+      {
+        "p": "A notice period is usually two to four weeks, sometimes more for senior roles. During that time your new hire is still sitting inside the company they just told they're leaving. That company now has every reason to fight for them, and a very easy pitch: more money, a new title, no change, no risk."
+      },
+      {
+        "p": "Meanwhile the candidate is living with doubt. They made a big decision fast, and now they have weeks to second-guess it with no new information coming in. If your side goes silent, the only voices in their ear belong to the people trying to keep them. You want to stay in the conversation, not because you can out-argue a counteroffer, but because presence reassures people that they made the right call."
+      },
+      {
+        "quote": "Closing the candidate isn't the finish line. Getting them through the door is."
+      },
+      {
+        "h": "Expect the counteroffer out loud"
+      },
+      {
+        "p": "The best time to inoculate against a counteroffer is before it happens, while the candidate still trusts you most: right after they accept. Name it plainly. Something like: \"When you resign, there's a good chance they'll come back with more money or a new title. That's normal. It usually means they value you, and it rarely changes why you wanted to leave in the first place.\""
+      },
+      {
+        "p": "This does two things. It stops the counteroffer from feeling like a surprise, and it reframes it as predictable rather than flattering. When it does land, the candidate has already heard your version. Ask them directly: what would make you say yes to staying? If the honest answer is only money, that's useful to know now, not on day one."
+      },
+      {
+        "h": "Build a light preboarding rhythm"
+      },
+      {
+        "p": "You don't need an elaborate program. You need to not disappear. The goal is steady, low-effort contact that keeps the new hire feeling like they already belong here. A simple cadence works:"
+      },
+      {
+        "ul": [
+          "Within 24 hours of signing: a warm note from the hiring manager, not just the recruiter. One real sentence about why they're excited to have this person on the team.",
+          "Week one of notice: send the practical stuff. Start date confirmed, first-day logistics, what to expect, who they'll meet. Certainty is reassuring.",
+          "Mid notice: a short, no-pressure check-in. How's the handover going? Anything you can do to help with the transition?",
+          "The week before: equipment confirmed, calendar for day one shared, a friendly \"we're ready for you\" message.",
+          "Day before: a quick note from a future teammate, not HR. Peers land differently than process."
+        ]
+      },
+      {
+        "p": "None of this is heavy. It's fifteen minutes a week. But it changes the candidate's experience from \"I signed something and heard nothing\" to \"these people are already treating me like part of the team.\""
+      },
+      {
+        "note": "A new hire who hears from their future manager and a future teammate during their notice period is far harder to poach than one who only hears from the system that sent their offer letter.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Give them a reason to look forward, not just show up"
+      },
+      {
+        "p": "Logistics keep a hire from getting confused. Momentum keeps them excited. If you can, share something that makes the role feel real before they arrive: an upcoming project they'll own, a product update, a team win, an invitation to the offsite that lands in their first month. You're replacing the information vacuum with a stream of small, genuine reasons to be glad they said yes."
+      },
+      {
+        "p": "Be careful not to tip into pestering. The test is simple: does this message give the candidate something, or does it ask them for something? Preboarding should mostly give. Save the paperwork requests for one or two batched, clearly-explained asks rather than a slow drip of forms."
+      },
+      {
+        "h": "Watch for the quiet signals"
+      },
+      {
+        "p": "Ghosting rarely comes out of nowhere. There are usually tells in the weeks before, if you're paying attention:"
+      },
+      {
+        "ul": [
+          "Replies that used to be warm and fast turn short and slow.",
+          "They go quiet on logistics they were engaged with before.",
+          "They dodge a specific start date or ask to push it back \"just a little.\"",
+          "They stop asking questions about the role entirely."
+        ]
+      },
+      {
+        "p": "If you see these, don't paper over it with more cheerful emails. Call them. A real conversation beats ten messages. Ask how they're feeling about the move, honestly. Give them room to voice a doubt. A candidate who's wobbling will often talk themselves back in if someone simply listens, and if they're truly gone, you want to know with two weeks left to reopen the search, not two days."
+      },
+      {
+        "h": "Keep the pipeline warm, just in case"
+      },
+      {
+        "p": "Even a flawless preboarding process won't save every hire. People have real life changes, and sometimes a counteroffer genuinely is better for them. So don't tear down your shortlist the moment someone signs."
+      },
+      {
+        "p": "Keep your **runner-up candidates warm** until your new hire's first week is done. That doesn't mean stringing anyone along. It means a short, honest note to your second choice: \"We went with another candidate for this role, but we were impressed, and we'd love to stay in touch.\" If the hire falls through, you're restarting from a strong shortlist instead of from zero. A shared pipeline helps here: the runners-up stay visible to the whole team rather than buried in one recruiter's inbox."
+      },
+      {
+        "h": "Make it part of the process, not a favor"
+      },
+      {
+        "p": "The reason the offer-to-start gap gets dropped is that it belongs to no one. The recruiter considers the role closed. The hiring manager hasn't started managing yet. So nobody owns the candidate during the exact window they're most likely to leave."
+      },
+      {
+        "p": "Fix that by making ownership explicit. Decide who sends which touchpoint and when, write it into your hiring process the same way you'd write an interview loop, and treat a hire as open until the person is sitting at their desk on day one. The work you put in here is tiny compared to rerunning a search, and it's the difference between **a filled role and an empty chair** the week you expected them to start."
+      }
+    ]
+  },
+  {
     "slug": "how-to-mine-your-past-applicants-for-a-new-role-before-you-post-it",
     "title": "How to mine your past applicants for a new role before you post it",
     "category": "ai-hiring",
